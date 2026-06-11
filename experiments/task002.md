@@ -1,0 +1,48 @@
+# task002 Cost Experiments
+
+## Current Best
+| status | local_points | memory_bytes_approx | params | updated_at | source |
+| --- | --- | --- | --- | --- | --- |
+| passes_local | 15.206606370260946 | 17864 | 51 | 2026-06-12T08:52:25+09:00 | exp056 |
+
+## Active Hypotheses
+Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
+
+| id | mode | hypothesis | status |
+| --- | --- | --- | --- |
+
+## Experiment Log
+| exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| exp032 | impl_opt | no-green-cast | passes_local | 14.827210764168578 | 26140 | 41 | -0.0961049648339 | not_better | Passed but did not improve local_points. |
+| exp033 | impl_opt | valid-final-where | passes_local | 14.95753342018242 | 22940 | 42 | 0.0342176911799 | promoted | Auto promoted after canonical re-score. |
+| exp034 | impl_opt | skip-cap-11 | fails_local | 0.0 | 22540 | 42 | -14.9575334202 | fails_local | Candidate did not pass local validation. |
+| exp035 | impl_opt | cap-with-green-where | passes_local | 14.975091592259533 | 22540 | 42 | 0.0175581720771 | promoted | Auto promoted after canonical re-score. |
+| exp036 | impl_opt | square-valid-transpose | passes_local | 14.984077018134084 | 22340 | 40 | 0.00898542587455 | promoted | Auto promoted after canonical re-score. |
+| exp037 | impl_opt | cast-open-seed-u8 | passes_local | 14.975135876297358 | 22540 | 41 | -0.00894114183673 | not_better | Passed but did not improve local_points. |
+| exp038 | impl_opt | direct-green-float | passes_local | 14.882248200756257 | 24740 | 39 | -0.101828817378 | not_better | Passed but did not improve local_points. |
+| exp039 | impl_opt | drop-unused-slice-axis-w | passes_local | 14.984121701884845 | 22340 | 39 | 4.46837507617e-05 | promoted | Auto promoted after canonical re-score. |
+| exp040 | impl_opt | cast-open-seed-u8-square | passes_local | 14.984166387632333 | 22340 | 38 | 4.46857474881e-05 | promoted | Auto promoted after canonical re-score. |
+| exp041 | impl_opt | bool-row-valid-slice | passes_local | 14.986448012601564 | 22290 | 37 | 0.00228162496923 | promoted | Auto promoted after canonical re-score. |
+| exp042 | impl_opt | bool-flood-state | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp043 | impl_opt | default-green-slice-axes | passes_local | 14.986492802425323 | 22290 | 36 | 4.47898237592e-05 | promoted | Auto promoted after canonical re-score. |
+| exp044 | impl_opt | forward-cumsum-totals-seed | passes_local | 15.037913405160936 | 21170 | 37 | 0.0514206027356 | promoted | Auto promoted after canonical re-score. |
+| exp045 | impl_opt | uncapped-total-seed | fails_local | 0.0 | 20770 | 37 | -15.0379134052 | fails_local | Candidate did not pass local validation. |
+| exp046 | impl_opt | reuse-axis-w-reducemax | score_failed |  |  |  |  | score_failed | Candidate did not pass local validation. |
+| exp047 | impl_opt | int8-cumsum-totals | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp048 | impl_opt | opset14-reducemax-attrs-fullpad | passes_local | 15.037960560514257 | 21170 | 36 | 4.71553533217e-05 | promoted | Auto promoted after canonical re-score. |
+| exp049 | impl_opt | onehot-output | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp050 | impl_opt | valid-area-lastrow | passes_local | 15.038196370641035 | 21148 | 53 | 0.000235810126778 | promoted | Auto promoted after canonical re-score. |
+| exp051 | impl_opt | los-maxpool-u8 | passes_local | 15.061241833381953 | 20668 | 50 | 0.0230454627409 | promoted | Auto promoted after canonical re-score. |
+| exp052 | impl_opt | los-min-open | passes_local | 15.100620875508415 | 19868 | 50 | 0.0393790421265 | promoted | Auto promoted after canonical re-score. |
+| exp053 | impl_opt | los-min4-open | passes_local | 15.162759093282798 | 18668 | 50 | 0.0621382177744 | promoted | Auto promoted after canonical re-score. |
+| exp054 | impl_opt | open-cast-direct | passes_local | 15.184360538037067 | 18268 | 50 | 0.0216014447543 | promoted | Auto promoted after canonical re-score. |
+| exp055 | impl_opt | seed-sub-open | passes_local | 15.206383118599584 | 17868 | 51 | 0.0220225805625 | promoted | Auto promoted after canonical re-score. |
+| exp056 | impl_opt | valid-area-row-count | passes_local | 15.206606370260946 | 17864 | 51 | 0.000223251661362 | promoted | Auto promoted after canonical re-score. |
+
+## Archived Summary
+- task002 local cost pass was improved from 11.889431914343001 / 493200 bytes / 937 params to `15.206606370260946` / `17864` bytes / `51` params.
+- Current best keeps the 13-step 4-neighbor flood-fill sequence, but seeds external cells with `UINT8 MaxPool` line-of-sight scans instead of `FLOAT16 CumSum`: four asymmetric 20-wide/tall pools detect whether green exists left/right/up/down, `Sub(one_u8, Min(left,right,up,down))` produces the open-to-outside seed without the previous `Equal+Cast` pair, and the seed can be used directly because green cells see themselves in every direction. It emits a `UINT8` color grid, pads that grid to 30x30 with invalid color `255`, and makes the final `Equal(colors10, color30)` the graph output. exp050 uses the square-grid last nonempty row to derive `valid_area`; exp051-exp054 replace cumsums with MaxPool, collapse the four directional opens through one `Min`, and remove the redundant initial seed `Where`; exp055 replaces `Equal(all_seen, zero)->Cast(UINT8)` with `Sub(one_u8, all_seen)`; exp056 replaces `ArgMax(last_row)` with `ReduceSum(row_present)` and `row_idx < row_count`.
+- Recent improvements simplify final color assembly to `green/fill` first then apply `valid_area`, use default `Slice` axes where possible, cast the seed bool to `UINT8`, replace reverse cumsums with forward count totals and then with directional MaxPool, and derive the square valid mask with `ArgMax(row_present, select_last_index=1)`. exp045 confirmed the total-derived seed still needs the green cap; exp046 confirmed ORT requires `ReduceMax` axes to be vector tensors in opset18, so `slice_axis_w` cannot be replaced by scalar `axis_w`; exp047 confirmed `CumSum(INT8)` is unsupported by ONNX checker.
+- Current task-local blocker: scoring above 20 requires `memory_bytes_approx + params < 149`, while current total is `17864 + 51 = 17915`. Memory is still dominated by dense `20x20` tensors: the green slice (`1600` bytes), 13 `MaxPool` flood tensors with 12 cap tensors (`10000` bytes), cap/fill/final color `Where` tensors, valid-area tensors, and the full `UINT8 [1,1,30,30]` color grid (`900` bytes). Local simulation confirms the current line-of-sight seed has no passing H/V radius-1 sequence through length 12, and `HVHVVVHHVHVHV` length 13 still passes all 268 local examples. All 12 intermediate green caps are required, `3x3` dilation has no passing sequence through length 12, and border-only seeding has no passing H/V sequence through length 19, so it cannot beat the line-of-sight seed cost. The no-flood ray-cast rule "green exists in all four directions" fails 228/268 examples, and parity/crossing variants also fail broadly. `MaxPool(BOOL)` is unsupported by ONNX checker, direct `FLOAT` green cumsum increases memory, `CumSum(UINT8/INT8)` is checker-unsupported, green-only valid-size inference is invalid because many rows/cols have no green, and exp049 confirmed `OneHot(color30)` is not a cheap replacement for final `Equal` because ONNX inserts a new one-hot axis and rank 5 conflicts with the required rank 4 output unless a large intermediate reshape path is added. Further large gains likely require a resettable line-of-sight scan, sparse/dynamic flood representation, or operator fusion for `MaxPool+cap`, none of which is available under current scorer constraints.
+- Revisited after the task001 dense-output blocker: removing `valid_area` is not viable because the scorer compares the full 30x30 one-hot tensor with `np.array_equal`; cells outside the variable square grid must be all-false, not black. The remaining savings targets are therefore still only flood depth, intermediate green caps, or a fundamentally sparse output representation.

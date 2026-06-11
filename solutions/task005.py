@@ -4,218 +4,208 @@ import numpy as np
 import onnx
 from onnx import helper
 
-from neurogolf_onnx import DATA_TYPE, GRID_SHAPE, IR_VERSION, OPSET_IMPORTS, make_io_value_infos
+from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
 DIRECTIONS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+INTERNAL_TYPE = onnx.TensorProto.FLOAT16
+SELECTED_COLORS = 4
 
 
-def _int64_tensor(name: str, values: list[int]) -> onnx.TensorProto:
-    return helper.make_tensor(name, onnx.TensorProto.INT64, [len(values)], values)
+def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
+    shape = [len(values)] if dims is None else dims
+    return helper.make_tensor(name, onnx.TensorProto.INT64, shape, values)
 
 
-def _add_chain(nodes: list[onnx.NodeProto], terms: list[str], output: str) -> None:
-    if not terms:
-        nodes.append(helper.make_node("Identity", ["zero_channel"], [output]))
-        return
-    current = terms[0]
-    for index, term in enumerate(terms[1:], start=1):
-        name = f"{output}_add_{index}"
-        nodes.append(helper.make_node("Add", [current, term], [name]))
-        current = name
-    nodes.append(helper.make_node("Identity", [current], [output]))
+def _int32_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
+    shape = [len(values)] if dims is None else dims
+    return helper.make_tensor(name, onnx.TensorProto.INT32, shape, values)
 
 
-def _add_scalar_chain(nodes: list[onnx.NodeProto], terms: list[str], output: str) -> None:
-    if not terms:
-        nodes.append(helper.make_node("Identity", ["zero1111"], [output]))
-        return
-    current = terms[0]
-    for index, term in enumerate(terms[1:], start=1):
-        name = f"{output}_add_{index}"
-        nodes.append(helper.make_node("Add", [current, term], [name]))
-        current = name
-    nodes.append(helper.make_node("Identity", [current], [output]))
+def _uint8_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
+    shape = [len(values)] if dims is None else dims
+    return helper.make_tensor(name, onnx.TensorProto.UINT8, shape, values)
 
 
-def _gt(nodes: list[onnx.NodeProto], left: str, right: str, output: str) -> None:
-    nodes.extend(
-        [
-            helper.make_node("Sub", [left, right], [f"{output}_diff"]),
-            helper.make_node("Max", [f"{output}_diff", "zero1111"], [f"{output}_positive"]),
-            helper.make_node("Min", [f"{output}_positive", "one1111"], [output]),
-        ]
-    )
+def _float_tensor(name: str, values: np.ndarray) -> onnx.TensorProto:
+    return helper.make_tensor(name, INTERNAL_TYPE, list(values.shape), values.astype(np.float16).ravel())
 
 
-def _shift_axis(nodes: list[onnx.NodeProto], source: str, amount: int, axis: int, output: str) -> None:
-    if amount == 0:
-        nodes.append(helper.make_node("Identity", [source], [output]))
-        return
+def _axis_index(delta: int, step: int) -> int:
+    if delta > 0:
+        return 3 - step
+    if delta < 0:
+        return step
+    return 0
 
-    abs_amount = abs(amount)
-    if axis == 2:
-        if amount > 0:
-            nodes.extend(
-                [
-                    helper.make_node("Slice", [source, f"shift_down_start_{abs_amount}", f"shift_down_end_{abs_amount}", "axes4", "steps4"], [f"{output}_body"]),
-                    helper.make_node("ConstantOfShape", [f"shape_shift_rows_{abs_amount}"], [f"{output}_pad"], value=helper.make_tensor("zero_value", DATA_TYPE, [1], [0.0])),
-                    helper.make_node("Concat", [f"{output}_pad", f"{output}_body"], [output], axis=2),
-                ]
-            )
-        else:
-            nodes.extend(
-                [
-                    helper.make_node("Slice", [source, f"shift_up_start_{abs_amount}", f"shift_up_end_{abs_amount}", "axes4", "steps4"], [f"{output}_body"]),
-                    helper.make_node("ConstantOfShape", [f"shape_shift_rows_{abs_amount}"], [f"{output}_pad"], value=helper.make_tensor("zero_value", DATA_TYPE, [1], [0.0])),
-                    helper.make_node("Concat", [f"{output}_body", f"{output}_pad"], [output], axis=2),
-                ]
-            )
-        return
 
-    if amount > 0:
-        nodes.extend(
-            [
-                helper.make_node("Slice", [source, f"shift_right_start_{abs_amount}", f"shift_right_end_{abs_amount}", "axes4", "steps4"], [f"{output}_body"]),
-                helper.make_node("ConstantOfShape", [f"shape_shift_cols_{abs_amount}"], [f"{output}_pad"], value=helper.make_tensor("zero_value", DATA_TYPE, [1], [0.0])),
-                helper.make_node("Concat", [f"{output}_pad", f"{output}_body"], [output], axis=3),
-            ]
-        )
-    else:
-        nodes.extend(
-            [
-                helper.make_node("Slice", [source, f"shift_left_start_{abs_amount}", f"shift_left_end_{abs_amount}", "axes4", "steps4"], [f"{output}_body"]),
-                helper.make_node("ConstantOfShape", [f"shape_shift_cols_{abs_amount}"], [f"{output}_pad"], value=helper.make_tensor("zero_value", DATA_TYPE, [1], [0.0])),
-                helper.make_node("Concat", [f"{output}_body", f"{output}_pad"], [output], axis=3),
-            ]
-        )
+def _repeat_kernel_and_pads(dy: int, dx: int) -> tuple[np.ndarray, list[int], list[int]]:
+    height = 4 if dy else 1
+    width = 4 if dx else 1
+    top = 12 if dy > 0 else 0
+    bottom = 12 if dy < 0 else 0
+    left = 12 if dx > 0 else 0
+    right = 12 if dx < 0 else 0
+    kernel = np.zeros((1, 1, height, width), dtype=np.float16)
+    for step in range(1, 4):
+        row = _axis_index(dy, step)
+        col = _axis_index(dx, step)
+        kernel[0, 0, row, col] = 1
+    return kernel, [top, left, bottom, right], [4 if dy else 1, 4 if dx else 1]
 
 
 def _shift_2d(nodes: list[onnx.NodeProto], source: str, dy: int, dx: int, output: str) -> None:
-    if dy == 0:
-        vertical = source
-    else:
-        vertical = f"{output}_v"
-        _shift_axis(nodes, source, dy, 2, vertical)
-    _shift_axis(nodes, vertical, dx, 3, output)
+    if dy == 0 and dx == 0:
+        nodes.append(helper.make_node("Identity", [source], [output]))
+        return
+    nodes.append(helper.make_node("Pad", [source, f"pads_shift_{dy}_{dx}"], [output], mode="constant"))
 
 
 def build_model() -> onnx.ModelProto:
-    x, y = make_io_value_infos()
+    x, _ = make_io_value_infos()
+    y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("axes4", [0, 1, 2, 3]),
-        _int64_tensor("steps4", [1, 1, 1, 1]),
-        _int64_tensor("shape_channel", [1, 1, 30, 30]),
-        helper.make_tensor("zero1111", DATA_TYPE, [1, 1, 1, 1], [0.0]),
-        helper.make_tensor("one1111", DATA_TYPE, [1, 1, 1, 1], [1.0]),
-        helper.make_tensor("stamp_kernel", DATA_TYPE, [1, 1, 3, 3], np.ones((1, 1, 3, 3), dtype=np.float32).ravel()),
+        helper.make_tensor("zero11", INTERNAL_TYPE, [1, 1], [0.0]),
+        helper.make_tensor("one11", INTERNAL_TYPE, [1, 1], [1.0]),
+        helper.make_tensor("compact_eps", INTERNAL_TYPE, [1], [0.1]),
+        helper.make_tensor("tie_eps", INTERNAL_TYPE, [1], [0.01]),
+        _int32_tensor("score_start", [1]),
+        _int32_tensor("score_end", [10]),
+        _int64_tensor("k4", [SELECTED_COLORS]),
+        _int64_tensor("color21_shape", [1, 1, 21, 21]),
+        _int32_tensor("channel_ids_i32", list(range(1, 10)), [9]),
+        _int32_tensor("slice_zero", [0], [1]),
+        _int32_tensor("slice_one", [1], [1]),
+        _int32_tensor("slice_21", [21], [1]),
+        _int32_tensor("slice_axes3", [1, 2, 3], [3]),
+        _uint8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
+        _uint8_tensor("pad_sentinel_u8", [255], [1]),
+        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 9, 9]),
     ]
-    for color in range(10):
-        initializers.append(_int64_tensor(f"color_start_{color}", [0, color, 0, 0]))
-        initializers.append(_int64_tensor(f"color_end_{color}", [1, color + 1, 30, 30]))
-    for amount in range(4, 25, 4):
-        initializers.append(_int64_tensor(f"shape_shift_rows_{amount}", [1, 1, amount, 30]))
-        initializers.append(_int64_tensor(f"shape_shift_cols_{amount}", [1, 1, 30, amount]))
-        initializers.append(_int64_tensor(f"shift_down_start_{amount}", [0, 0, 0, 0]))
-        initializers.append(_int64_tensor(f"shift_down_end_{amount}", [1, 1, 30 - amount, 30]))
-        initializers.append(_int64_tensor(f"shift_up_start_{amount}", [0, 0, amount, 0]))
-        initializers.append(_int64_tensor(f"shift_up_end_{amount}", [1, 1, 30, 30]))
-        initializers.append(_int64_tensor(f"shift_right_start_{amount}", [0, 0, 0, 0]))
-        initializers.append(_int64_tensor(f"shift_right_end_{amount}", [1, 1, 30, 30 - amount]))
-        initializers.append(_int64_tensor(f"shift_left_start_{amount}", [0, 0, 0, amount]))
-        initializers.append(_int64_tensor(f"shift_left_end_{amount}", [1, 1, 30, 30]))
-
-    zero_value = helper.make_tensor("zero_value", DATA_TYPE, [1], [0.0])
-    nodes: list[onnx.NodeProto] = [
-        helper.make_node("ReduceSum", ["input"], ["valid_mask"], axes=[1], keepdims=1),
-        helper.make_node("ConstantOfShape", ["shape_channel"], ["zero_channel"], value=zero_value),
-    ]
-
-    color_masks: dict[int, str] = {}
-    for color in range(1, 10):
-        color_masks[color] = f"color_{color}"
-        nodes.extend(
-            [
-                helper.make_node("Slice", ["input", f"color_start_{color}", f"color_end_{color}", "axes4", "steps4"], [f"color_{color}"]),
-                helper.make_node("Conv", [f"color_{color}", "stamp_kernel"], [f"color_{color}_stamp_counts"], kernel_shape=[3, 3]),
-                helper.make_node("ReduceMax", [f"color_{color}_stamp_counts"], [f"color_{color}_score"], axes=[2, 3], keepdims=1),
-            ]
-        )
-
-    for color in range(1, 10):
-        greater_terms: list[str] = []
-        for other in range(1, 10):
-            if other == color:
-                continue
-            _gt(nodes, f"color_{other}_score", f"color_{color}_score", f"color_{other}_gt_{color}")
-            greater_terms.append(f"color_{other}_gt_{color}")
-        _add_scalar_chain(nodes, greater_terms, f"color_{color}_greater_count")
-        nodes.extend(
-            [
-                helper.make_node("Min", [f"color_{color}_greater_count", "one1111"], [f"color_{color}_has_greater"]),
-                helper.make_node("Sub", ["one1111", f"color_{color}_has_greater"], [f"seed_selector_{color}"]),
-                helper.make_node("Mul", [f"color_{color}", f"seed_selector_{color}"], [f"seed_part_{color}"]),
-            ]
-        )
-
-    _add_chain(nodes, [f"seed_part_{color}" for color in range(1, 10)], "seed_mask")
-
-    shifted_seed: dict[tuple[int, int], str] = {(0, 0): "seed_mask"}
-    direction_repeats: dict[tuple[int, int], str] = {}
+    repeat_pads: dict[tuple[int, int], list[int]] = {}
+    repeat_shapes: dict[tuple[int, int], list[int]] = {}
+    repeat_dilations: dict[tuple[int, int], list[int]] = {}
     for dy, dx in DIRECTIONS:
-        repeat_terms: list[str] = []
-        for step in range(1, 7):
-            shift = (4 * step * dy, 4 * step * dx)
-            if shift not in shifted_seed:
-                shifted_seed[shift] = f"seed_shift_{shift[0]}_{shift[1]}"
-                _shift_2d(nodes, "seed_mask", shift[0], shift[1], shifted_seed[shift])
-            repeat_terms.append(shifted_seed[shift])
-        raw_repeat = f"repeat_{dy}_{dx}_raw"
-        _add_chain(nodes, repeat_terms, raw_repeat)
-        nodes.append(helper.make_node("Mul", [raw_repeat, "valid_mask"], [f"repeat_{dy}_{dx}"]))
-        direction_repeats[(dy, dx)] = f"repeat_{dy}_{dx}"
-
-    color_outputs: list[str] = []
-    for color in range(1, 10):
-        terms = [f"seed_part_{color}"]
-        for dy, dx in DIRECTIONS:
-            neighbor = shifted_seed[(4 * dy, 4 * dx)]
-            nodes.extend(
-                [
-                    helper.make_node("Mul", [color_masks[color], neighbor], [f"frag_overlap_{color}_{dy}_{dx}"]),
-                    helper.make_node("ReduceSum", [f"frag_overlap_{color}_{dy}_{dx}"], [f"frag_count_{color}_{dy}_{dx}"], axes=[2, 3], keepdims=1),
-                    helper.make_node("Min", [f"frag_count_{color}_{dy}_{dx}", "one1111"], [f"frag_selector_{color}_{dy}_{dx}"]),
-                    helper.make_node("Mul", [direction_repeats[(dy, dx)], f"frag_selector_{color}_{dy}_{dx}"], [f"frag_out_{color}_{dy}_{dx}"]),
-                ]
-            )
-            terms.append(f"frag_out_{color}_{dy}_{dx}")
-        _add_chain(nodes, terms, f"color_{color}_out")
-        color_outputs.append(f"color_{color}_out")
-
-    _add_chain(nodes, color_outputs, "nonblack_out")
-    nodes.append(helper.make_node("Sub", ["valid_mask", "nonblack_out"], ["black_out"]))
-    nodes.append(
-        helper.make_node(
-            "Concat",
+        kernel, pads, dilations = _repeat_kernel_and_pads(dy, dx)
+        initializers.append(_float_tensor(f"repeat_kernel_{dy}_{dx}", kernel))
+        repeat_pads[(dy, dx)] = pads
+        repeat_shapes[(dy, dx)] = list(kernel.shape[2:])
+        repeat_dilations[(dy, dx)] = dilations
+    nodes: list[onnx.NodeProto] = [
+        helper.make_node("ReduceMax", ["input"], ["present_scores10"], axes=[0, 2, 3], keepdims=0),
+        helper.make_node("Cast", ["present_scores10"], ["present_scores10_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Slice", ["present_scores10_u8", "score_start", "score_end"], ["present_scores"]),
+        helper.make_node("TopK", ["present_scores", "k4"], ["top_scores", "top_indices"], axis=0, largest=1, sorted=1),
+        helper.make_node("Split", ["top_indices"], [f"top_idx_{slot}" for slot in range(SELECTED_COLORS)], axis=0, split=[1] * SELECTED_COLORS),
+    ]
+    selected_stamp_scores: list[str] = []
+    for slot in range(SELECTED_COLORS):
+        nodes.extend(
             [
-                "black_out",
-                "color_1_out",
-                "color_2_out",
-                "color_3_out",
-                "color_4_out",
-                "color_5_out",
-                "color_6_out",
-                "color_7_out",
-                "color_8_out",
-                "color_9_out",
-            ],
-            ["output"],
-            axis=1,
+                helper.make_node("Gather", ["channel_ids_i32", f"top_idx_{slot}"], [f"channel_id_{slot}"], axis=0),
+                helper.make_node("Add", [f"channel_id_{slot}", "slice_one"], [f"channel_end_{slot}"]),
+                helper.make_node("Concat", [f"channel_id_{slot}", "slice_zero", "slice_zero"], [f"selected_start_{slot}"], axis=0),
+                helper.make_node("Concat", [f"channel_end_{slot}", "slice_21", "slice_21"], [f"selected_end_{slot}"], axis=0),
+                helper.make_node("Slice", ["input", f"selected_start_{slot}", f"selected_end_{slot}", "slice_axes3"], [f"selected_{slot}_f32"]),
+                helper.make_node("Cast", [f"selected_{slot}_f32"], [f"selected_{slot}"], to=INTERNAL_TYPE),
+                helper.make_node("Cast", [f"channel_id_{slot}"], [f"color_id_{slot}"], to=INTERNAL_TYPE),
+                helper.make_node("ReduceSum", [f"selected_{slot}"], [f"stamp_count_{slot}"], axes=[2, 3], keepdims=0),
+                helper.make_node("ReduceSum", [f"selected_{slot}"], [f"row_counts_{slot}"], axes=[3], keepdims=0),
+                helper.make_node("ReduceMax", [f"row_counts_{slot}"], [f"max_row_count_{slot}"], axes=[2], keepdims=0),
+                helper.make_node("Mul", [f"max_row_count_{slot}", "compact_eps"], [f"compact_bonus_{slot}"]),
+                helper.make_node("Mul", [f"color_id_{slot}", "tie_eps"], [f"tie_bonus_{slot}"]),
+                helper.make_node("Add", [f"stamp_count_{slot}", f"compact_bonus_{slot}"], [f"stamp_base_{slot}"]),
+                helper.make_node("Add", [f"stamp_base_{slot}", f"tie_bonus_{slot}"], [f"stamp_score_{slot}"]),
+            ]
         )
+        selected_stamp_scores.append(f"stamp_score_{slot}")
+    nodes.extend(
+        [
+            helper.make_node("Concat", selected_stamp_scores, ["selected_stamp_scores"], axis=1),
+            helper.make_node("ArgMax", ["selected_stamp_scores"], ["seed_slot_idx"], axis=1, keepdims=0),
+            helper.make_node("Gather", ["top_indices", "seed_slot_idx"], ["seed_top_idx"], axis=0),
+            helper.make_node("Gather", ["channel_ids_i32", "seed_top_idx"], ["seed_channel_id"], axis=0),
+            helper.make_node("Add", ["seed_channel_id", "slice_one"], ["seed_channel_end"]),
+            helper.make_node("Concat", ["seed_channel_id", "slice_zero", "slice_zero"], ["seed_start"], axis=0),
+            helper.make_node("Concat", ["seed_channel_end", "slice_21", "slice_21"], ["seed_end"], axis=0),
+            helper.make_node("Slice", ["input", "seed_start", "seed_end", "slice_axes3"], ["seed_mask_f32"]),
+            helper.make_node("Cast", ["seed_mask_f32"], ["seed_mask"], to=INTERNAL_TYPE),
+            helper.make_node("Cast", ["seed_channel_id"], ["seed_color_id"], to=INTERNAL_TYPE),
+            helper.make_node("Flatten", ["seed_mask"], ["seed_flat"], axis=1),
+            helper.make_node("Mul", ["seed_flat", "seed_color_id"], ["colored_seed_out_flat"]),
+        ]
     )
 
-    graph = helper.make_graph(nodes, "task005_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=OPSET_IMPORTS)
+    seed_mask = "seed_mask"
+    direction_repeats: dict[tuple[int, int], str] = {}
+    for dy, dx in DIRECTIONS:
+        raw_repeat = f"repeat_{dy}_{dx}_raw"
+        nodes.append(
+            helper.make_node(
+                "Conv",
+                [seed_mask, f"repeat_kernel_{dy}_{dx}"],
+                [raw_repeat],
+                kernel_shape=repeat_shapes[(dy, dx)],
+                pads=repeat_pads[(dy, dx)],
+                dilations=repeat_dilations[(dy, dx)],
+            )
+        )
+        direction_repeats[(dy, dx)] = raw_repeat
+
+    repeat_flats: list[str] = []
+    for dy, dx in DIRECTIONS:
+        repeat_flats.append(f"repeat_flat_{dy}_{dx}")
+        nodes.append(helper.make_node("Flatten", [direction_repeats[(dy, dx)]], [f"repeat_flat_{dy}_{dx}"], axis=1))
+    nodes.append(helper.make_node("Concat", repeat_flats, ["repeat_matrix"], axis=0))
+
+    colored_outputs: list[str] = ["colored_seed_out_flat"]
+    for slot in range(SELECTED_COLORS):
+        nodes.append(helper.make_node("Flatten", [f"selected_{slot}"], [f"selected_{slot}_flat"], axis=1))
+        selectors: list[str] = []
+        for dy, dx in DIRECTIONS:
+            nodes.extend(
+                [
+                    helper.make_node("Gemm", [f"selected_{slot}_flat", f"repeat_flat_{dy}_{dx}", "zero11"], [f"frag_count_{slot}_{dy}_{dx}"], transB=1),
+                    helper.make_node("Min", [f"frag_count_{slot}_{dy}_{dx}", "one11"], [f"frag_selector_{slot}_{dy}_{dx}"]),
+                ]
+            )
+            selectors.append(f"frag_selector_{slot}_{dy}_{dx}")
+        nodes.extend(
+            [
+                helper.make_node("Concat", selectors, [f"direction_selector_{slot}"], axis=1),
+                helper.make_node("Mul", [f"direction_selector_{slot}", f"color_id_{slot}"], [f"colored_direction_selector_{slot}"]),
+                helper.make_node("MatMul", [f"colored_direction_selector_{slot}", "repeat_matrix"], [f"colored_{slot}_out_flat"]),
+            ]
+        )
+        colored_outputs.append(f"colored_{slot}_out_flat")
+
+    nodes.extend(
+        [
+            helper.make_node("Max", colored_outputs, ["color21_flat"]),
+            helper.make_node("Cast", ["color21_flat"], ["color21_u8_flat"], to=onnx.TensorProto.UINT8),
+            helper.make_node("Reshape", ["color21_u8_flat", "color21_shape"], ["color21_u8"]),
+            helper.make_node("Pad", ["color21_u8", "pads_output", "pad_sentinel_u8"], ["color30_u8"], mode="constant"),
+            helper.make_node("Equal", ["colors10_u8", "color30_u8"], ["output"]),
+        ]
+    )
+
+    value_infos = []
+    for slot in range(SELECTED_COLORS):
+        value_infos.extend(
+            [
+                helper.make_tensor_value_info(f"selected_{slot}_f32", onnx.TensorProto.FLOAT, [1, 1, 21, 21]),
+                helper.make_tensor_value_info(f"selected_{slot}", INTERNAL_TYPE, [1, 1, 21, 21]),
+            ]
+        )
+    value_infos.extend(
+        [
+            helper.make_tensor_value_info("seed_mask_f32", onnx.TensorProto.FLOAT, [1, 1, 21, 21]),
+            helper.make_tensor_value_info("seed_mask", INTERNAL_TYPE, [1, 1, 21, 21]),
+        ]
+    )
+
+    graph = helper.make_graph(nodes, "task005_seed_reducesum_score_graph", [x], [y], initializers, value_info=value_infos)
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 11)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
