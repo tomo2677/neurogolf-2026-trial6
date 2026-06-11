@@ -1,12 +1,12 @@
 | task | status | local_points | memory_bytes_approx | params | updated_at |
 | --- | --- | --- | --- | --- | --- |
 | task001 | passes_local | 14.02714017852052 | 58212 | 59 | 2026-06-12T00:21:28+09:00 |
-| task002 | no_solution |  |  |  |  |
-| task003 | no_solution |  |  |  |  |
-| task004 | no_solution |  |  |  |  |
-| task005 | no_solution |  |  |  |  |
-| task006 | no_solution |  |  |  |  |
-| task007 | no_solution |  |  |  |  |
-| task008 | no_solution |  |  |  |  |
-| task009 | no_solution |  |  |  |  |
-| task010 | no_solution |  |  |  |  |
+| task002 | passes_local | 11.889431914343001 | 493200 | 937 | 2026-06-12T00:30:08+09:00 |
+| task003 | passes_local | 14.912151305372147 | 23888 | 161 | 2026-06-12T00:36:23+09:00 |
+| task004 | passes_local | 11.73936100164045 | 573552 | 594 | 2026-06-12T00:41:18+09:00 |
+| task005 | passes_local | 10.62830639636693 | 1743660 | 343 | 2026-06-12T00:44:33+09:00 |
+| task006 | passes_local | 15.154777355595847 | 18828 | 40 | 2026-06-12T00:36:24+09:00 |
+| task007 | passes_local | 12.419045172839455 | 288240 | 2724 | 2026-06-12T00:36:24+09:00 |
+| task008 | passes_local | 10.621710661639169 | 1753784 | 1760 | 2026-06-12T00:39:21+09:00 |
+| task009 | passes_local | 12.469289150325638 | 275400 | 1306 | 2026-06-12T00:46:58+09:00 |
+| task010 | passes_local | 14.229453977469943 | 47484 | 114 | 2026-06-12T00:36:28+09:00 |
