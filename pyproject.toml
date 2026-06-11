@@ -1,0 +1,14 @@
+[project]
+name = "neurogolf-local-workflow"
+version = "0.1.0"
+description = "Local NeuroGolf 2026 research and validation workflow."
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "onnx",
+    "onnxruntime",
+    "onnx-tool",
+]
+
+[tool.uv]
+package = false

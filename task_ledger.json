@@ -1,0 +1,82 @@
+{
+  "task001": {
+    "task": "task001",
+    "status": "passes_local",
+    "local_points": 14.02714017852052,
+    "memory_bytes_approx": 58212,
+    "params": 59,
+    "updated_at": "2026-06-12T00:21:28+09:00"
+  },
+  "task002": {
+    "task": "task002",
+    "status": "no_solution",
+    "local_points": null,
+    "memory_bytes_approx": null,
+    "params": null,
+    "updated_at": null
+  },
+  "task003": {
+    "task": "task003",
+    "status": "no_solution",
+    "local_points": null,
+    "memory_bytes_approx": null,
+    "params": null,
+    "updated_at": null
+  },
+  "task004": {
+    "task": "task004",
+    "status": "no_solution",
+    "local_points": null,
+    "memory_bytes_approx": null,
+    "params": null,
+    "updated_at": null
+  },
+  "task005": {
+    "task": "task005",
+    "status": "no_solution",
+    "local_points": null,
+    "memory_bytes_approx": null,
+    "params": null,
+    "updated_at": null
+  },
+  "task006": {
+    "task": "task006",
+    "status": "no_solution",
+    "local_points": null,
+    "memory_bytes_approx": null,
+    "params": null,
+    "updated_at": null
+  },
+  "task007": {
+    "task": "task007",
+    "status": "no_solution",
+    "local_points": null,
+    "memory_bytes_approx": null,
+    "params": null,
+    "updated_at": null
+  },
+  "task008": {
+    "task": "task008",
+    "status": "no_solution",
+    "local_points": null,
+    "memory_bytes_approx": null,
+    "params": null,
+    "updated_at": null
+  },
+  "task009": {
+    "task": "task009",
+    "status": "no_solution",
+    "local_points": null,
+    "memory_bytes_approx": null,
+    "params": null,
+    "updated_at": null
+  },
+  "task010": {
+    "task": "task010",
+    "status": "no_solution",
+    "local_points": null,
+    "memory_bytes_approx": null,
+    "params": null,
+    "updated_at": null
+  }
+}
