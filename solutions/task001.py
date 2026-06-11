@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import numpy as np
 import onnx
 from onnx import helper
 
-from neurogolf_onnx import DATA_TYPE, GRID_SHAPE, IR_VERSION, OPSET_IMPORTS, make_io_value_infos
+from neurogolf_onnx import DATA_TYPE, GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
 def _int64_tensor(name: str, values: list[int]) -> onnx.TensorProto:
@@ -12,59 +11,37 @@ def _int64_tensor(name: str, values: list[int]) -> onnx.TensorProto:
 
 
 def build_model() -> onnx.ModelProto:
-    x, y = make_io_value_infos()
+    x, _ = make_io_value_infos()
+    y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("starts_pattern", [0, 0, 0, 0]),
-        _int64_tensor("ends_pattern", [1, 10, 3, 3]),
-        _int64_tensor("starts_nonzero", [0, 1, 0, 0]),
-        _int64_tensor("ends_nonzero", [1, 10, 3, 3]),
-        _int64_tensor("axes4", [0, 1, 2, 3]),
-        _int64_tensor("steps4", [1, 1, 1, 1]),
-        _int64_tensor("tile_repeats", [1, 1, 3, 3]),
-        _int64_tensor("shape_ones9", [1, 1, 9, 9]),
-        helper.make_tensor("mask_kernel", DATA_TYPE, [1, 1, 3, 3], np.ones((1, 1, 3, 3), dtype=np.float32).ravel()),
-        helper.make_tensor("color0_selector", DATA_TYPE, [1, 10, 1, 1], [1.0] + [0.0] * 9),
+        _int64_tensor("zero_starts", [0, 0, 0, 0]),
+        _int64_tensor("zero_ends", [1, 1, 3, 3]),
+        _int64_tensor("split_color", [1, 9]),
+        _int64_tensor("axes_block", [3, 5]),
+        _int64_tensor("axes_inner", [2, 4]),
+        _int64_tensor("shape_spatial9", [1, 1, 9, 9]),
+        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 21, 21]),
+        helper.make_tensor("zero_scalar", DATA_TYPE, [1], [0.0]),
     ]
 
-    one_value = helper.make_tensor("one_value", DATA_TYPE, [1], [1.0])
-
     nodes = [
-        helper.make_node(
-            "Slice",
-            ["input", "starts_pattern", "ends_pattern", "axes4", "steps4"],
-            ["pattern3"],
-        ),
-        helper.make_node(
-            "Slice",
-            ["input", "starts_nonzero", "ends_nonzero", "axes4", "steps4"],
-            ["nonzero_channels3"],
-        ),
-        helper.make_node("ReduceSum", ["nonzero_channels3"], ["mask3"], axes=[1], keepdims=1),
-        helper.make_node("Tile", ["pattern3", "tile_repeats"], ["pattern9"]),
-        helper.make_node(
-            "ConvTranspose",
-            ["mask3", "mask_kernel"],
-            ["mask9"],
-            strides=[3, 3],
-            kernel_shape=[3, 3],
-        ),
-        helper.make_node("ConstantOfShape", ["shape_ones9"], ["ones9"], value=one_value),
-        helper.make_node("Sub", ["ones9", "mask9"], ["inverse_mask9"]),
-        helper.make_node("Mul", ["pattern9", "mask9"], ["masked_pattern9"]),
-        helper.make_node("Mul", ["inverse_mask9", "color0_selector"], ["zero_block_fill9"]),
-        helper.make_node("Add", ["masked_pattern9", "zero_block_fill9"], ["output9"]),
-        helper.make_node(
-            "Pad",
-            ["output9"],
-            ["output"],
-            mode="constant",
-            pads=[0, 0, 0, 0, 0, 0, 21, 21],
-            value=0.0,
-        ),
+        helper.make_node("Slice", ["input", "zero_starts", "zero_ends"], ["zero_pattern3"]),
+        helper.make_node("Equal", ["zero_pattern3", "zero_scalar"], ["mask_bool3"]),
+        helper.make_node("ReduceMax", ["input"], ["color10"], axes=[2, 3], keepdims=1),
+        helper.make_node("Cast", ["color10"], ["color10_bool"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Split", ["color10_bool", "split_color"], ["color0_bool", "color_selector_bool"], axis=1),
+        helper.make_node("Unsqueeze", ["mask_bool3", "axes_block"], ["block_mask6"]),
+        helper.make_node("Unsqueeze", ["mask_bool3", "axes_inner"], ["inner_mask6"]),
+        helper.make_node("And", ["block_mask6", "inner_mask6"], ["spatial_bool6"]),
+        helper.make_node("Reshape", ["spatial_bool6", "shape_spatial9"], ["spatial_bool9"]),
+        helper.make_node("And", ["color_selector_bool", "spatial_bool9"], ["nonzero_bool9"]),
+        helper.make_node("Not", ["spatial_bool9"], ["zero_bool9"]),
+        helper.make_node("Concat", ["zero_bool9", "nonzero_bool9"], ["output_bool9"], axis=1),
+        helper.make_node("Pad", ["output_bool9", "pads_output"], ["output"], mode="constant"),
     ]
 
     graph = helper.make_graph(nodes, "task001_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=OPSET_IMPORTS)
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model

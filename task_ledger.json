@@ -2,10 +2,10 @@
   "task001": {
     "task": "task001",
     "status": "passes_local",
-    "local_points": 15.404193166422342,
-    "memory_bytes_approx": 14652,
-    "params": 51,
-    "updated_at": "2026-06-12T01:29:54+09:00"
+    "local_points": 17.433688985227537,
+    "memory_bytes_approx": 1905,
+    "params": 27,
+    "updated_at": "2026-06-12T01:52:12+09:00"
   },
   "task002": {
     "task": "task002",
