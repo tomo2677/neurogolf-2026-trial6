@@ -30,7 +30,7 @@ from neurogolf_onnx import (
 )
 
 
-def make_session(model: onnx.ModelProto, official: Any):
+def make_session(model: onnx.ModelProto, official: Any, profile_prefix: Path):
     sanitized = model
     if official is not None:
         sanitized = official.module.sanitize_model(onnx.ModelProto().FromString(model.SerializeToString()))
@@ -39,7 +39,8 @@ def make_session(model: onnx.ModelProto, official: Any):
     options = onnxruntime.SessionOptions()
     options.enable_profiling = True
     options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_DISABLE_ALL
-    options.profile_file_prefix = "outputs/reports/ort_profile"
+    profile_prefix.parent.mkdir(parents=True, exist_ok=True)
+    options.profile_file_prefix = str(profile_prefix)
     session = onnxruntime.InferenceSession(sanitized.SerializeToString(), options)
     return sanitized, session
 
@@ -54,11 +55,14 @@ def run_network(session: onnxruntime.InferenceSession, official: Any, input_tens
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", required=True)
+    parser.add_argument("--onnx", type=Path, default=None)
+    parser.add_argument("--report", type=Path, default=None)
+    parser.add_argument("--no-ledger", action="store_true")
     args = parser.parse_args()
 
     task_id = normalize_task_id(args.task)
-    model_path = onnx_path(task_id)
-    out_report_path = report_path(task_id)
+    model_path = args.onnx if args.onnx is not None else onnx_path(task_id)
+    out_report_path = args.report if args.report is not None else report_path(task_id)
     out_report_path.parent.mkdir(parents=True, exist_ok=True)
 
     checked = 0
@@ -81,7 +85,8 @@ def main() -> int:
         official = load_official_utils()
         if official is not None:
             scoring_source = official.source
-        sanitized, session = make_session(model, official)
+        profile_prefix = Path("outputs/reports/ort_profile") if args.report is None else out_report_path.parent / "ort_profile"
+        sanitized, session = make_session(model, official, profile_prefix)
         task_data = load_task(task_id)
 
         for split, index, example in iter_examples(task_data):
@@ -141,7 +146,8 @@ def main() -> int:
             "trace_path": trace_path,
         }
         out_report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        update_ledger(task_id, status="score_failed", local_points=None, memory_bytes_approx=memory_bytes_approx, params=params, updated_at=utc_timestamp())
+        if not args.no_ledger:
+            update_ledger(task_id, status="score_failed", local_points=None, memory_bytes_approx=memory_bytes_approx, params=params, updated_at=utc_timestamp())
         print(error)
         return 1
 
@@ -164,7 +170,8 @@ def main() -> int:
         "trace_path": trace_path,
     }
     out_report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    update_ledger(task_id, status=status, local_points=points, memory_bytes_approx=memory_bytes_approx, params=params, updated_at=utc_timestamp())
+    if not args.no_ledger:
+        update_ledger(task_id, status=status, local_points=points, memory_bytes_approx=memory_bytes_approx, params=params, updated_at=utc_timestamp())
     print(json.dumps(report, indent=2, ensure_ascii=False))
     return 0 if status == "passes_local" else 1
 

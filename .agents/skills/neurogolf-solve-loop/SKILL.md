@@ -7,6 +7,8 @@ description: Parent NeuroGolf workflow that alternates solution generation and l
 
 Use this skill when asked to solve a task end-to-end.
 
+When a task already passes and the goal is lower cost or higher `local_points`, use `neurogolf-cost-experiment` instead.
+
 ## Workflow
 
 1. Use `neurogolf-python-generator` to create or repair `solutions/taskNNN.py`.

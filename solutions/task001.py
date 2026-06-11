@@ -23,14 +23,11 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("steps4", [1, 1, 1, 1]),
         _int64_tensor("tile_repeats", [1, 1, 3, 3]),
         _int64_tensor("shape_ones9", [1, 1, 9, 9]),
-        _int64_tensor("shape_right_zero", [1, 10, 9, 21]),
-        _int64_tensor("shape_bottom_zero", [1, 10, 21, 30]),
         helper.make_tensor("mask_kernel", DATA_TYPE, [1, 1, 3, 3], np.ones((1, 1, 3, 3), dtype=np.float32).ravel()),
         helper.make_tensor("color0_selector", DATA_TYPE, [1, 10, 1, 1], [1.0] + [0.0] * 9),
     ]
 
     one_value = helper.make_tensor("one_value", DATA_TYPE, [1], [1.0])
-    zero_value = helper.make_tensor("zero_value", DATA_TYPE, [1], [0.0])
 
     nodes = [
         helper.make_node(
@@ -57,10 +54,14 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Mul", ["pattern9", "mask9"], ["masked_pattern9"]),
         helper.make_node("Mul", ["inverse_mask9", "color0_selector"], ["zero_block_fill9"]),
         helper.make_node("Add", ["masked_pattern9", "zero_block_fill9"], ["output9"]),
-        helper.make_node("ConstantOfShape", ["shape_right_zero"], ["right_zero"], value=zero_value),
-        helper.make_node("Concat", ["output9", "right_zero"], ["output_top"], axis=3),
-        helper.make_node("ConstantOfShape", ["shape_bottom_zero"], ["bottom_zero"], value=zero_value),
-        helper.make_node("Concat", ["output_top", "bottom_zero"], ["output"], axis=2),
+        helper.make_node(
+            "Pad",
+            ["output9"],
+            ["output"],
+            mode="constant",
+            pads=[0, 0, 0, 0, 0, 0, 21, 21],
+            value=0.0,
+        ),
     ]
 
     graph = helper.make_graph(nodes, "task001_graph", [x], [y], initializers)
