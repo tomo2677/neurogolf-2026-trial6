@@ -9,6 +9,10 @@ Use this skill only when the user explicitly asks for official Kaggle scoring, h
 
 This workflow spends a Kaggle submission. Default to exactly one task.
 
+For newly added task batches or "baseline the new tasks" requests, use
+`neurogolf-new-task-baseline` as the parent workflow. It calls this skill one
+task at a time after local validation.
+
 ## Commands
 
 Run from repo root.

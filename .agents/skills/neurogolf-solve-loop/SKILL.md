@@ -9,6 +9,11 @@ Use this skill when asked to solve a task end-to-end.
 
 When a task already passes and the goal is lower cost or higher `local_points`, use `neurogolf-cost-experiment` instead. Post-pass cost improvement and its commit/push flow belong to that skill.
 
+When the user asks to fill the ledger for newly added tasks or to get baseline
+official scores for new tasks, use `neurogolf-new-task-baseline` as the parent
+workflow. This solve loop remains the local-only per-task solver inside that
+workflow.
+
 Before ONNX generation or repair, read `docs/neurogolf_public_facts.md` and keep the implementation inside the public ONNX interface, size, static-shape, and validator constraints.
 
 ## Workflow
