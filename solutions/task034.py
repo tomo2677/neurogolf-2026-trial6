@@ -83,11 +83,10 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pads_output_hw", [0, 0, 21, 21], [4]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
         _f16_tensor("ray_w", _ray_kernel(), [1, 4, KERNEL, KERNEL]),
-        _f32_tensor("color_keep", [0.0, 1.0, 0.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0], [1, 10, 1, 1]),
+        _u8_tensor("black_marker10", [1, 0, 1, 0, 0, 0, 0, 0, 0, 0], [1, 10, 1, 1]),
         _bool_tensor("false_col", [False] * SIZE, [1, 1, SIZE, 1]),
         _bool_tensor("false_row", [False] * SIZE, [1, 1, 1, SIZE]),
         _u8_tensor("black10", [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], [1, 10, 1, 1]),
-        _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
     ]
 
     nodes = [
@@ -115,11 +114,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Conv", ["corner_f16", "ray_w"], ["mask_score"], kernel_shape=[KERNEL, KERNEL], pads=[MID, MID, MID, MID]),
         helper.make_node("Cast", ["mask_score"], ["mask9"], to=onnx.TensorProto.BOOL),
         helper.make_node("MaxPool", ["input"], ["present10"], kernel_shape=[30, 30]),
-        helper.make_node("Mul", ["present10", "color_keep"], ["color_scores"]),
-        helper.make_node("ArgMax", ["color_scores"], ["color_i64"], axis=1, keepdims=1),
-        helper.make_node("Cast", ["color_i64"], ["color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Equal", ["colors10", "color_u8"], ["color_onehot_bool"]),
-        helper.make_node("Cast", ["color_onehot_bool"], ["color_onehot_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Cast", ["present10"], ["present10_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Sub", ["present10_u8", "black_marker10"], ["color_onehot_u8"]),
         helper.make_node("Where", ["mask9", "color_onehot_u8", "black10"], ["output9_u8"]),
         helper.make_node("Pad", ["output9_u8", "pads_output_hw", "", "pad_axes_hw"], ["output"], mode="constant"),
     ]
