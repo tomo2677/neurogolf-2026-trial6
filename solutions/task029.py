@@ -1,0 +1,169 @@
+from __future__ import annotations
+
+import onnx
+from onnx import helper
+
+from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
+
+
+SIZE = 30
+COLORS = list(range(1, 10))
+
+
+def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
+    shape = [len(values)] if dims is None else dims
+    return helper.make_tensor(name, onnx.TensorProto.INT64, shape, values)
+
+
+def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+
+
+def _add_frame_candidate(nodes: list[onnx.NodeProto], color: int) -> tuple[str, str, str, str, str]:
+    prefix = f"c{color}"
+    nodes.extend(
+        [
+            helper.make_node("Slice", ["input", f"{prefix}_starts", f"{prefix}_ends"], [f"{prefix}_ch"]),
+            helper.make_node("Greater", [f"{prefix}_ch", "zero_f32"], [f"{prefix}_mask"]),
+            helper.make_node("ReduceMax", [f"{prefix}_ch"], [f"{prefix}_row_score"], axes=[3], keepdims=1),
+            helper.make_node("ReduceMax", [f"{prefix}_ch"], [f"{prefix}_col_score"], axes=[2], keepdims=1),
+            helper.make_node("ArgMax", [f"{prefix}_row_score"], [f"{prefix}_r_min"], axis=2, keepdims=1),
+            helper.make_node("ArgMax", [f"{prefix}_row_score"], [f"{prefix}_r_max"], axis=2, keepdims=1, select_last_index=1),
+            helper.make_node("ArgMax", [f"{prefix}_col_score"], [f"{prefix}_c_min"], axis=3, keepdims=1),
+            helper.make_node("ArgMax", [f"{prefix}_col_score"], [f"{prefix}_c_max"], axis=3, keepdims=1, select_last_index=1),
+            helper.make_node("Sub", [f"{prefix}_r_max", f"{prefix}_r_min"], [f"{prefix}_height_delta"]),
+            helper.make_node("Sub", [f"{prefix}_c_max", f"{prefix}_c_min"], [f"{prefix}_width_delta"]),
+            helper.make_node("Greater", [f"{prefix}_height_delta", "one_i64"], [f"{prefix}_height_ok"]),
+            helper.make_node("Greater", [f"{prefix}_width_delta", "one_i64"], [f"{prefix}_width_ok"]),
+            helper.make_node("GreaterOrEqual", ["row_grid_i64", f"{prefix}_r_min"], [f"{prefix}_row_ge_min"]),
+            helper.make_node("LessOrEqual", ["row_grid_i64", f"{prefix}_r_max"], [f"{prefix}_row_le_max"]),
+            helper.make_node("GreaterOrEqual", ["col_grid_i64", f"{prefix}_c_min"], [f"{prefix}_col_ge_min"]),
+            helper.make_node("LessOrEqual", ["col_grid_i64", f"{prefix}_c_max"], [f"{prefix}_col_le_max"]),
+            helper.make_node("And", [f"{prefix}_row_ge_min", f"{prefix}_row_le_max"], [f"{prefix}_row_in"]),
+            helper.make_node("And", [f"{prefix}_col_ge_min", f"{prefix}_col_le_max"], [f"{prefix}_col_in"]),
+            helper.make_node("And", [f"{prefix}_row_in", f"{prefix}_col_in"], [f"{prefix}_bbox"]),
+            helper.make_node("Equal", ["row_grid_i64", f"{prefix}_r_min"], [f"{prefix}_row_top"]),
+            helper.make_node("Equal", ["row_grid_i64", f"{prefix}_r_max"], [f"{prefix}_row_bottom"]),
+            helper.make_node("Equal", ["col_grid_i64", f"{prefix}_c_min"], [f"{prefix}_col_left"]),
+            helper.make_node("Equal", ["col_grid_i64", f"{prefix}_c_max"], [f"{prefix}_col_right"]),
+            helper.make_node("Or", [f"{prefix}_row_top", f"{prefix}_row_bottom"], [f"{prefix}_border_row"]),
+            helper.make_node("Or", [f"{prefix}_col_left", f"{prefix}_col_right"], [f"{prefix}_border_col"]),
+            helper.make_node("Or", [f"{prefix}_border_row", f"{prefix}_border_col"], [f"{prefix}_border_line"]),
+            helper.make_node("And", [f"{prefix}_bbox", f"{prefix}_border_line"], [f"{prefix}_border"]),
+            helper.make_node("Not", [f"{prefix}_mask"], [f"{prefix}_not_mask"]),
+            helper.make_node("And", [f"{prefix}_border", f"{prefix}_not_mask"], [f"{prefix}_missing_border"]),
+            helper.make_node("Greater", ["row_grid_i64", f"{prefix}_r_min"], [f"{prefix}_row_gt_min"]),
+            helper.make_node("Less", ["row_grid_i64", f"{prefix}_r_max"], [f"{prefix}_row_lt_max"]),
+            helper.make_node("Greater", ["col_grid_i64", f"{prefix}_c_min"], [f"{prefix}_col_gt_min"]),
+            helper.make_node("Less", ["col_grid_i64", f"{prefix}_c_max"], [f"{prefix}_col_lt_max"]),
+            helper.make_node("And", [f"{prefix}_row_gt_min", f"{prefix}_row_lt_max"], [f"{prefix}_inner_row"]),
+            helper.make_node("And", [f"{prefix}_col_gt_min", f"{prefix}_col_lt_max"], [f"{prefix}_inner_col"]),
+            helper.make_node("And", [f"{prefix}_inner_row", f"{prefix}_inner_col"], [f"{prefix}_inner"]),
+            helper.make_node("And", [f"{prefix}_mask", f"{prefix}_inner"], [f"{prefix}_interior_hit"]),
+            helper.make_node("Cast", [f"{prefix}_missing_border"], [f"{prefix}_missing_f32"], to=onnx.TensorProto.FLOAT),
+            helper.make_node("Cast", [f"{prefix}_interior_hit"], [f"{prefix}_interior_f32"], to=onnx.TensorProto.FLOAT),
+            helper.make_node("ReduceSum", [f"{prefix}_missing_f32"], [f"{prefix}_missing_count"], axes=[0, 1, 2, 3], keepdims=1),
+            helper.make_node("ReduceSum", [f"{prefix}_interior_f32"], [f"{prefix}_interior_count"], axes=[0, 1, 2, 3], keepdims=1),
+            helper.make_node("Equal", [f"{prefix}_missing_count", "zero_f32"], [f"{prefix}_border_ok"]),
+            helper.make_node("Equal", [f"{prefix}_interior_count", "zero_f32"], [f"{prefix}_interior_ok"]),
+            helper.make_node("And", [f"{prefix}_height_ok", f"{prefix}_width_ok"], [f"{prefix}_size_ok"]),
+            helper.make_node("And", [f"{prefix}_border_ok", f"{prefix}_interior_ok"], [f"{prefix}_shape_ok"]),
+            helper.make_node("And", [f"{prefix}_size_ok", f"{prefix}_shape_ok"], [f"{prefix}_valid"]),
+            helper.make_node("Cast", [f"{prefix}_valid"], [f"{prefix}_valid_f32_4d"], to=onnx.TensorProto.FLOAT),
+            helper.make_node("Reshape", [f"{prefix}_valid_f32_4d", "shape1"], [f"{prefix}_score"]),
+            helper.make_node("Reshape", [f"{prefix}_r_min", "shape1"], [f"{prefix}_r_min_1"]),
+            helper.make_node("Reshape", [f"{prefix}_r_max", "shape1"], [f"{prefix}_r_max_1"]),
+            helper.make_node("Reshape", [f"{prefix}_c_min", "shape1"], [f"{prefix}_c_min_1"]),
+            helper.make_node("Reshape", [f"{prefix}_c_max", "shape1"], [f"{prefix}_c_max_1"]),
+        ]
+    )
+    return (
+        f"{prefix}_score",
+        f"{prefix}_r_min_1",
+        f"{prefix}_r_max_1",
+        f"{prefix}_c_min_1",
+        f"{prefix}_c_max_1",
+    )
+
+
+def build_model() -> onnx.ModelProto:
+    x, y = make_io_value_infos()
+
+    initializers = [
+        _int64_tensor("one_i64", [1], [1]),
+        _int64_tensor("zero_i64", [0], [1]),
+        _int64_tensor("width_i64", [SIZE], [1]),
+        _int64_tensor("shape1", [1], [1]),
+        _int64_tensor("shape1111", [1, 1, 1, 1], [4]),
+        _int64_tensor("shape_index_1x900", [1, 1, SIZE * SIZE], [3]),
+        _int64_tensor("shape_index_10x900", [1, 10, SIZE * SIZE], [3]),
+        _int64_tensor("shape_flat_10x900", [1, 10, SIZE * SIZE], [3]),
+        _int64_tensor("shape_1x10x30x30", GRID_SHAPE, [4]),
+        _int64_tensor("row_grid_i64", [r for r in range(SIZE) for _ in range(SIZE)], [1, 1, SIZE, SIZE]),
+        _int64_tensor("col_grid_i64", [c for _ in range(SIZE) for c in range(SIZE)], [1, 1, SIZE, SIZE]),
+        _int64_tensor("k1", [1], [1]),
+        _f32_tensor("zero_f32", [0.0], [1]),
+    ]
+    for color in COLORS:
+        initializers.extend(
+            [
+                _int64_tensor(f"c{color}_starts", [0, color, 0, 0], [4]),
+                _int64_tensor(f"c{color}_ends", [1, color + 1, SIZE, SIZE], [4]),
+            ]
+        )
+
+    nodes: list[onnx.NodeProto] = []
+    scores: list[str] = []
+    r_mins: list[str] = []
+    r_maxes: list[str] = []
+    c_mins: list[str] = []
+    c_maxes: list[str] = []
+    for color in COLORS:
+        score, r_min, r_max, c_min, c_max = _add_frame_candidate(nodes, color)
+        scores.append(score)
+        r_mins.append(r_min)
+        r_maxes.append(r_max)
+        c_mins.append(c_min)
+        c_maxes.append(c_max)
+
+    nodes.extend(
+        [
+            helper.make_node("Concat", scores, ["frame_scores"], axis=0),
+            helper.make_node("Concat", r_mins, ["r_min_values"], axis=0),
+            helper.make_node("Concat", r_maxes, ["r_max_values"], axis=0),
+            helper.make_node("Concat", c_mins, ["c_min_values"], axis=0),
+            helper.make_node("Concat", c_maxes, ["c_max_values"], axis=0),
+            helper.make_node("TopK", ["frame_scores", "k1"], ["top_score", "frame_idx"], axis=0, largest=1, sorted=1),
+            helper.make_node("Gather", ["r_min_values", "frame_idx"], ["r_min_1"], axis=0),
+            helper.make_node("Gather", ["r_max_values", "frame_idx"], ["r_max_1"], axis=0),
+            helper.make_node("Gather", ["c_min_values", "frame_idx"], ["c_min_1"], axis=0),
+            helper.make_node("Gather", ["c_max_values", "frame_idx"], ["c_max_1"], axis=0),
+            helper.make_node("Add", ["r_min_1", "one_i64"], ["inner_r0_1"]),
+            helper.make_node("Add", ["c_min_1", "one_i64"], ["inner_c0_1"]),
+            helper.make_node("Reshape", ["inner_r0_1", "shape1111"], ["inner_r0"]),
+            helper.make_node("Reshape", ["inner_c0_1", "shape1111"], ["inner_c0"]),
+            helper.make_node("Reshape", ["r_max_1", "shape1111"], ["inner_r1"]),
+            helper.make_node("Reshape", ["c_max_1", "shape1111"], ["inner_c1"]),
+            helper.make_node("Add", ["row_grid_i64", "inner_r0"], ["src_r"]),
+            helper.make_node("Add", ["col_grid_i64", "inner_c0"], ["src_c"]),
+            helper.make_node("Less", ["src_r", "inner_r1"], ["row_in_crop"]),
+            helper.make_node("Less", ["src_c", "inner_c1"], ["col_in_crop"]),
+            helper.make_node("And", ["row_in_crop", "col_in_crop"], ["crop_valid"]),
+            helper.make_node("Where", ["crop_valid", "src_r", "zero_i64"], ["safe_r"]),
+            helper.make_node("Where", ["crop_valid", "src_c", "zero_i64"], ["safe_c"]),
+            helper.make_node("Mul", ["safe_r", "width_i64"], ["safe_r_offset"]),
+            helper.make_node("Add", ["safe_r_offset", "safe_c"], ["safe_spatial"]),
+            helper.make_node("Reshape", ["safe_spatial", "shape_index_1x900"], ["safe_spatial_flat"]),
+            helper.make_node("Expand", ["safe_spatial_flat", "shape_index_10x900"], ["gather_indices"]),
+            helper.make_node("Reshape", ["input", "shape_flat_10x900"], ["input_flat"]),
+            helper.make_node("GatherElements", ["input_flat", "gather_indices"], ["gathered_flat"], axis=2),
+            helper.make_node("Reshape", ["gathered_flat", "shape_1x10x30x30"], ["gathered"]),
+            helper.make_node("Cast", ["crop_valid"], ["crop_valid_f32"], to=onnx.TensorProto.FLOAT),
+            helper.make_node("Mul", ["gathered", "crop_valid_f32"], ["output"]),
+        ]
+    )
+
+    graph = helper.make_graph(nodes, "task029_frame_inner_crop_graph", [x], [y], initializers)
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
+    assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
+    return model
