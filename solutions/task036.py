@@ -39,7 +39,6 @@ def build_model() -> onnx.ModelProto:
 
     initializers = [
         _int64_tensor("shape_color1", [1, 1, 1, 1], [4]),
-        _int64_tensor("shape_1", [1], [1]),
         _int64_tensor("shape_index_1x25", [1, 1, OUT * OUT], [3]),
         _int64_tensor("shape_flat_1x900", [1, 1, SIZE * SIZE], [3]),
         _int64_tensor("shape_1x1x5x5", [1, 1, OUT, OUT], [4]),
@@ -67,7 +66,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ArgMax", ["pair_counts"], ["target_idx0"], axis=1, keepdims=1),
         helper.make_node("Add", ["target_idx0", "one_i64"], ["target_idx"]),
         helper.make_node("Reshape", ["target_idx", "shape_color1"], ["target_color_i64"]),
-        helper.make_node("Reshape", ["target_idx", "shape_1"], ["target_channel_start"]),
+        helper.make_node("Reshape", ["target_idx", "one_i64"], ["target_channel_start"]),
         helper.make_node("Add", ["target_channel_start", "one_i64"], ["target_channel_end"]),
         helper.make_node("Slice", ["input_bool", "target_channel_start", "target_channel_end", "one_i64"], ["target_mask_bool"]),
         helper.make_node("Cast", ["target_mask_bool"], ["target_mask_u8"], to=onnx.TensorProto.UINT8),
