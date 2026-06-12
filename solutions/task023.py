@@ -8,7 +8,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
 SIZE = 30
-PROPAGATION_STEPS = 5
+PROPAGATION_STEPS = 4
 SQUARE = [(0, 0), (0, 1), (1, 0), (1, 1)]
 H_BAR = [(0, 0), (0, 1), (0, 2)]
 V_BAR = [(0, 0), (1, 0), (2, 0)]
@@ -231,6 +231,15 @@ def build_model() -> onnx.ModelProto:
         bar_acc = f"step{step}_bar_acc"
         covered = f"step{step}_covered"
         remaining = f"step{step}_remaining"
+
+    nodes.extend(
+        [
+            helper.make_node("Add", [square_acc, remaining], ["square_acc_with_remaining_sum"]),
+            helper.make_node("Greater", ["square_acc_with_remaining_sum", "zero_f32"], ["square_acc_with_remaining_bool"]),
+            helper.make_node("Cast", ["square_acc_with_remaining_bool"], ["square_acc_with_remaining"], to=INTERNAL_TYPE),
+        ]
+    )
+    square_acc = "square_acc_with_remaining"
 
     nodes.extend(
         [

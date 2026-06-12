@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 10.951021768350964 | 1259740 | 3232 | 2026-06-13T06:02:09+09:00 | exp008 |
+| passes_local | 11.16476132731946 | 1017332 | 2592 | 2026-06-13T06:07:14+09:00 | exp011 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -22,6 +22,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp006 | impl_opt | reduce-steps-7 | passes_local | 10.62027396320226 | 1753556 | 4512 | 0.131735766659 | promoted | Auto promoted after canonical re-score. |
 | exp007 | impl_opt | reduce-steps-6 | passes_local | 10.77203547963 | 1506648 | 3872 | 0.151761516428 | promoted | Auto promoted after canonical re-score. |
 | exp008 | impl_opt | reduce-steps-5 | passes_local | 10.951021768350964 | 1259740 | 3232 | 0.178986288721 | promoted | Auto promoted after canonical re-score. |
+| exp010 | impl_opt | reduce-steps-4 | fails_local | 0.0 | 1012832 | 2592 | -10.9510217684 | fails_local | Candidate did not pass local validation. |
+| exp011 | impl_opt | step4-remaining-square | passes_local | 11.16476132731946 | 1017332 | 2592 | 0.213739558968 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
