@@ -83,8 +83,9 @@ def build_model() -> onnx.ModelProto:
         _f32_tensor("zero_f32", [0.0], [1]),
         _f32_tensor("color8_pixel", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0], [1, 10, 1, 1]),
     ]
-    for dr, dc in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
-        initializers.append(_int64_tensor(_pad_name(dr, dc), [0, 0, dr, dc, 0, 0, -dr, -dc], [8]))
+    initializers.append(
+        _f32_tensor("diag_kernel", [1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0], [1, 1, 3, 3])
+    )
 
     nodes: list[onnx.NodeProto] = [
         helper.make_node("ReduceMax", ["input"], ["valid_cell_score"], axes=[1], keepdims=1),
@@ -111,15 +112,15 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    shifted = []
-    for dr, dc in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
-        name = f"diag_{dr}_{dc}"
-        _shift_static(nodes, "colored_f32", dr, dc, name)
-        shifted.append(name)
-
     nodes.extend(
         [
-            helper.make_node("Max", shifted, ["diag_score"]),
+            helper.make_node(
+                "Conv",
+                ["colored_f32", "diag_kernel"],
+                ["diag_score"],
+                kernel_shape=[3, 3],
+                pads=[1, 1, 1, 1],
+            ),
             helper.make_node("Greater", ["diag_score", "zero_f32"], ["diag_bool"]),
             helper.make_node("ReduceMax", ["tiled"], ["valid_out_score"], axes=[1], keepdims=1),
             helper.make_node("Greater", ["valid_out_score", "zero_f32"], ["valid_out"]),
