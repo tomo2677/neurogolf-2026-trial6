@@ -98,8 +98,10 @@ def build_model() -> onnx.ModelProto:
         shifted = _shift_mask(nodes, mask_name, f"{color_name}_delta", color_name)
         shifted_masks.append((shifted, color_value))
 
-    color_terms: list[str] = []
+    color_terms: list[str] = ["c1_u8"]
     for shifted, color_value in shifted_masks:
+        if shifted == "c1_u8":
+            continue
         prefix = shifted.removesuffix("_shifted")
         nodes.extend(
             [
