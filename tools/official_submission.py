@@ -19,6 +19,9 @@ from neurogolf_onnx import ROOT, normalize_task_id, onnx_path, report_path, upda
 
 
 COMPETITION = "neurogolf-2026"
+SUBMISSIONS_PAGE_SIZE = 200
+DAILY_SUBMISSION_LIMIT = 100
+SKIP_WHEN_REMAINING_LTE = 10
 
 
 def write_json(path: Path, data: dict[str, Any]) -> None:
@@ -109,7 +112,7 @@ def kaggle_submissions_csv() -> dict[str, Any]:
             "-v",
             "-q",
             "--page-size",
-            "200",
+            str(SUBMISSIONS_PAGE_SIZE),
         ]
     )
 
@@ -127,6 +130,88 @@ def parse_submissions_csv(text: str) -> list[dict[str, str]]:
     if not cleaned.strip():
         return []
     return list(csv.DictReader(cleaned.splitlines()))
+
+
+def parse_kaggle_utc_datetime(value: str) -> datetime:
+    text = value.strip()
+    if not text:
+        raise ValueError("Empty Kaggle submission date")
+    parsed = datetime.fromisoformat(text)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def quota_status_from_rows(rows: list[dict[str, str]], *, now_utc: datetime | None = None) -> dict[str, Any]:
+    now = now_utc or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    utc_date = now.astimezone(timezone.utc).date()
+    submissions_today = 0
+    for index, row in enumerate(rows):
+        if "date" not in row:
+            raise ValueError(f"Missing date column in submissions row {index}")
+        submitted_at = parse_kaggle_utc_datetime(row["date"])
+        if submitted_at.date() == utc_date:
+            submissions_today += 1
+    remaining = DAILY_SUBMISSION_LIMIT - submissions_today
+    return {
+        "status": "available",
+        "utc_date": utc_date.isoformat(),
+        "submissions_today": submissions_today,
+        "daily_limit": DAILY_SUBMISSION_LIMIT,
+        "remaining": remaining,
+        "skip_when_remaining_lte": SKIP_WHEN_REMAINING_LTE,
+        "can_submit": remaining > SKIP_WHEN_REMAINING_LTE,
+        "page_size": SUBMISSIONS_PAGE_SIZE,
+    }
+
+
+def quota_status_from_result(result: dict[str, Any], *, now_utc: datetime | None = None) -> dict[str, Any]:
+    if result["returncode"] != 0:
+        raise RuntimeError(f"Unable to fetch Kaggle submissions: {result.get('stderr') or result.get('stdout')}")
+    rows = parse_submissions_csv(result["stdout"])
+    return quota_status_from_rows(rows, now_utc=now_utc)
+
+
+def unavailable_quota_status(error: Exception) -> dict[str, Any]:
+    utc_date = datetime.now(timezone.utc).date().isoformat()
+    return {
+        "status": "unavailable",
+        "utc_date": utc_date,
+        "submissions_today": None,
+        "daily_limit": DAILY_SUBMISSION_LIMIT,
+        "remaining": None,
+        "skip_when_remaining_lte": SKIP_WHEN_REMAINING_LTE,
+        "can_submit": False,
+        "page_size": SUBMISSIONS_PAGE_SIZE,
+        "error": str(error),
+    }
+
+
+def mark_quota_skipped(manifest_path: Path, manifest: dict[str, Any], quota_status: dict[str, Any]) -> None:
+    observed_at = utc_timestamp()
+    manifest["status"] = "quota_skipped"
+    manifest["quota"] = quota_status
+    manifest["official"] = {
+        "normalized_status": "quota_skipped",
+        "quota": quota_status,
+        "observed_at": observed_at,
+    }
+    save_manifest(manifest_path, manifest)
+    update_ledger(
+        manifest["task"],
+        official_status="quota_skipped",
+        official_public_score=None,
+        official_private_score=None,
+        official_delta_public_vs_local=None,
+        official_submission_ref=None,
+        official_run_id=manifest["run_id"],
+        official_zip_sha256=manifest["zip_sha256"],
+        official_submitted_at=None,
+        official_completed_at=None,
+        updated_at=observed_at,
+    )
 
 
 def parse_float(value: Any) -> float | None:
@@ -247,6 +332,15 @@ def submit(args: argparse.Namespace) -> int:
 
     before = kaggle_submissions_csv()
     write_json(run_dir / "submissions_before_command.json", before)
+    try:
+        quota_status = quota_status_from_result(before)
+    except Exception as exc:
+        quota_status = unavailable_quota_status(exc)
+    write_json(run_dir / "quota_check.json", quota_status)
+    if not quota_status["can_submit"]:
+        mark_quota_skipped(manifest_path, manifest, quota_status)
+        print(json.dumps({"status": "quota_skipped", "quota": quota_status}, indent=2, ensure_ascii=False))
+        return 3
 
     submitted_at = utc_timestamp()
     result = run_command(
@@ -405,6 +499,18 @@ def poll(args: argparse.Namespace) -> int:
         time.sleep(args.poll_interval_seconds)
 
 
+def quota(args: argparse.Namespace) -> int:
+    result = kaggle_submissions_csv()
+    try:
+        quota_status = quota_status_from_result(result)
+    except Exception as exc:
+        quota_status = unavailable_quota_status(exc)
+        print(json.dumps(quota_status, indent=2, ensure_ascii=False))
+        return 1
+    print(json.dumps(quota_status, indent=2, ensure_ascii=False))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -426,6 +532,9 @@ def main() -> int:
     poll_parser.add_argument("--poll-interval-seconds", type=int, default=20)
     poll_parser.add_argument("--timeout-seconds", type=int, default=900)
     poll_parser.set_defaults(func=poll)
+
+    quota_parser = subparsers.add_parser("quota")
+    quota_parser.set_defaults(func=quota)
 
     args = parser.parse_args()
     return args.func(args)

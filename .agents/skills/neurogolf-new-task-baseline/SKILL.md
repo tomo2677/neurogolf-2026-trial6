@@ -31,11 +31,13 @@ For each task:
 3. Use `neurogolf-official-submit-score` to prepare, inspect, submit, poll, and
    record one official row for that task.
 4. Accept official results only by unique `run_id` match.
-5. If official status is `SubmissionStatus.ERROR`, stop before any additional
+5. If submit returns `quota_skipped`, keep the task as local-pass with official
+   pending and resume it after quota resets.
+6. If official status is `SubmissionStatus.ERROR`, stop before any additional
    submit and inspect `docs/neurogolf_official_runtime_observations.md`.
-6. If official public score is `0.0`, use `neurogolf-official-zero-repair` and
+7. If official public score is `0.0`, use `neurogolf-official-zero-repair` and
    retry with one recorded hidden-correctness hypothesis per resubmit.
-7. Commit the completed task before moving to the next task.
+8. Commit the completed task before moving to the next task.
 
 ## Commit / Push Policy
 
@@ -62,6 +64,8 @@ commits.
 ## Integrity
 
 - Do not submit more than one task at a time.
+- Follow the official submit quota guard. If remaining daily team submissions
+  are `10` or fewer, or quota cannot be checked, do not submit.
 - Do not continue after an unmatched, ambiguous, or errored official row.
 - Do not claim completion unless `task_ledger.*` contains both local and
   official columns for the task.

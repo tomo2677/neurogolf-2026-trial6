@@ -35,18 +35,25 @@ Poll an already submitted run:
 uv run python tools/official_submission.py poll --run-dir submissions/official/taskNNN/<run_id>
 ```
 
+Check the team daily submit quota without submitting:
+
+```bash
+uv run python tools/official_submission.py quota
+```
+
 ## Workflow
 
 1. Confirm the task is intended for official scoring and handle one task at a time.
 2. Run `prepare`; it canonical-builds and scores the task locally, then creates `submission.zip` with only `taskNNN.onnx` at the zip root.
 3. Read the printed `run_dir` and check `manifest.json` if needed.
-4. Run `submit --confirm-submit` only when submit is intended.
+4. Run `submit --confirm-submit` only when submit is intended. The script checks team daily quota immediately before submitting.
 5. Accept an official score only if the Kaggle submissions CSV has exactly one row whose `description` contains the manifest `run_id`.
 6. Check `task_ledger.json` and `task_ledger.md` for the updated official columns.
 7. If a row returns `SubmissionStatus.ERROR`, inspect `docs/neurogolf_official_runtime_observations.md` before resubmitting.
 8. If a row returns `SubmissionStatus.COMPLETE` with `publicScore == 0.0` for a
    locally passing task, treat it as hidden correctness failure and use
    `neurogolf-official-zero-repair` before spending another submit.
+9. If submit returns `quota_skipped`, do not retry the same day unless the user explicitly overrides the policy in code. Resume after quota resets.
 
 ## Integrity
 
@@ -55,4 +62,5 @@ uv run python tools/official_submission.py poll --run-dir submissions/official/t
 - Do not put manifest files inside `submission.zip`.
 - Raw artifacts stay under ignored `submissions/official/taskNNN/<run_id>/`.
 - Treat Kaggle `publicScore` as authoritative for the submitted zip; local score remains a development estimate.
+- Team daily quota policy: limit is `100`; if remaining submissions are `10` or fewer, or quota cannot be checked, the script must skip submit and write `official_status=quota_skipped`.
 - Known official-runtime guardrail: keep `TopK` data input as `FLOAT`.
