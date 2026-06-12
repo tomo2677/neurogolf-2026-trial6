@@ -34,9 +34,8 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("slice_ch0_starts", [0, 0, 0], [3]),
-        _int64_tensor("slice_ch0_ends", [1, INPUT_SIZE, INPUT_SIZE], [3]),
-        _int64_tensor("slice_ch0_axes", [1, 2, 3], [3]),
+        _int64_tensor("slice_ch0_starts", [0, 0, 0, 0], [4]),
+        _int64_tensor("slice_ch0_ends", [1, 1, INPUT_SIZE, INPUT_SIZE], [4]),
         _int32_tensor("zero_i32", [0], [1]),
         _int32_tensor("width_i32", [INPUT_SIZE], [1]),
         _int64_tensor("shape_flat144", [INPUT_SIZE * INPUT_SIZE], [1]),
@@ -61,7 +60,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("LessOrEqual", ["input_row_grid_i32", "last_row_i32"], ["input_row_valid"]),
         helper.make_node("LessOrEqual", ["input_col_grid_i32", "last_col_i32"], ["input_col_valid"]),
         helper.make_node("And", ["input_row_valid", "input_col_valid"], ["input_valid"]),
-        helper.make_node("Slice", ["input", "slice_ch0_starts", "slice_ch0_ends", "slice_ch0_axes"], ["input0_12"]),
+        helper.make_node("Slice", ["input", "slice_ch0_starts", "slice_ch0_ends"], ["input0_12"]),
         helper.make_node("Equal", ["input0_12", "zero_f32"], ["nonzero_raw"]),
         helper.make_node("And", ["input_valid", "nonzero_raw"], ["nonzero_bool"]),
         helper.make_node("Cast", ["nonzero_bool"], ["nonzero_u8"], to=onnx.TensorProto.UINT8),
