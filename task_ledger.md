@@ -10,3 +10,13 @@
 | task008 | passes_local | 16.41160304957743 | 5276 | 93 | 2026-06-12T07:00:05+09:00 |
 | task009 | passes_local | 15.571006141982473 | 11478 | 966 | 2026-06-12T08:47:16+09:00 |
 | task010 | passes_local | 18.319145321209785 | 748 | 49 | 2026-06-12T08:46:51+09:00 |
+| task011 | passes_local | 16.30650332411537 | 5809 | 155 | 2026-06-12T10:46:49+09:00 |
+| task012 | no_solution |  |  |  |  |
+| task013 | no_solution |  |  |  |  |
+| task014 | no_solution |  |  |  |  |
+| task015 | no_solution |  |  |  |  |
+| task016 | no_solution |  |  |  |  |
+| task017 | no_solution |  |  |  |  |
+| task018 | no_solution |  |  |  |  |
+| task019 | no_solution |  |  |  |  |
+| task020 | no_solution |  |  |  |  |
