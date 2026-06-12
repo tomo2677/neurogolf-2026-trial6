@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 11.032492222096845 | 1161392 | 2765 | 2026-06-12T12:21:16+09:00 | exp001 |
+| passes_local | 11.200523300072877 | 981360 | 2734 | 2026-06-12T12:25:03+09:00 | exp003 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -15,6 +15,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | exp001 | impl_opt | h001 | passes_local | 11.032492222096845 | 1161392 | 2765 |  | promoted | Auto promoted after canonical re-score. |
+| exp003 | impl_opt | h002 | passes_local | 11.200523300072877 | 981360 | 2734 | 0.168031077976 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

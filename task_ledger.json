@@ -154,9 +154,9 @@
   "task020": {
     "task": "task020",
     "status": "passes_local",
-    "local_points": 11.032492222096845,
-    "memory_bytes_approx": 1161392,
-    "params": 2765,
-    "updated_at": "2026-06-12T12:21:22+09:00"
+    "local_points": 11.200523300072877,
+    "memory_bytes_approx": 981360,
+    "params": 2734,
+    "updated_at": "2026-06-12T12:25:13+09:00"
   }
 }

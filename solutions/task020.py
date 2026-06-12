@@ -42,6 +42,31 @@ def _shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, output: s
     )
 
 
+def _gather_coords(nodes: list[onnx.NodeProto], source: str, src_r: str, src_c: str, output: str) -> None:
+    nodes.extend(
+        [
+            helper.make_node("Greater", [src_r, "neg_one_i64"], [f"{output}_r_nonneg"]),
+            helper.make_node("Less", [src_r, "size_i64"], [f"{output}_r_lt_size"]),
+            helper.make_node("Greater", [src_c, "neg_one_i64"], [f"{output}_c_nonneg"]),
+            helper.make_node("Less", [src_c, "size_i64"], [f"{output}_c_lt_size"]),
+            helper.make_node("And", [f"{output}_r_nonneg", f"{output}_r_lt_size"], [f"{output}_r_ok"]),
+            helper.make_node("And", [f"{output}_c_nonneg", f"{output}_c_lt_size"], [f"{output}_c_ok"]),
+            helper.make_node("And", [f"{output}_r_ok", f"{output}_c_ok"], [f"{output}_in_bounds"]),
+            helper.make_node("Where", [f"{output}_in_bounds", src_r, "zero_i64"], [f"{output}_safe_r"]),
+            helper.make_node("Where", [f"{output}_in_bounds", src_c, "zero_i64"], [f"{output}_safe_c"]),
+            helper.make_node("Mul", [f"{output}_safe_r", "width_i64"], [f"{output}_safe_r_offset"]),
+            helper.make_node("Add", [f"{output}_safe_r_offset", f"{output}_safe_c"], [f"{output}_safe_spatial"]),
+            helper.make_node("Reshape", [f"{output}_safe_spatial", "shape_index_1x900"], [f"{output}_safe_spatial_flat"]),
+            helper.make_node("Expand", [f"{output}_safe_spatial_flat", "shape_index_10x900"], [f"{output}_indices"]),
+            helper.make_node("Reshape", [source, "shape_flat_10x900"], [f"{output}_source_flat"]),
+            helper.make_node("GatherElements", [f"{output}_source_flat", f"{output}_indices"], [f"{output}_flat"], axis=2),
+            helper.make_node("Reshape", [f"{output}_flat", "shape_1x10x30x30"], [f"{output}_raw"]),
+            helper.make_node("Cast", [f"{output}_in_bounds"], [f"{output}_in_bounds_f32"], to=onnx.TensorProto.FLOAT),
+            helper.make_node("Mul", [f"{output}_raw", f"{output}_in_bounds_f32"], [output]),
+        ]
+    )
+
+
 def build_model() -> onnx.ModelProto:
     x, y = make_io_value_infos()
 
@@ -53,7 +78,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("neg_one_i64", [-1], [1]),
         _int64_tensor("size_i64", [30], [1]),
         _int64_tensor("width_i64", [30], [1]),
-        _int64_tensor("last_i64", [29], [1]),
         _int64_tensor("shape1", [1], [1]),
         _int64_tensor("shape_index_1x900", [1, 1, 900], [3]),
         _int64_tensor("shape_index_10x900", [1, 10, 900], [3]),
@@ -62,7 +86,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("nonzero_start", [1], [1]),
         _int64_tensor("nonzero_end", [10], [1]),
         _int64_tensor("axis_channel", [1], [1]),
-        _int64_tensor("reverse_idx", list(reversed(range(30))), [30]),
         _int64_tensor("row_grid_i64", [r for r in range(30) for _ in range(30)], [1, 1, 30, 30]),
         _int64_tensor("col_grid_i64", [c for _ in range(30) for c in range(30)], [1, 1, 30, 30]),
         _f32_tensor("zero_f32", [0.0], [1]),
@@ -87,25 +110,22 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Div", ["c_sum", "two_i64"], ["cc_raw"]),
         helper.make_node("Reshape", ["cr_raw", "shape1"], ["cr"]),
         helper.make_node("Reshape", ["cc_raw", "shape1"], ["cc"]),
-        helper.make_node("Transpose", ["colored0"], ["transposed"], perm=[0, 1, 3, 2]),
-        helper.make_node("Gather", ["transposed", "reverse_idx"], ["trans_hflip"], axis=3),
-        helper.make_node("Gather", ["colored0", "reverse_idx"], ["hflip"], axis=3),
-        helper.make_node("Gather", ["hflip", "reverse_idx"], ["hvflip"], axis=2),
-        helper.make_node("Gather", ["transposed", "reverse_idx"], ["trans_vflip"], axis=2),
-        helper.make_node("Sub", ["cr", "cc"], ["rot90_dr"]),
+        helper.make_node("Sub", ["cr", "cc"], ["cr_minus_cc"]),
+        helper.make_node("Sub", ["cc", "cr"], ["cc_minus_cr"]),
         helper.make_node("Add", ["cr", "cc"], ["center_sum"]),
-        helper.make_node("Sub", ["center_sum", "last_i64"], ["rot90_dc"]),
         helper.make_node("Add", ["cr", "cr"], ["cr2"]),
         helper.make_node("Add", ["cc", "cc"], ["cc2"]),
-        helper.make_node("Sub", ["cr2", "last_i64"], ["rot180_dr"]),
-        helper.make_node("Sub", ["cc2", "last_i64"], ["rot180_dc"]),
-        helper.make_node("Identity", ["rot90_dc"], ["rot270_dr"]),
-        helper.make_node("Sub", ["cc", "cr"], ["rot270_dc"]),
+        helper.make_node("Sub", ["center_sum", "col_grid_i64"], ["rot90_src_r"]),
+        helper.make_node("Add", ["row_grid_i64", "cc_minus_cr"], ["rot90_src_c"]),
+        helper.make_node("Sub", ["cr2", "row_grid_i64"], ["rot180_src_r"]),
+        helper.make_node("Sub", ["cc2", "col_grid_i64"], ["rot180_src_c"]),
+        helper.make_node("Add", ["col_grid_i64", "cr_minus_cc"], ["rot270_src_r"]),
+        helper.make_node("Sub", ["center_sum", "row_grid_i64"], ["rot270_src_c"]),
     ]
 
-    _shift(nodes, "trans_hflip", "rot90_dr", "rot90_dc", "rot90")
-    _shift(nodes, "hvflip", "rot180_dr", "rot180_dc", "rot180")
-    _shift(nodes, "trans_vflip", "rot270_dr", "rot270_dc", "rot270")
+    _gather_coords(nodes, "colored0", "rot90_src_r", "rot90_src_c", "rot90")
+    _gather_coords(nodes, "colored0", "rot180_src_r", "rot180_src_c", "rot180")
+    _gather_coords(nodes, "colored0", "rot270_src_r", "rot270_src_c", "rot270")
 
     nodes.extend(
         [
