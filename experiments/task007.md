@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.99511801028714 | 978 | 124 | 2026-06-12T08:20:42+09:00 | exp059 |
+| passes_local | 17.98428757951277 | 993 | 121 | 2026-06-13T03:14:19+09:00 | exp061 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -14,8 +14,6 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp035 | impl_opt | remainder-values-reducesum-all | passes_local | 17.702908994839582 | 1341 | 135 | 0.00203045755038 | promoted | Auto promoted after canonical re-score. |
-| exp036 | impl_opt | remainder-values-less-count | passes_local | 17.703586731226082 | 1341 | 134 | 0.0006777363865 | promoted | Auto promoted after canonical re-score. |
 | exp037 | impl_opt | topk-counts-u8 | passes_local | 17.705622700711178 | 1335 | 137 | 0.0020359694851 | promoted | Auto promoted after canonical re-score. |
 | exp038 | impl_opt | pad18-axes3 | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp039 | impl_opt | pad18-axes3-split-num-outputs | build_failed |  |  |  |  | build_failed | Candidate did not build. |
@@ -39,6 +37,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp057 | impl_opt | opset12-attrs-fullpad | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp058 | impl_opt | reshape-known-color-vector | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp059 | impl_opt | reshape-known-color-vector-axis0 | passes_local | 17.99511801028714 | 978 | 124 | 0.00362319236942 | promoted | Auto promoted after canonical re-score. |
+| exp060 | impl_opt | no-known-reshape-111 | passes_local | 17.97446168536148 | 1002 | 123 | 0.00266311741948 | promoted | Auto promoted after canonical re-score. |
+| exp061 | impl_opt | rem0-u8-sum | passes_local | 17.98428757951277 | 993 | 121 | 0.00982589415129 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - Official ERROR repair: the 2026-06-12 single-task official submission for the previous model returned `SubmissionStatus.ERROR` despite local `passes_local` and `passes_rules`. The common pattern with other ERROR tasks was `TopK(UINT8)`. Repaired by keeping `color_counts10` as `FLOAT` through `TopK`; expected local score after repair is about `17.971798567941995`.
