@@ -18,6 +18,41 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
+def _initializer_key(tensor: onnx.TensorProto) -> tuple:
+    return (
+        tensor.data_type,
+        tuple(tensor.dims),
+        bytes(tensor.raw_data),
+        tuple(tensor.int32_data),
+        tuple(tensor.int64_data),
+        tuple(tensor.float_data),
+        tuple(tensor.double_data),
+        tuple(tensor.string_data),
+    )
+
+
+def _dedupe_initializers(graph: onnx.GraphProto) -> None:
+    canonical: dict[tuple, str] = {}
+    rename: dict[str, str] = {}
+    unique: list[onnx.TensorProto] = []
+    for initializer in graph.initializer:
+        key = _initializer_key(initializer)
+        existing = canonical.get(key)
+        if existing is None:
+            canonical[key] = initializer.name
+            unique.append(initializer)
+        else:
+            rename[initializer.name] = existing
+    if not rename:
+        return
+    for node in graph.node:
+        for index, name in enumerate(node.input):
+            if name in rename:
+                node.input[index] = rename[name]
+    del graph.initializer[:]
+    graph.initializer.extend(unique)
+
+
 def _shift(
     nodes: list[onnx.NodeProto],
     initializers: list[onnx.TensorProto],
@@ -101,6 +136,7 @@ def build_model() -> onnx.ModelProto:
     )
 
     graph = helper.make_graph(nodes, "task022_window11_gray_overlay_graph", [x], [y], initializers)
+    _dedupe_initializers(graph)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
