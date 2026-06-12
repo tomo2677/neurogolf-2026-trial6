@@ -6,7 +6,7 @@ from onnx import helper
 from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
-SIZE = 30
+WINDOW = 11
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
@@ -27,9 +27,9 @@ def _shift(
     dc: int,
 ) -> None:
     row_start = max(0, -dr)
-    row_end = SIZE - max(0, dr)
+    row_end = WINDOW - max(0, dr)
     col_start = max(0, -dc)
-    col_end = SIZE - max(0, dc)
+    col_end = WINDOW - max(0, dc)
     pad_top = max(0, dr)
     pad_bottom = max(0, -dr)
     pad_left = max(0, dc)
@@ -55,8 +55,11 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
+        _int64_tensor("slice_hw_starts", [0, 0], [2]),
+        _int64_tensor("slice_hw_ends", [WINDOW, WINDOW], [2]),
+        _int64_tensor("slice_hw_axes", [2, 3], [2]),
         _int64_tensor("five_i64", [5], [1]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, SIZE - 3, SIZE - 3], [8]),
+        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 27, 27], [8]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("five_u8", [5], [1, 1, 1, 1]),
         _u8_tensor("invalid_u8", [255], [1]),
@@ -64,7 +67,8 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
+        helper.make_node("Slice", ["input", "slice_hw_starts", "slice_hw_ends", "slice_hw_axes"], ["input11"]),
+        helper.make_node("ArgMax", ["input11"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Equal", ["input_color_i64", "five_i64"], ["gray_bool"]),
     ]
@@ -96,7 +100,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task022_gray_center_overlay_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task022_window11_gray_overlay_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
