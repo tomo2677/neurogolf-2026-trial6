@@ -8,8 +8,8 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
 SIZE = 9
-KERNEL = 17
-MID = 8
+KERNEL = 13
+MID = 6
 
 
 def _ray_offsets(corner: str) -> set[tuple[int, int]]:
