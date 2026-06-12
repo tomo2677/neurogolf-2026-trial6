@@ -19,6 +19,10 @@ def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorP
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
 
 
+def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
+
+
 def _add_frame_candidate(nodes: list[onnx.NodeProto], color: int) -> tuple[str, str, str, str, str]:
     prefix = f"c{color}"
     nodes.extend(
@@ -87,7 +91,8 @@ def _add_frame_candidate(nodes: list[onnx.NodeProto], color: int) -> tuple[str, 
 
 
 def build_model() -> onnx.ModelProto:
-    x, y = make_io_value_infos()
+    x, _ = make_io_value_infos()
+    y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
         _int64_tensor("one_i64", [1], [1]),
@@ -96,13 +101,14 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("shape1", [1], [1]),
         _int64_tensor("shape1111", [1, 1, 1, 1], [4]),
         _int64_tensor("shape_index_1x900", [1, 1, SIZE * SIZE], [3]),
-        _int64_tensor("shape_index_10x900", [1, 10, SIZE * SIZE], [3]),
-        _int64_tensor("shape_flat_10x900", [1, 10, SIZE * SIZE], [3]),
-        _int64_tensor("shape_1x10x30x30", GRID_SHAPE, [4]),
+        _int64_tensor("shape_flat_1x900", [1, 1, SIZE * SIZE], [3]),
+        _int64_tensor("shape_1x1x30x30", [1, 1, SIZE, SIZE], [4]),
         _int64_tensor("row_grid_i64", [r for r in range(SIZE) for _ in range(SIZE)], [1, 1, SIZE, SIZE]),
         _int64_tensor("col_grid_i64", [c for _ in range(SIZE) for c in range(SIZE)], [1, 1, SIZE, SIZE]),
         _int64_tensor("k1", [1], [1]),
         _f32_tensor("zero_f32", [0.0], [1]),
+        _u8_tensor("invalid_u8", [255], [1]),
+        _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
     for color in COLORS:
         initializers.extend(
@@ -154,16 +160,17 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Mul", ["safe_r", "width_i64"], ["safe_r_offset"]),
             helper.make_node("Add", ["safe_r_offset", "safe_c"], ["safe_spatial"]),
             helper.make_node("Reshape", ["safe_spatial", "shape_index_1x900"], ["safe_spatial_flat"]),
-            helper.make_node("Expand", ["safe_spatial_flat", "shape_index_10x900"], ["gather_indices"]),
-            helper.make_node("Reshape", ["input", "shape_flat_10x900"], ["input_flat"]),
-            helper.make_node("GatherElements", ["input_flat", "gather_indices"], ["gathered_flat"], axis=2),
-            helper.make_node("Reshape", ["gathered_flat", "shape_1x10x30x30"], ["gathered"]),
-            helper.make_node("Cast", ["crop_valid"], ["crop_valid_f32"], to=onnx.TensorProto.FLOAT),
-            helper.make_node("Mul", ["gathered", "crop_valid_f32"], ["output"]),
+            helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
+            helper.make_node("Reshape", ["input_color_i64", "shape_flat_1x900"], ["color_flat_i64"]),
+            helper.make_node("Cast", ["color_flat_i64"], ["color_flat_u8"], to=onnx.TensorProto.UINT8),
+            helper.make_node("GatherElements", ["color_flat_u8", "safe_spatial_flat"], ["gathered_flat"], axis=2),
+            helper.make_node("Reshape", ["gathered_flat", "shape_1x1x30x30"], ["gathered_color"]),
+            helper.make_node("Where", ["crop_valid", "gathered_color", "invalid_u8"], ["color30"]),
+            helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
         ]
     )
 
-    graph = helper.make_graph(nodes, "task029_frame_inner_crop_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task029_frame_inner_crop_color_grid_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
