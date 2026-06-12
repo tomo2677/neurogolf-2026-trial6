@@ -135,17 +135,43 @@ def _transform_point(nodes: list[onnx.NodeProto], row: str, col: str, prefix: st
 
 
 def _dynamic_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, output: str) -> None:
+    raise NotImplementedError("Use _static_shift for public-rule compliant fixed-shape shifts.")
+
+
+def _static_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, output: str, channels: int) -> None:
+    if channels == 10:
+        flat_shape = "shape_flat_10x900"
+        index_shape = "shape_index_10x900"
+        output_shape = "shape_1x10x30x30"
+    elif channels == 1:
+        flat_shape = "shape_flat_1x900"
+        index_shape = "shape_index_1x900"
+        output_shape = "shape_1x1x30x30"
+    else:
+        raise ValueError(channels)
+
     nodes.extend(
         [
-            helper.make_node("Sub", ["zero_i64", dr], [f"{output}_neg_dr"]),
-            helper.make_node("Sub", ["zero_i64", dc], [f"{output}_neg_dc"]),
-            helper.make_node(
-                "Concat",
-                ["zero_pad", "zero_pad", dr, dc, "zero_pad", "zero_pad", f"{output}_neg_dr", f"{output}_neg_dc"],
-                [f"{output}_pads"],
-                axis=0,
-            ),
-            helper.make_node("Pad", [source, f"{output}_pads", "zero_f32"], [output], mode="constant"),
+            helper.make_node("Sub", ["row_grid_i64", dr], [f"{output}_src_r"]),
+            helper.make_node("Sub", ["col_grid_i64", dc], [f"{output}_src_c"]),
+            helper.make_node("Greater", [f"{output}_src_r", "neg_one_i64"], [f"{output}_r_nonneg"]),
+            helper.make_node("Less", [f"{output}_src_r", "size_i64"], [f"{output}_r_lt_size"]),
+            helper.make_node("Greater", [f"{output}_src_c", "neg_one_i64"], [f"{output}_c_nonneg"]),
+            helper.make_node("Less", [f"{output}_src_c", "size_i64"], [f"{output}_c_lt_size"]),
+            helper.make_node("And", [f"{output}_r_nonneg", f"{output}_r_lt_size"], [f"{output}_r_ok"]),
+            helper.make_node("And", [f"{output}_c_nonneg", f"{output}_c_lt_size"], [f"{output}_c_ok"]),
+            helper.make_node("And", [f"{output}_r_ok", f"{output}_c_ok"], [f"{output}_in_bounds"]),
+            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_r", "zero_i64"], [f"{output}_safe_r"]),
+            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_c", "zero_i64"], [f"{output}_safe_c"]),
+            helper.make_node("Mul", [f"{output}_safe_r", "width_i64"], [f"{output}_safe_r_offset"]),
+            helper.make_node("Add", [f"{output}_safe_r_offset", f"{output}_safe_c"], [f"{output}_safe_spatial"]),
+            helper.make_node("Reshape", [f"{output}_safe_spatial", "shape_index_1x900"], [f"{output}_safe_spatial_flat"]),
+            helper.make_node("Expand", [f"{output}_safe_spatial_flat", index_shape], [f"{output}_indices"]),
+            helper.make_node("Reshape", [source, flat_shape], [f"{output}_source_flat"]),
+            helper.make_node("GatherElements", [f"{output}_source_flat", f"{output}_indices"], [f"{output}_shifted_flat"], axis=2),
+            helper.make_node("Reshape", [f"{output}_shifted_flat", output_shape], [f"{output}_shifted"]),
+            helper.make_node("Cast", [f"{output}_in_bounds"], [f"{output}_in_bounds_f32"], to=onnx.TensorProto.FLOAT),
+            helper.make_node("Mul", [f"{output}_shifted", f"{output}_in_bounds_f32"], [output]),
         ]
     )
 
@@ -208,8 +234,8 @@ def _component_outputs(
                     helper.make_node("Sub", [target_col, transformed_col], [f"{place}_dc"]),
                 ]
             )
-            _dynamic_shift(nodes, transformed_onehot, f"{place}_dr", f"{place}_dc", f"{place}_shifted_onehot")
-            _dynamic_shift(nodes, transformed_base, f"{place}_dr", f"{place}_dc", f"{place}_shifted_base")
+            _static_shift(nodes, transformed_onehot, f"{place}_dr", f"{place}_dc", f"{place}_shifted_onehot", 10)
+            _static_shift(nodes, transformed_base, f"{place}_dr", f"{place}_dc", f"{place}_shifted_base", 1)
 
             nodes.extend(
                 [
@@ -273,14 +299,23 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("axis_channel", [1], [1]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("zero_i64", [0], [1]),
+        _int64_tensor("neg_one_i64", [-1], [1]),
+        _int64_tensor("size_i64", [SIZE], [1]),
         _int64_tensor("last_i64", [SIZE - 1], [1]),
         _int64_tensor("width_i64", [SIZE], [1]),
         _int64_tensor("k2", [2], [1]),
         _int64_tensor("shape1111", [1, 1, 1, 1], [4]),
         _int64_tensor("shape_flat900", [SIZE * SIZE], [1]),
-        _int64_tensor("zero_pad", [0], [1]),
+        _int64_tensor("shape_index_1x900", [1, 1, SIZE * SIZE], [3]),
+        _int64_tensor("shape_index_10x900", [1, 10, SIZE * SIZE], [3]),
+        _int64_tensor("shape_flat_1x900", [1, 1, SIZE * SIZE], [3]),
+        _int64_tensor("shape_flat_10x900", [1, 10, SIZE * SIZE], [3]),
+        _int64_tensor("shape_1x1x30x30", [1, 1, SIZE, SIZE], [4]),
+        _int64_tensor("shape_1x10x30x30", [1, 10, SIZE, SIZE], [4]),
         _int64_tensor("reverse_idx", list(reversed(range(SIZE))), [SIZE]),
         _int64_tensor("flat_index", list(range(SIZE * SIZE)), [SIZE * SIZE]),
+        _int64_tensor("row_grid_i64", [r for r in range(SIZE) for _ in range(SIZE)], [1, 1, SIZE, SIZE]),
+        _int64_tensor("col_grid_i64", [c for _ in range(SIZE) for c in range(SIZE)], [1, 1, SIZE, SIZE]),
         _int64_tensor("color_ids", list(range(1, 10)), [9]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _f32_tensor("black_pixel", [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [1, 10, 1, 1]),
