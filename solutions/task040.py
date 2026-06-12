@@ -44,7 +44,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("top_right_ends", [1, 10, 1, SIZE], [4]),
         _int64_tensor("bottom_left_starts", [0, 0, SIZE - 1, 0], [4]),
         _int64_tensor("bottom_left_ends", [1, 10, SIZE, 1], [4]),
-        _int64_tensor("shape_10x10", [1, 1, SIZE, SIZE], [4]),
         _int64_tensor("output_pads", [0, 0, 0, 0, 0, 0, 20, 20], [8]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
@@ -72,19 +71,18 @@ def build_model() -> onnx.ModelProto:
                 helper.make_node("Slice", ["input", f"{name}_starts", f"{name}_ends"], [f"{name}_onehot"]),
                 helper.make_node("ArgMax", [f"{name}_onehot"], [f"{name}_i64"], axis=1, keepdims=1),
                 helper.make_node("Cast", [f"{name}_i64"], [f"{name}_color"], to=onnx.TensorProto.UINT8),
-                helper.make_node("Expand", [f"{name}_color", "shape_10x10"], [f"{name}_grid"]),
             ]
         )
 
     nodes.extend(
         [
-            helper.make_node("Where", ["row_top", "top_left_grid", "bottom_left_grid"], ["row_replacement"]),
-            helper.make_node("Where", ["col_left", "top_left_grid", "top_right_grid"], ["col_replacement"]),
+            helper.make_node("Where", ["row_top", "top_left_color", "bottom_left_color"], ["row_replacement"]),
+            helper.make_node("Where", ["col_left", "top_left_color", "top_right_color"], ["col_replacement"]),
             helper.make_node("Where", ["use_rows", "row_replacement", "col_replacement"], ["replacement"]),
-            helper.make_node("Where", ["top_edge", "top_left_grid", "zero_u8"], ["top_line"]),
-            helper.make_node("Where", ["bottom_edge", "bottom_left_grid", "top_line"], ["row_guides"]),
-            helper.make_node("Where", ["left_edge", "top_left_grid", "zero_u8"], ["left_line"]),
-            helper.make_node("Where", ["right_edge", "top_right_grid", "left_line"], ["col_guides"]),
+            helper.make_node("Where", ["top_edge", "top_left_color", "zero_u8"], ["top_line"]),
+            helper.make_node("Where", ["bottom_edge", "bottom_left_color", "top_line"], ["row_guides"]),
+            helper.make_node("Where", ["left_edge", "top_left_color", "zero_u8"], ["left_line"]),
+            helper.make_node("Where", ["right_edge", "top_right_color", "left_line"], ["col_guides"]),
             helper.make_node("Where", ["use_rows", "row_guides", "col_guides"], ["guides"]),
             helper.make_node("Where", ["marker", "replacement", "guides"], ["color10"]),
             helper.make_node("Pad", ["color10", "output_pads", "invalid_u8"], ["color30"], mode="constant"),
@@ -92,7 +90,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task040_edge_only_recolor_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task040_edge_only_recolor_broadcast_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
