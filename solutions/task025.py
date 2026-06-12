@@ -101,15 +101,11 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
     ]
     for color in COLORS:
-        initializers.extend(
-            [
-                _int64_tensor(f"ch{color}_starts", [0, color, 0, 0], [4]),
-                _int64_tensor(f"ch{color}_ends", [1, color + 1, SIZE, SIZE], [4]),
-                _u8_tensor(f"color{color}_u8", [color], [1]),
-            ]
-        )
+        initializers.append(_u8_tensor(f"color{color}_u8", [color], [1]))
 
     nodes = [
+        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
+        helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["input"], ["cell_present"], axes=[1], keepdims=1),
         helper.make_node("ReduceMax", ["cell_present"], ["row_present_f32"], axes=[3], keepdims=1),
         helper.make_node("ReduceMax", ["cell_present"], ["col_present_f32"], axes=[2], keepdims=1),
@@ -118,6 +114,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("And", ["row_valid", "col_valid"], ["valid_area"]),
         helper.make_node("ReduceSum", ["row_present_f32"], ["height_count"], axes=[0, 1, 2, 3], keepdims=1),
         helper.make_node("ReduceSum", ["col_present_f32"], ["width_count"], axes=[0, 1, 2, 3], keepdims=1),
+        helper.make_node("Cast", ["height_count"], ["height_count_f16"], to=onnx.TensorProto.FLOAT16),
+        helper.make_node("Cast", ["width_count"], ["width_count_f16"], to=onnx.TensorProto.FLOAT16),
         helper.make_node("Where", ["valid_area", "zero_u8", "invalid_u8"], ["color_grid_0"]),
     ]
 
@@ -126,12 +124,12 @@ def build_model() -> onnx.ModelProto:
         prefix = f"c{color}"
         nodes.extend(
             [
-                helper.make_node("Slice", ["input", f"ch{color}_starts", f"ch{color}_ends"], [f"{prefix}_f32"]),
-                helper.make_node("Greater", [f"{prefix}_f32", "zero_f32"], [f"{prefix}_mask_bool"]),
-                helper.make_node("ReduceSum", [f"{prefix}_f32"], [f"{prefix}_row_count"], axes=[3], keepdims=1),
-                helper.make_node("ReduceSum", [f"{prefix}_f32"], [f"{prefix}_col_count"], axes=[2], keepdims=1),
-                helper.make_node("Equal", [f"{prefix}_row_count", "width_count"], [f"{prefix}_row_line_raw"]),
-                helper.make_node("Equal", [f"{prefix}_col_count", "height_count"], [f"{prefix}_col_line_raw"]),
+                helper.make_node("Equal", ["input_color_u8", f"color{color}_u8"], [f"{prefix}_mask_bool"]),
+                helper.make_node("Cast", [f"{prefix}_mask_bool"], [f"{prefix}_mask_f16"], to=onnx.TensorProto.FLOAT16),
+                helper.make_node("ReduceSum", [f"{prefix}_mask_f16"], [f"{prefix}_row_count"], axes=[3], keepdims=1),
+                helper.make_node("ReduceSum", [f"{prefix}_mask_f16"], [f"{prefix}_col_count"], axes=[2], keepdims=1),
+                helper.make_node("Equal", [f"{prefix}_row_count", "width_count_f16"], [f"{prefix}_row_line_raw"]),
+                helper.make_node("Equal", [f"{prefix}_col_count", "height_count_f16"], [f"{prefix}_col_line_raw"]),
                 helper.make_node("And", [f"{prefix}_row_line_raw", "row_valid"], [f"{prefix}_row_line"]),
                 helper.make_node("And", [f"{prefix}_col_line_raw", "col_valid"], [f"{prefix}_col_line"]),
                 helper.make_node("And", [f"{prefix}_row_line", "valid_area"], [f"{prefix}_row_line_area_bool"]),
