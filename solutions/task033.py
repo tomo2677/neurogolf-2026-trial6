@@ -31,20 +31,18 @@ def build_model() -> onnx.ModelProto:
     for br, row in enumerate((1, 7, 13)):
         for bc, col in enumerate((1, 7, 13)):
             name = f"bg{br}{bc}"
-            initializers.extend(
-                [
-                    _int64_tensor(f"{name}_starts", [0, 0, row, col], [4]),
-                    _int64_tensor(f"{name}_ends", [1, 1, row + 3, col + 3], [4]),
-                ]
-            )
+            if name != "bg22":
+                initializers.append(_int64_tensor(f"{name}_starts", [0, 0, row, col], [4]))
+            initializers.append(_int64_tensor(f"{name}_ends", [1, 1, row + 3, col + 3], [4]))
 
     nodes: list[onnx.NodeProto] = []
     for br in range(3):
         for bc in range(3):
             name = f"bg{br}{bc}"
+            starts = "pads_fill30_hw" if name == "bg22" else f"{name}_starts"
             nodes.extend(
                 [
-                    helper.make_node("Slice", ["input", f"{name}_starts", f"{name}_ends"], [f"{name}_f32"]),
+                    helper.make_node("Slice", ["input", starts, f"{name}_ends"], [f"{name}_f32"]),
                     helper.make_node("Cast", [f"{name}_f32"], [f"{name}_bool"], to=onnx.TensorProto.BOOL),
                 ]
             )
