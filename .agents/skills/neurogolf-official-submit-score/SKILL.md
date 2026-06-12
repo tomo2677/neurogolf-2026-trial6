@@ -40,6 +40,9 @@ uv run python tools/official_submission.py poll --run-dir submissions/official/t
 5. Accept an official score only if the Kaggle submissions CSV has exactly one row whose `description` contains the manifest `run_id`.
 6. Check `task_ledger.json` and `task_ledger.md` for the updated official columns.
 7. If a row returns `SubmissionStatus.ERROR`, inspect `docs/neurogolf_official_runtime_observations.md` before resubmitting.
+8. If a row returns `SubmissionStatus.COMPLETE` with `publicScore == 0.0` for a
+   locally passing task, treat it as hidden correctness failure and use
+   `neurogolf-official-zero-repair` before spending another submit.
 
 ## Integrity
 

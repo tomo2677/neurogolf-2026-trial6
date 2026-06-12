@@ -7,6 +7,11 @@ description: Improve already passing or rule-invalid NeuroGolf tasks by lowering
 
 Use this skill after a task already has `status == passes_local`, or when replacing a `rule_invalid` task with the first compliant local pass. For first-pass solving, use `neurogolf-solve-loop` instead.
 
+If a task passes locally but has `official_status == complete` and
+`official_public_score == 0.0`, do not run cost optimization first. Use
+`neurogolf-official-zero-repair` to improve hidden correctness generalization,
+then return to cost experiments after the official zero is resolved.
+
 Before writing candidates, read `docs/neurogolf_public_facts.md` and keep the candidate inside the public ONNX interface, file size, static-shape, banned-op, and validator constraints. Also read `docs/neurogolf_official_runtime_observations.md` for observed official-runtime incompatibilities. The tools hard-gate violations as `rule_invalid`.
 
 ## Command

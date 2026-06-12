@@ -32,6 +32,10 @@ Use this skill when creating or repairing `solutions/taskNNN.py`.
 - Avoid `Loop`, `Scan`, `NonZero`, `Unique`, `Script`, `Function`, and `Sequence` ops.
 - Use `TopK` only with `FLOAT` data input; see `docs/neurogolf_official_runtime_observations.md` for the official-runtime `TopK(UINT8)` failure observation.
 - Keep the generated model rule-compliant before optimizing score: file size must stay within `1.44 MB`, graph shapes must be static, and utility-rejected constructs from `docs/neurogolf_public_facts.md` must be avoided.
+- After an official `0.0` on a locally passing task, suspect hidden correctness
+  before cost. Avoid public-sample shortcuts such as fixed observed max grid
+  size, fixed flood depth, square-only assumptions, or object/count limits that
+  are not stated by the task rule.
 
 ## Reattempt Policy
 
