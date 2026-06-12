@@ -10,18 +10,51 @@ def _int64_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorP
     return helper.make_tensor(name, onnx.TensorProto.INT64, dims, values)
 
 
+def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
+
+
 def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+
+
+def _color_at_coord(nodes: list[onnx.NodeProto], row: str, col: str, output: str) -> None:
+    nodes.extend(
+        [
+            helper.make_node("Reshape", [row, "shape1"], [f"{output}_row1"]),
+            helper.make_node("Reshape", [col, "shape1"], [f"{output}_col1"]),
+            helper.make_node("Unsqueeze", [f"{output}_row1", "unsq_axis1"], [f"{output}_row11"]),
+            helper.make_node("Unsqueeze", [f"{output}_col1", "unsq_axis1"], [f"{output}_col11"]),
+            helper.make_node("Concat", [f"{output}_row11", f"{output}_col11"], [f"{output}_indices12"], axis=1),
+            helper.make_node("Reshape", [f"{output}_indices12", "shape112"], [f"{output}_spatial_indices"]),
+            helper.make_node("Unsqueeze", [f"{output}_spatial_indices", "unsq_batch_axes"], [f"{output}_indices_batched"]),
+            helper.make_node("Expand", [f"{output}_indices_batched", "gathernd_index_shape"], [f"{output}_indices"]),
+            helper.make_node("GatherND", ["input", f"{output}_indices"], [f"{output}_onehot"], batch_dims=2),
+            helper.make_node("ArgMax", [f"{output}_onehot"], [output], axis=1, keepdims=1, select_last_index=1),
+        ]
+    )
 
 
 def _color_id(nodes: list[onnx.NodeProto], mask: str, output: str) -> None:
     nodes.extend(
         [
-            helper.make_node("Where", [mask, "input", "zero_f32"], [f"{output}_onehot"]),
-            helper.make_node("ReduceMax", [f"{output}_onehot"], [f"{output}_scores"], axes=[0, 2, 3], keepdims=0),
-            helper.make_node("ArgMax", [f"{output}_scores"], [output], axis=0, keepdims=1, select_last_index=1),
+            helper.make_node("And", [mask, "nonblack_bool"], [f"{output}_nonblack_bool"]),
+            helper.make_node("Cast", [f"{output}_nonblack_bool"], [f"{output}_nonblack_u8"], to=onnx.TensorProto.UINT8),
+            helper.make_node("ReduceMax", [f"{output}_nonblack_u8"], [f"{output}_row_scores"], axes=[3], keepdims=1),
+            helper.make_node("ArgMax", [f"{output}_row_scores"], [f"{output}_row"], axis=2, keepdims=1, select_last_index=0),
+            helper.make_node("Equal", ["row_idx", f"{output}_row"], [f"{output}_row_line"]),
+            helper.make_node("And", [f"{output}_nonblack_bool", f"{output}_row_line"], [f"{output}_row_nonblack_bool"]),
+            helper.make_node(
+                "Cast",
+                [f"{output}_row_nonblack_bool"],
+                [f"{output}_row_nonblack_u8"],
+                to=onnx.TensorProto.UINT8,
+            ),
+            helper.make_node("ReduceMax", [f"{output}_row_nonblack_u8"], [f"{output}_col_scores"], axes=[2], keepdims=1),
+            helper.make_node("ArgMax", [f"{output}_col_scores"], [f"{output}_col"], axis=3, keepdims=1, select_last_index=0),
         ]
     )
+    _color_at_coord(nodes, f"{output}_row", f"{output}_col", output)
 
 
 def _unique(nodes: list[onnx.NodeProto], name: str, color: str, others: list[str]) -> None:
@@ -41,7 +74,7 @@ def _unique(nodes: list[onnx.NodeProto], name: str, color: str, others: list[str
 
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
-    y = helper.make_tensor_value_info("output", onnx.TensorProto.FLOAT, GRID_SHAPE)
+    y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
         _int64_tensor("nonblack_start", [1, 0, 0], [3]),
@@ -53,13 +86,19 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("zero_i64", [0], [1, 1, 1, 1]),
         _int64_tensor("zero_pad", [0], [1]),
         _int64_tensor("shape1", [1], [1]),
+        _int64_tensor("shape112", [1, 1, 2], [3]),
+        _int64_tensor("unsq_axis1", [1], [1]),
+        _int64_tensor("unsq_batch_axes", [0, 1], [2]),
+        _int64_tensor("gathernd_index_shape", [1, 10, 1, 1, 2], [5]),
         _f32_tensor("zero_f32", [0.0], [1]),
+        _u8_tensor("outside_u8", [255], [1]),
+        _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
     ]
 
     nodes: list[onnx.NodeProto] = [
         helper.make_node("Slice", ["input", "nonblack_start", "nonblack_end", "axes3"], ["nonblack_input"]),
         helper.make_node("ReduceMax", ["nonblack_input"], ["nonblack"], axes=[1], keepdims=1),
-        helper.make_node("Equal", ["nonblack", "zero_f32"], ["zero_rowcol"]),
+        helper.make_node("Cast", ["nonblack"], ["nonblack_bool"], to=onnx.TensorProto.BOOL),
         helper.make_node("ReduceMax", ["nonblack"], ["row_has"], axes=[3], keepdims=1),
         helper.make_node("ReduceMax", ["nonblack"], ["col_has"], axes=[2], keepdims=1),
         helper.make_node("Equal", ["row_has", "zero_f32"], ["row_zero"]),
@@ -139,12 +178,18 @@ def build_model() -> onnx.ModelProto:
                 ["target_pads"],
                 axis=0,
             ),
-            helper.make_node("Where", ["target_mask", "input", "zero_f32"], ["target_onehot"]),
-            helper.make_node("Pad", ["target_onehot", "target_pads", "zero_f32"], ["output"], mode="constant"),
+            helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=1),
+            helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
+            helper.make_node("Where", ["target_mask", "input_color_u8", "outside_u8"], ["target_color_u8"]),
+            helper.make_node("Pad", ["target_color_u8", "target_pads", "outside_u8"], ["shifted_color_u8"], mode="constant"),
+            helper.make_node("Equal", ["colors10", "shifted_color_u8"], ["output"]),
         ]
     )
 
-    graph = helper.make_graph(nodes, "task014_unique_block_crop_graph", [x], [y], initializers)
+    value_infos = [
+        helper.make_tensor_value_info("shifted_color_u8", onnx.TensorProto.UINT8, [1, 1, 30, 30]),
+    ]
+    graph = helper.make_graph(nodes, "task014_unique_block_crop_graph", [x], [y], initializers, value_info=value_infos)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
