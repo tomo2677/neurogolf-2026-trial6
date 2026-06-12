@@ -35,3 +35,6 @@ Use this skill when creating or repairing `solutions/taskNNN.py`.
 - If `solutions/taskNNN.py` already exists, inspect it first and repair the minimum necessary part.
 - Do not silently overwrite existing work with an unrelated full rewrite.
 - Future candidate-file operation is allowed, but the current canonical file is `solutions/taskNNN.py`.
+- If `solutions/taskNNN.py` is missing at workflow start, it is a first-created task under `neurogolf-solve-loop`.
+- For first-created tasks, failed implementations are left uncommitted in the working tree; commit only after local `passes_local` is confirmed by the solve-loop.
+- Do not use Kaggle CLI/API/browser upload or submit.

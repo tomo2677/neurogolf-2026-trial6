@@ -18,6 +18,15 @@ uv run python tools/build_task.py --task taskNNN
 uv run python tools/score_task.py --task taskNNN
 ```
 
+Canonical build/score updates `task_ledger.*` and should be used after a candidate is known to pass.
+
+For first-created solve-loop attempts, avoid writing failed statuses to the ledger:
+
+```bash
+uv run python tools/build_task.py --task taskNNN --no-ledger
+uv run python tools/score_task.py --task taskNNN --no-ledger --report outputs/reports/taskNNN_score.json
+```
+
 ## Checks
 
 - Confirm `outputs/onnx/taskNNN.onnx` exists after build.
@@ -28,6 +37,7 @@ uv run python tools/score_task.py --task taskNNN
   - `memory_bytes_approx`
   - `params`
   - `first_failure`
+- Treat only `status == "passes_local"` in the report as success.
 
 ## Integrity
 
