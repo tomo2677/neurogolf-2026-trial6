@@ -42,12 +42,13 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("axis_row", [2], [1]),
         _int64_tensor("axis_col", [3], [1]),
         _int64_tensor("shape_10x10", [1, 1, SIZE, SIZE], [4]),
-        _int64_tensor("top_pads", [0, 0, 3, 0, 0, 0, 6, 0], [8]),
-        _int64_tensor("top_orig_pads", [0, 0, 0, 0, 0, 0, 9, 0], [8]),
-        _int64_tensor("bottom_orig_pads", [0, 0, 9, 0, 0, 0, 0, 0], [8]),
-        _int64_tensor("left_orig_pads", [0, 0, 0, 0, 0, 0, 0, 9], [8]),
-        _int64_tensor("right_orig_pads", [0, 0, 0, 9, 0, 0, 0, 0], [8]),
-        _int64_tensor("output_pads", [0, 0, 0, 0, 0, 0, 20, 20], [8]),
+        _int64_tensor("pad_axes_hw", [2, 3], [2]),
+        _int64_tensor("top_pads", [3, 0, 6, 0], [4]),
+        _int64_tensor("top_orig_pads", [0, 0, 9, 0], [4]),
+        _int64_tensor("bottom_orig_pads", [9, 0, 0, 0], [4]),
+        _int64_tensor("left_orig_pads", [0, 0, 0, 9], [4]),
+        _int64_tensor("right_orig_pads", [0, 9, 0, 0], [4]),
+        _int64_tensor("output_pads", [0, 0, 20, 20], [4]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("eight_u8", [8], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
@@ -88,12 +89,12 @@ def build_model() -> onnx.ModelProto:
 
     nodes.extend(
         [
-            helper.make_node("Pad", ["top_u8", "top_orig_pads", "zero_u8"], ["top_orig"], mode="constant"),
-            helper.make_node("Pad", ["bottom_u8", "bottom_orig_pads", "zero_u8"], ["bottom_orig"], mode="constant"),
-            helper.make_node("Pad", ["left_u8", "left_orig_pads", "zero_u8"], ["left_orig"], mode="constant"),
-            helper.make_node("Pad", ["right_u8", "right_orig_pads", "zero_u8"], ["right_orig"], mode="constant"),
+            helper.make_node("Pad", ["top_u8", "top_orig_pads", "zero_u8", "pad_axes_hw"], ["top_orig"], mode="constant"),
+            helper.make_node("Pad", ["bottom_u8", "bottom_orig_pads", "zero_u8", "pad_axes_hw"], ["bottom_orig"], mode="constant"),
+            helper.make_node("Pad", ["left_u8", "left_orig_pads", "zero_u8", "pad_axes_hw"], ["left_orig"], mode="constant"),
+            helper.make_node("Pad", ["right_u8", "right_orig_pads", "zero_u8", "pad_axes_hw"], ["right_orig"], mode="constant"),
             helper.make_node("Max", ["base0", "top_orig", "bottom_orig", "left_orig", "right_orig"], ["color"]),
-            helper.make_node("Pad", ["top_u8", "top_pads", "zero_u8"], ["top_color"], mode="constant"),
+            helper.make_node("Pad", ["top_u8", "top_pads", "zero_u8", "pad_axes_hw"], ["top_color"], mode="constant"),
             helper.make_node("Greater", ["top_color", "zero_u8"], ["top_present"]),
             helper.make_node("Where", ["top_present", "top_color", "color"], ["after_top"]),
             helper.make_node("Expand", ["bottom_u8", "shape_10x10"], ["bottom_color"]),
@@ -108,12 +109,12 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Greater", ["right_color", "zero_u8"], ["right_present"]),
             helper.make_node("And", ["right_col5", "right_present"], ["right_mask"]),
             helper.make_node("Where", ["right_mask", "right_color", "after_left"], ["color10"]),
-            helper.make_node("Pad", ["color10", "output_pads", "invalid_u8"], ["color30"], mode="constant"),
+            helper.make_node("Pad", ["color10", "output_pads", "invalid_u8", "pad_axes_hw"], ["color30"], mode="constant"),
             helper.make_node("Equal", ["colors10", "color30"], ["output"]),
         ]
     )
 
     graph = helper.make_graph(nodes, "task035_edge_only_color_grid", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
