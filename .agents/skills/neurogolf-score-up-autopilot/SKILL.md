@@ -34,9 +34,9 @@ uv run python tools/score_up_gate.py should-submit --task taskNNN
 
 ## Score-Up Submit Gate
 
-- If `local_points <= 15`, submit only when
+- If `local_points < 20`, submit only when
   `local_points - official_public_score >= 2.0`.
-- If `local_points > 15`, submit only when
+- If `local_points >= 20`, submit only when
   `local_points - official_public_score >= 1.0`.
 - Do not submit if `official_status != "complete"` or
   `official_public_score` is missing.

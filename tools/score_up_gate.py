@@ -13,7 +13,7 @@ from neurogolf_onnx import ROOT, load_ledger, normalize_task_id
 
 LOW_SCORE_THRESHOLD = 2.0
 HIGH_SCORE_THRESHOLD = 1.0
-LOW_SCORE_MAX = 15.0
+HIGH_SCORE_MIN = 20.0
 
 
 def is_number(value: Any) -> bool:
@@ -21,7 +21,7 @@ def is_number(value: Any) -> bool:
 
 
 def trigger_threshold(local_points: float) -> float:
-    return LOW_SCORE_THRESHOLD if local_points <= LOW_SCORE_MAX else HIGH_SCORE_THRESHOLD
+    return HIGH_SCORE_THRESHOLD if local_points >= HIGH_SCORE_MIN else LOW_SCORE_THRESHOLD
 
 
 def should_submit_for_values(
