@@ -40,14 +40,14 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("starts9", [0, 0, 0]),
-        _int64_tensor("ends9", [10, SIZE, SIZE]),
         _int64_tensor("starts1", [1, 0, 0]),
         _int64_tensor("ends1", [2, SIZE, SIZE]),
         _int64_tensor("starts2", [2, 0, 0]),
         _int64_tensor("ends2", [3, SIZE, SIZE]),
-        _int64_tensor("nonblack_start", [1, 0, 0]),
-        _int64_tensor("nonblack_end", [10, SIZE, SIZE]),
+        _int64_tensor("starts6", [6, 0, 0]),
+        _int64_tensor("ends6", [7, SIZE, SIZE]),
+        _int64_tensor("starts8", [8, 0, 0]),
+        _int64_tensor("ends8", [9, SIZE, SIZE]),
         _int64_tensor("axes3", [1, 2, 3]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 21, 21]),
         _u8_tensor("zero_u8", [0], [1]),
@@ -60,16 +60,25 @@ def build_model() -> onnx.ModelProto:
         initializers.append(_int64_tensor(f"pads_{dy}_{dx}", _pads_for_shift(dy, dx), [8]))
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("Slice", ["input", "starts9", "ends9", "axes3"], ["input9"]),
-        helper.make_node("ArgMax", ["input9"], ["color9_i64"], axis=1, keepdims=1),
-        helper.make_node("Cast", ["color9_i64"], ["color9"], to=onnx.TensorProto.UINT8),
         helper.make_node("Slice", ["input", "starts1", "ends1", "axes3"], ["mask1_f32"]),
         helper.make_node("Slice", ["input", "starts2", "ends2", "axes3"], ["mask2_f32"]),
+        helper.make_node("Slice", ["input", "starts6", "ends6", "axes3"], ["mask6_f32"]),
+        helper.make_node("Slice", ["input", "starts8", "ends8", "axes3"], ["mask8_f32"]),
         helper.make_node("Cast", ["mask1_f32"], ["mask1"], to=onnx.TensorProto.UINT8),
         helper.make_node("Cast", ["mask2_f32"], ["mask2"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Slice", ["input", "nonblack_start", "nonblack_end", "axes3"], ["nonblack_input"]),
-        helper.make_node("ReduceMax", ["nonblack_input"], ["nonblack_f32"], axes=[1], keepdims=1),
-        helper.make_node("Cast", ["nonblack_f32"], ["nonblack_bool"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Cast", ["mask6_f32"], ["mask6"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Cast", ["mask8_f32"], ["mask8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Add", ["mask2", "mask2"], ["color2"]),
+        helper.make_node("Add", ["mask6", "mask6"], ["color6x2"]),
+        helper.make_node("Add", ["color6x2", "mask6"], ["color6x3"]),
+        helper.make_node("Add", ["color6x3", "color6x3"], ["color6"]),
+        helper.make_node("Add", ["mask8", "mask8"], ["color8x2"]),
+        helper.make_node("Add", ["color8x2", "color8x2"], ["color8x4"]),
+        helper.make_node("Add", ["color8x4", "color8x4"], ["color8"]),
+        helper.make_node("Add", ["mask1", "color2"], ["color12"]),
+        helper.make_node("Add", ["color12", "color6"], ["color126"]),
+        helper.make_node("Add", ["color126", "color8"], ["color9"]),
+        helper.make_node("Greater", ["color9", "zero_u8"], ["nonblack_bool"]),
     ]
 
     card_outputs: list[str] = []
@@ -98,6 +107,6 @@ def build_model() -> onnx.ModelProto:
     )
 
     graph = helper.make_graph(nodes, "task015_single_cell_expansion_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 14)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
