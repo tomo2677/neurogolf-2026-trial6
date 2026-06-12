@@ -28,6 +28,41 @@ def _f16_tensor(name: str, values: list[float] | np.ndarray, dims: list[int] | N
     return helper.make_tensor(name, INTERNAL_TYPE, shape, arr.ravel())
 
 
+def _initializer_key(tensor: onnx.TensorProto) -> tuple:
+    return (
+        tensor.data_type,
+        tuple(tensor.dims),
+        bytes(tensor.raw_data),
+        tuple(tensor.int32_data),
+        tuple(tensor.int64_data),
+        tuple(tensor.float_data),
+        tuple(tensor.double_data),
+        tuple(tensor.string_data),
+    )
+
+
+def _dedupe_initializers(graph: onnx.GraphProto) -> None:
+    canonical: dict[tuple, str] = {}
+    rename: dict[str, str] = {}
+    unique: list[onnx.TensorProto] = []
+    for initializer in graph.initializer:
+        key = _initializer_key(initializer)
+        existing = canonical.get(key)
+        if existing is None:
+            canonical[key] = initializer.name
+            unique.append(initializer)
+        else:
+            rename[initializer.name] = existing
+    if not rename:
+        return
+    for node in graph.node:
+        for index, name in enumerate(node.input):
+            if name in rename:
+                node.input[index] = rename[name]
+    del graph.initializer[:]
+    graph.initializer.extend(unique)
+
+
 def _period_mask(p: int) -> np.ndarray:
     mask = np.zeros((H * W, p * p), dtype=np.float16)
     for r in range(H):
@@ -127,6 +162,7 @@ def build_model() -> onnx.ModelProto:
     nodes.append(helper.make_node("Equal", ["colors10", current], ["output"]))
 
     graph = helper.make_graph(nodes, "task017_periodic_fill_subset_graph", [x], [y], initializers)
+    _dedupe_initializers(graph)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 11)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
