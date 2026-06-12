@@ -6,7 +6,7 @@ from onnx import helper
 from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
-SIZE = 30
+SIZE = 12
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
@@ -28,12 +28,16 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
+        _int64_tensor("slice_hw_starts", [0, 0], [2]),
+        _int64_tensor("slice_hw_ends", [SIZE, SIZE], [2]),
+        _int64_tensor("slice_hw_axes", [2, 3], [2]),
         _int64_tensor("zero_i64", [0], [1]),
         _int32_tensor("zero_i32", [0], [1]),
         _int32_tensor("width_i32", [SIZE], [1]),
-        _int64_tensor("shape_index_1x900", [1, 1, SIZE * SIZE], [3]),
-        _int64_tensor("shape_flat_1x900", [1, 1, SIZE * SIZE], [3]),
-        _int64_tensor("shape_1x1x30x30", [1, 1, SIZE, SIZE], [4]),
+        _int64_tensor("shape_index_1x144", [1, 1, SIZE * SIZE], [3]),
+        _int64_tensor("shape_flat_1x144", [1, 1, SIZE * SIZE], [3]),
+        _int64_tensor("shape_1x1x12x12", [1, 1, SIZE, SIZE], [4]),
+        _int64_tensor("pads_color12_to30", [0, 0, 0, 0, 0, 0, 30 - SIZE, 30 - SIZE], [8]),
         _int32_tensor("row_grid_i32", [r for r in range(SIZE) for _ in range(SIZE)], [1, 1, SIZE, SIZE]),
         _int32_tensor("col_grid_i32", [c for _ in range(SIZE) for c in range(SIZE)], [1, 1, SIZE, SIZE]),
         _u8_tensor("invalid_u8", [255], [1]),
@@ -41,7 +45,8 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes = [
-        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
+        helper.make_node("Slice", ["input", "slice_hw_starts", "slice_hw_ends", "slice_hw_axes"], ["input12"]),
+        helper.make_node("ArgMax", ["input12"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Greater", ["input_color_i64", "zero_i64"], ["nonzero_bool"]),
         helper.make_node("Cast", ["nonzero_bool"], ["nonzero_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["nonzero_u8"], ["row_present"], axes=[3], keepdims=1),
@@ -63,17 +68,18 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["crop_valid", "src_c", "zero_i32"], ["safe_c"]),
         helper.make_node("Mul", ["safe_r", "width_i32"], ["safe_r_offset"]),
         helper.make_node("Add", ["safe_r_offset", "safe_c"], ["safe_spatial"]),
-        helper.make_node("Reshape", ["safe_spatial", "shape_index_1x900"], ["safe_spatial_flat_i32"]),
+        helper.make_node("Reshape", ["safe_spatial", "shape_index_1x144"], ["safe_spatial_flat_i32"]),
         helper.make_node("Cast", ["safe_spatial_flat_i32"], ["safe_spatial_flat"], to=onnx.TensorProto.INT64),
         helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Reshape", ["input_color_u8", "shape_flat_1x900"], ["color_flat_u8"]),
+        helper.make_node("Reshape", ["input_color_u8", "shape_flat_1x144"], ["color_flat_u8"]),
         helper.make_node("GatherElements", ["color_flat_u8", "safe_spatial_flat"], ["gathered_flat"], axis=2),
-        helper.make_node("Reshape", ["gathered_flat", "shape_1x1x30x30"], ["gathered_color"]),
-        helper.make_node("Where", ["crop_valid", "gathered_color", "invalid_u8"], ["color30"]),
+        helper.make_node("Reshape", ["gathered_flat", "shape_1x1x12x12"], ["gathered_color"]),
+        helper.make_node("Where", ["crop_valid", "gathered_color", "invalid_u8"], ["color12"]),
+        helper.make_node("Pad", ["color12", "pads_color12_to30", "invalid_u8"], ["color30"], mode="constant"),
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task031_nonzero_bbox_crop_color_grid_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task031_window12_crop_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
