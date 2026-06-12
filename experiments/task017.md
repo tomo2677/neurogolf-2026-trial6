@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 12.861970676921189 | 64641 | 122203 | 2026-06-13T05:57:02+09:00 | exp005 |
+| passes_local | 13.322306137483405 | 114087 | 3825 | 2026-06-13T08:03:48+09:00 | exp008 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -19,6 +19,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp003 | rule_redesign | periods-4-6-7-9 | fails_local | 0.0 | 53478 | 82068 | -12.8368609519 | fails_local | Candidate did not pass local validation. |
 | exp004 | rule_redesign | periods-4-5-6-7-9 | fails_local | 0.0 | 57597 | 93536 | -12.8368609519 | fails_local | Candidate did not pass local validation. |
 | exp005 | rule_redesign | periods-no-2 | passes_local | 12.861970676921189 | 64641 | 122203 | 0.0251097250662 | promoted | Auto promoted after canonical re-score. |
+| exp007 | impl_opt | gather-group-counts | passes_local | 12.787910492144995 | 191469 | 9738 | -0.0740601847762 | not_better | Passed but did not improve local_points. |
+| exp008 | impl_opt | slice-step-counts | passes_local | 13.322306137483405 | 114087 | 3825 | 0.460335460562 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

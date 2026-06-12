@@ -48,7 +48,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("input21_start", [1, 0, 0], [3]),
         _int64_tensor("input21_end", [10, H, W], [3]),
         _int64_tensor("axes_chw", [1, 2, 3], [3]),
-        _int64_tensor("shape_flat", [1, 9, H * W], [3]),
+        _int64_tensor("axes_nchw", [0, 1, 2, 3], [4]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 9, 9], [8]),
         _int64_tensor("one_i64", [1], [1]),
         _f16_tensor("zero_f32", [0.0], [1]),
@@ -61,24 +61,47 @@ def build_model() -> onnx.ModelProto:
         p2 = p * p
         initializers.extend(
             [
-                _f16_tensor(f"period_mask_{p}", _period_mask(p)),
+                _int64_tensor(f"period_slice_end_{p}", [1, 9, H, W], [4]),
+                _int64_tensor(f"period_slice_steps_{p}", [1, 1, p, p], [4]),
                 _int64_tensor(f"shape_tile_{p}", [p2], [1]),
                 _int64_tensor(f"period_index_{p}", _period_index_map(p), [1, 1, H, W]),
                 _f16_tensor(f"period_size_{p}", [float(p2)], [1]),
             ]
         )
+        for residue in range(p2):
+            rr, cc = divmod(residue, p)
+            initializers.append(_int64_tensor(f"period_slice_start_{p}_{residue}", [0, 0, rr, cc], [4]))
 
     nodes: list[onnx.NodeProto] = [
         helper.make_node("Slice", ["input", "input21_start", "input21_end", "axes_chw"], ["input_nonzero_f32"]),
         helper.make_node("Cast", ["input_nonzero_f32"], ["input_nonzero"], to=INTERNAL_TYPE),
-        helper.make_node("Reshape", ["input_nonzero", "shape_flat"], ["input_flat"]),
     ]
 
     color_candidates: list[tuple[int, str]] = []
     for p in PERIODS:
+        residue_counts: list[str] = []
+        for residue in range(p * p):
+            nodes.extend(
+                [
+                    helper.make_node(
+                        "Slice",
+                        [
+                            "input_nonzero",
+                            f"period_slice_start_{p}_{residue}",
+                            f"period_slice_end_{p}",
+                            "axes_nchw",
+                            f"period_slice_steps_{p}",
+                        ],
+                        [f"residue_cells_{p}_{residue}"],
+                    ),
+                    helper.make_node("ReduceSum", [f"residue_cells_{p}_{residue}"], [f"residue_sum_{p}_{residue}"], axes=[2, 3], keepdims=0),
+                    helper.make_node("Unsqueeze", [f"residue_sum_{p}_{residue}"], [f"residue_count_{p}_{residue}"], axes=[2]),
+                ]
+            )
+            residue_counts.append(f"residue_count_{p}_{residue}")
         nodes.extend(
             [
-                helper.make_node("MatMul", ["input_flat", f"period_mask_{p}"], [f"counts_{p}"]),
+                helper.make_node("Concat", residue_counts, [f"counts_{p}"], axis=2),
                 helper.make_node("Greater", [f"counts_{p}", "zero_f32"], [f"seen_{p}"]),
                 helper.make_node("Cast", [f"seen_{p}"], [f"seen_f32_{p}"], to=INTERNAL_TYPE),
                 helper.make_node("ReduceSum", [f"seen_f32_{p}"], [f"color_count_{p}"], axes=[1], keepdims=0),
