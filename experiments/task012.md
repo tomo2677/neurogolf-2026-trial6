@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.045068139925302 | 7562 | 184 | 2026-06-13T04:06:29+09:00 | exp005 |
+| passes_local | 16.21752373107546 | 6412 | 107 | 2026-06-13T05:11:23+09:00 | exp007 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -19,6 +19,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp003 | rule_redesign | top2-dynamic-color-slices-equal-split | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp004 | rule_redesign | top2-dynamic-color-slices-i32-axes | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp005 | rule_redesign | top2-dynamic-color-slices-valueinfo | passes_local | 16.045068139925302 | 7562 | 184 | 0.497491573035 | promoted | Auto promoted after canonical re-score. |
+| exp006 | impl_opt | h006 | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp007 | impl_opt | h006 | passes_local | 16.21752373107546 | 6412 | 107 | 0.17245559115 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
