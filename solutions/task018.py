@@ -16,6 +16,11 @@ def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -
     return helper.make_tensor(name, onnx.TensorProto.INT64, shape, values)
 
 
+def _int32_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
+    shape = [len(values)] if dims is None else dims
+    return helper.make_tensor(name, onnx.TensorProto.INT32, shape, values)
+
+
 def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
 
@@ -152,20 +157,21 @@ def _static_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, ou
 
     nodes.extend(
         [
-            helper.make_node("Sub", ["row_grid_i64", dr], [f"{output}_src_r"]),
-            helper.make_node("Sub", ["col_grid_i64", dc], [f"{output}_src_c"]),
-            helper.make_node("Greater", [f"{output}_src_r", "neg_one_i64"], [f"{output}_r_nonneg"]),
-            helper.make_node("Less", [f"{output}_src_r", "size_i64"], [f"{output}_r_lt_size"]),
-            helper.make_node("Greater", [f"{output}_src_c", "neg_one_i64"], [f"{output}_c_nonneg"]),
-            helper.make_node("Less", [f"{output}_src_c", "size_i64"], [f"{output}_c_lt_size"]),
+            helper.make_node("Sub", ["row_grid_i32", dr], [f"{output}_src_r"]),
+            helper.make_node("Sub", ["col_grid_i32", dc], [f"{output}_src_c"]),
+            helper.make_node("Greater", [f"{output}_src_r", "neg_one_i32"], [f"{output}_r_nonneg"]),
+            helper.make_node("Less", [f"{output}_src_r", "size_i32"], [f"{output}_r_lt_size"]),
+            helper.make_node("Greater", [f"{output}_src_c", "neg_one_i32"], [f"{output}_c_nonneg"]),
+            helper.make_node("Less", [f"{output}_src_c", "size_i32"], [f"{output}_c_lt_size"]),
             helper.make_node("And", [f"{output}_r_nonneg", f"{output}_r_lt_size"], [f"{output}_r_ok"]),
             helper.make_node("And", [f"{output}_c_nonneg", f"{output}_c_lt_size"], [f"{output}_c_ok"]),
             helper.make_node("And", [f"{output}_r_ok", f"{output}_c_ok"], [f"{output}_in_bounds"]),
-            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_r", "zero_i64"], [f"{output}_safe_r"]),
-            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_c", "zero_i64"], [f"{output}_safe_c"]),
-            helper.make_node("Mul", [f"{output}_safe_r", "width_i64"], [f"{output}_safe_r_offset"]),
+            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_r", "zero_i32"], [f"{output}_safe_r"]),
+            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_c", "zero_i32"], [f"{output}_safe_c"]),
+            helper.make_node("Mul", [f"{output}_safe_r", "width_i32"], [f"{output}_safe_r_offset"]),
             helper.make_node("Add", [f"{output}_safe_r_offset", f"{output}_safe_c"], [f"{output}_safe_spatial"]),
-            helper.make_node("Reshape", [f"{output}_safe_spatial", "shape_index_1x900"], [f"{output}_safe_spatial_flat"]),
+            helper.make_node("Reshape", [f"{output}_safe_spatial", "shape_index_1x900"], [f"{output}_safe_spatial_flat_i32"]),
+            helper.make_node("Cast", [f"{output}_safe_spatial_flat_i32"], [f"{output}_safe_spatial_flat"], to=onnx.TensorProto.INT64),
             helper.make_node("Expand", [f"{output}_safe_spatial_flat", index_shape], [f"{output}_indices"]),
             helper.make_node("Reshape", [source, flat_shape], [f"{output}_source_flat"]),
             helper.make_node("GatherElements", [f"{output}_source_flat", f"{output}_indices"], [f"{output}_shifted_flat"], axis=2),
@@ -232,10 +238,12 @@ def _component_outputs(
                 [
                     helper.make_node("Sub", [target_row, transformed_row], [f"{place}_dr"]),
                     helper.make_node("Sub", [target_col, transformed_col], [f"{place}_dc"]),
+                    helper.make_node("Cast", [f"{place}_dr"], [f"{place}_dr_i32"], to=onnx.TensorProto.INT32),
+                    helper.make_node("Cast", [f"{place}_dc"], [f"{place}_dc_i32"], to=onnx.TensorProto.INT32),
                 ]
             )
-            _static_shift(nodes, transformed_onehot, f"{place}_dr", f"{place}_dc", f"{place}_shifted_onehot", 10)
-            _static_shift(nodes, transformed_base, f"{place}_dr", f"{place}_dc", f"{place}_shifted_base", 1)
+            _static_shift(nodes, transformed_onehot, f"{place}_dr_i32", f"{place}_dc_i32", f"{place}_shifted_onehot", 10)
+            _static_shift(nodes, transformed_base, f"{place}_dr_i32", f"{place}_dc_i32", f"{place}_shifted_base", 1)
 
             nodes.extend(
                 [
@@ -298,11 +306,12 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("slice_one_end", [1], [1]),
         _int64_tensor("axis_channel", [1], [1]),
         _int64_tensor("one_i64", [1], [1]),
-        _int64_tensor("zero_i64", [0], [1]),
-        _int64_tensor("neg_one_i64", [-1], [1]),
-        _int64_tensor("size_i64", [SIZE], [1]),
         _int64_tensor("last_i64", [SIZE - 1], [1]),
         _int64_tensor("width_i64", [SIZE], [1]),
+        _int32_tensor("zero_i32", [0], [1]),
+        _int32_tensor("neg_one_i32", [-1], [1]),
+        _int32_tensor("size_i32", [SIZE], [1]),
+        _int32_tensor("width_i32", [SIZE], [1]),
         _int64_tensor("k2", [2], [1]),
         _int64_tensor("shape1111", [1, 1, 1, 1], [4]),
         _int64_tensor("shape_flat900", [SIZE * SIZE], [1]),
@@ -314,8 +323,8 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("shape_1x10x30x30", [1, 10, SIZE, SIZE], [4]),
         _int64_tensor("reverse_idx", list(reversed(range(SIZE))), [SIZE]),
         _int64_tensor("flat_index", list(range(SIZE * SIZE)), [SIZE * SIZE]),
-        _int64_tensor("row_grid_i64", [r for r in range(SIZE) for _ in range(SIZE)], [1, 1, SIZE, SIZE]),
-        _int64_tensor("col_grid_i64", [c for _ in range(SIZE) for c in range(SIZE)], [1, 1, SIZE, SIZE]),
+        _int32_tensor("row_grid_i32", [r for r in range(SIZE) for _ in range(SIZE)], [1, 1, SIZE, SIZE]),
+        _int32_tensor("col_grid_i32", [c for _ in range(SIZE) for c in range(SIZE)], [1, 1, SIZE, SIZE]),
         _int64_tensor("color_ids", list(range(1, 10)), [9]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _f32_tensor("black_pixel", [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [1, 10, 1, 1]),

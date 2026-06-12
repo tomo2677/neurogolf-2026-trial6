@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.973573191300364 | 1095 | 31 | 2026-06-13T06:02:01+09:00 | exp035 |
+| passes_local | 17.975350969546362 | 1095 | 29 | 2026-06-13T06:10:27+09:00 | exp037 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -39,6 +39,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp032 | impl_opt | sub-black-color-vector | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp033 | impl_opt | sub-black-color-vector-opset14 | passes_local | 17.970027088293612 | 1095 | 35 | 0.0123132602334 | promoted | Auto promoted after canonical re-score. |
 | exp035 | impl_opt | flatten-spatial-mask | passes_local | 17.973573191300364 | 1095 | 31 | 0.00354610300675 | promoted | Auto promoted after canonical re-score. |
+| exp036 | impl_opt | pad18-axes | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp037 | impl_opt | maxpool-pad18-axes | passes_local | 17.975350969546362 | 1095 | 29 | 0.001777778246 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - Reached `17.970027088293612` by replacing the previous color-grid output with a direct `UINT8` one-hot top-left grid: build the 9x9 stamp mask from the zero channel, derive the active color vector with `ReduceMax(input) -> Cast(UINT8) -> Sub(black10)` using the local/generated invariant that every input has both black and one active nonzero color, and use `Where(spatial_mask, color_onehot, black10)` before final padding. exp033 moved to opset14 so `Sub(UINT8)` is supported; this adds `Unsqueeze` axes inputs but removes `ArgMax`, `Equal(colors10, color_id)`, and the `colors10` initializer.
