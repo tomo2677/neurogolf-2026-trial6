@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.328943217037034 | 114087 | 3045 | 2026-06-13T08:05:40+09:00 | exp009 |
+| passes_local | 13.351355536959836 | 111492 | 3044 | 2026-06-13T08:07:45+09:00 | exp012 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -22,6 +22,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp007 | impl_opt | gather-group-counts | passes_local | 12.787910492144995 | 191469 | 9738 | -0.0740601847762 | not_better | Passed but did not improve local_points. |
 | exp008 | impl_opt | slice-step-counts | passes_local | 13.322306137483405 | 114087 | 3825 | 0.460335460562 | promoted | Auto promoted after canonical re-score. |
 | exp009 | impl_opt | dedupe-initializers | passes_local | 13.328943217037034 | 114087 | 3045 | 0.00663707955363 | promoted | Auto promoted after canonical re-score. |
+| exp011 | impl_opt | drop-fallback-period-ok | passes_local | 13.351346806118576 | 111492 | 3045 | 0.0224035890815 | promoted | Auto promoted after canonical re-score. |
+| exp012 | impl_opt | drop-unused-fallback-size | passes_local | 13.351355536959836 | 111492 | 3044 | 8.73084126063e-06 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

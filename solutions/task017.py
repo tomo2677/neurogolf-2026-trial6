@@ -100,9 +100,10 @@ def build_model() -> onnx.ModelProto:
                 _int64_tensor(f"period_slice_steps_{p}", [1, 1, p, p], [4]),
                 _int64_tensor(f"shape_tile_{p}", [p2], [1]),
                 _int64_tensor(f"period_index_{p}", _period_index_map(p), [1, 1, H, W]),
-                _f16_tensor(f"period_size_{p}", [float(p2)], [1]),
             ]
         )
+        if p != PERIODS[-1]:
+            initializers.append(_f16_tensor(f"period_size_{p}", [float(p2)], [1]))
         for residue in range(p2):
             rr, cc = divmod(residue, p)
             initializers.append(_int64_tensor(f"period_slice_start_{p}_{residue}", [0, 0, rr, cc], [4]))
@@ -134,16 +135,21 @@ def build_model() -> onnx.ModelProto:
                 ]
             )
             residue_counts.append(f"residue_count_{p}_{residue}")
+        nodes.append(helper.make_node("Concat", residue_counts, [f"counts_{p}"], axis=2))
+        if p != PERIODS[-1]:
+            nodes.extend(
+                [
+                    helper.make_node("Greater", [f"counts_{p}", "zero_f32"], [f"seen_{p}"]),
+                    helper.make_node("Cast", [f"seen_{p}"], [f"seen_f32_{p}"], to=INTERNAL_TYPE),
+                    helper.make_node("ReduceSum", [f"seen_f32_{p}"], [f"color_count_{p}"], axes=[1], keepdims=0),
+                    helper.make_node("Equal", [f"color_count_{p}", "one_f32"], [f"residue_ok_{p}"]),
+                    helper.make_node("Cast", [f"residue_ok_{p}"], [f"residue_ok_f32_{p}"], to=INTERNAL_TYPE),
+                    helper.make_node("ReduceSum", [f"residue_ok_f32_{p}"], [f"ok_count_{p}"], axes=[0, 1], keepdims=0),
+                    helper.make_node("Equal", [f"ok_count_{p}", f"period_size_{p}"], [f"period_ok_{p}"]),
+                ]
+            )
         nodes.extend(
             [
-                helper.make_node("Concat", residue_counts, [f"counts_{p}"], axis=2),
-                helper.make_node("Greater", [f"counts_{p}", "zero_f32"], [f"seen_{p}"]),
-                helper.make_node("Cast", [f"seen_{p}"], [f"seen_f32_{p}"], to=INTERNAL_TYPE),
-                helper.make_node("ReduceSum", [f"seen_f32_{p}"], [f"color_count_{p}"], axes=[1], keepdims=0),
-                helper.make_node("Equal", [f"color_count_{p}", "one_f32"], [f"residue_ok_{p}"]),
-                helper.make_node("Cast", [f"residue_ok_{p}"], [f"residue_ok_f32_{p}"], to=INTERNAL_TYPE),
-                helper.make_node("ReduceSum", [f"residue_ok_f32_{p}"], [f"ok_count_{p}"], axes=[0, 1], keepdims=0),
-                helper.make_node("Equal", [f"ok_count_{p}", f"period_size_{p}"], [f"period_ok_{p}"]),
                 helper.make_node("ArgMax", [f"counts_{p}"], [f"tile_zero_based_{p}"], axis=1, keepdims=0),
                 helper.make_node("Reshape", [f"tile_zero_based_{p}", f"shape_tile_{p}"], [f"tile_zero_flat_{p}"]),
                 helper.make_node("Add", [f"tile_zero_flat_{p}", "one_i64"], [f"tile_color_i64_{p}"]),
