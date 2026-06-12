@@ -50,8 +50,8 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("starts8", [8, 0, 0]),
         _int64_tensor("ends8", [9, SIZE, SIZE]),
         _int64_tensor("axes3", [1, 2, 3]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 21, 21]),
-        _f16_tensor("zero_f16", [0.0], [1]),
+        _int64_tensor("pads_output_hw", [0, 0, 21, 21]),
+        _int64_tensor("pad_axes_hw", [2, 3]),
         _f16_tensor("cardinal_kernel", cardinal_kernel, [1, 1, 3, 3]),
         _f16_tensor("diagonal_kernel", diagonal_kernel, [1, 1, 3, 3]),
         _u8_tensor("zero_u8", [0], [1]),
@@ -85,16 +85,16 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Cast", ["mask2_f32"], ["mask2_f16"], to=INTERNAL_TYPE),
         helper.make_node("Conv", ["mask1_f16", "cardinal_kernel"], ["add7_score"], kernel_shape=[3, 3], pads=[1, 1, 1, 1]),
         helper.make_node("Conv", ["mask2_f16", "diagonal_kernel"], ["add4_score"], kernel_shape=[3, 3], pads=[1, 1, 1, 1]),
-        helper.make_node("Greater", ["add7_score", "zero_f16"], ["add7"]),
-        helper.make_node("Greater", ["add4_score", "zero_f16"], ["add4"]),
+        helper.make_node("Cast", ["add7_score"], ["add7"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Cast", ["add4_score"], ["add4"], to=onnx.TensorProto.BOOL),
         helper.make_node("Where", ["add4", "four_u8", "zero_u8"], ["add4_color"]),
         helper.make_node("Where", ["add7", "seven_u8", "add4_color"], ["added_color"]),
         helper.make_node("Where", ["nonblack_bool", "color9", "added_color"], ["out9"]),
-        helper.make_node("Pad", ["out9", "pads_output", "outside_u8"], ["color30"], mode="constant"),
+        helper.make_node("Pad", ["out9", "pads_output_hw", "outside_u8", "pad_axes_hw"], ["color30"], mode="constant"),
         helper.make_node("Equal", ["colors10", "color30"], ["output"]),
     ]
 
     graph = helper.make_graph(nodes, "task015_single_cell_expansion_conv_f16_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 14)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
