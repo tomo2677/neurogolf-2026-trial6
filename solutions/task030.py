@@ -6,7 +6,7 @@ from onnx import helper
 from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
-SIZE = 30
+SIZE = 10
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
@@ -38,11 +38,11 @@ def _shift_mask(nodes: list[onnx.NodeProto], source: str, delta: str, prefix: st
             helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_src_r", "zero_i32"], [f"{prefix}_safe_r"]),
             helper.make_node("Mul", [f"{prefix}_safe_r", "width_i32"], [f"{prefix}_safe_r_offset"]),
             helper.make_node("Add", [f"{prefix}_safe_r_offset", "col_grid_i32"], [f"{prefix}_safe_spatial"]),
-            helper.make_node("Reshape", [f"{prefix}_safe_spatial", "shape_index_1x900"], [f"{prefix}_indices_i32"]),
+            helper.make_node("Reshape", [f"{prefix}_safe_spatial", "shape_index_1x100"], [f"{prefix}_indices_i32"]),
             helper.make_node("Cast", [f"{prefix}_indices_i32"], [f"{prefix}_indices"], to=onnx.TensorProto.INT64),
-            helper.make_node("Reshape", [source, "shape_flat_1x900"], [f"{prefix}_source_flat"]),
+            helper.make_node("Reshape", [source, "shape_flat_1x100"], [f"{prefix}_source_flat"]),
             helper.make_node("GatherElements", [f"{prefix}_source_flat", f"{prefix}_indices"], [f"{prefix}_shifted_flat"], axis=2),
-            helper.make_node("Reshape", [f"{prefix}_shifted_flat", "shape_1x1x30x30"], [f"{prefix}_shifted_raw"]),
+            helper.make_node("Reshape", [f"{prefix}_shifted_flat", "shape_1x1x10x10"], [f"{prefix}_shifted_raw"]),
             helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_shifted_raw", "zero_u8"], [f"{prefix}_shifted"]),
         ]
     )
@@ -54,6 +54,9 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
+        _int64_tensor("slice_hw_starts", [0, 0], [2]),
+        _int64_tensor("slice_hw_ends", [SIZE, SIZE], [2]),
+        _int64_tensor("slice_hw_axes", [2, 3], [2]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("two_i64", [2], [1]),
         _int64_tensor("four_i64", [4], [1]),
@@ -62,9 +65,10 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("width_i32", [SIZE], [1]),
         _int32_tensor("row_grid_i32", [r for r in range(SIZE) for _ in range(SIZE)], [1, 1, SIZE, SIZE]),
         _int32_tensor("col_grid_i32", [c for _ in range(SIZE) for c in range(SIZE)], [1, 1, SIZE, SIZE]),
-        _int64_tensor("shape_index_1x900", [1, 1, SIZE * SIZE], [3]),
-        _int64_tensor("shape_flat_1x900", [1, 1, SIZE * SIZE], [3]),
-        _int64_tensor("shape_1x1x30x30", [1, 1, SIZE, SIZE], [4]),
+        _int64_tensor("shape_index_1x100", [1, 1, SIZE * SIZE], [3]),
+        _int64_tensor("shape_flat_1x100", [1, 1, SIZE * SIZE], [3]),
+        _int64_tensor("shape_1x1x10x10", [1, 1, SIZE, SIZE], [4]),
+        _int64_tensor("pads_color10_to30", [0, 0, 0, 0, 0, 0, 30 - SIZE, 30 - SIZE], [8]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("one_u8", [1], [1]),
@@ -75,7 +79,8 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
+        helper.make_node("Slice", ["input", "slice_hw_starts", "slice_hw_ends", "slice_hw_axes"], ["input10"]),
+        helper.make_node("ArgMax", ["input10"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Equal", ["input_color_i64", "one_i64"], ["c1_bool"]),
         helper.make_node("Equal", ["input_color_i64", "two_i64"], ["c2_bool"]),
         helper.make_node("Equal", ["input_color_i64", "four_i64"], ["c4_bool"]),
@@ -112,14 +117,15 @@ def build_model() -> onnx.ModelProto:
     nodes.extend(
         [
             helper.make_node("Max", color_terms, ["placed_color"]),
-            helper.make_node("ReduceMax", ["input"], ["cell_present_f32"], axes=[1], keepdims=1),
+            helper.make_node("ReduceMax", ["input10"], ["cell_present_f32"], axes=[1], keepdims=1),
             helper.make_node("Greater", ["cell_present_f32", "zero_f32"], ["valid_area"]),
-            helper.make_node("Where", ["valid_area", "placed_color", "invalid_u8"], ["color30"]),
+            helper.make_node("Where", ["valid_area", "placed_color", "invalid_u8"], ["color10"]),
+            helper.make_node("Pad", ["color10", "pads_color10_to30", "invalid_u8"], ["color30"], mode="constant"),
             helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
         ]
     )
 
-    graph = helper.make_graph(nodes, "task030_vertical_align_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task030_window10_vertical_align_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
