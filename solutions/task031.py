@@ -23,15 +23,18 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
+def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+
+
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("slice_hw_starts", [0, 0], [2]),
-        _int64_tensor("slice_hw_ends", [SIZE, SIZE], [2]),
-        _int64_tensor("slice_hw_axes", [2, 3], [2]),
-        _int64_tensor("zero_i64", [0], [1]),
+        _int64_tensor("slice_ch0_starts", [0, 0, 0], [3]),
+        _int64_tensor("slice_ch0_ends", [1, SIZE, SIZE], [3]),
+        _int64_tensor("slice_ch0_axes", [1, 2, 3], [3]),
         _int32_tensor("zero_i32", [0], [1]),
         _int32_tensor("width_i32", [SIZE], [1]),
         _int64_tensor("shape_index_1x144", [1, 1, SIZE * SIZE], [3]),
@@ -40,14 +43,25 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pads_color12_to30", [0, 0, 0, 0, 0, 0, 30 - SIZE, 30 - SIZE], [8]),
         _int32_tensor("row_grid_i32", [r for r in range(SIZE) for _ in range(SIZE)], [1, 1, SIZE, SIZE]),
         _int32_tensor("col_grid_i32", [c for _ in range(SIZE) for c in range(SIZE)], [1, 1, SIZE, SIZE]),
+        _f32_tensor("zero_f32", [0.0], [1]),
+        _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
 
     nodes = [
-        helper.make_node("Slice", ["input", "slice_hw_starts", "slice_hw_ends", "slice_hw_axes"], ["input12"]),
-        helper.make_node("ArgMax", ["input12"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
-        helper.make_node("Greater", ["input_color_i64", "zero_i64"], ["nonzero_bool"]),
+        helper.make_node("ReduceMax", ["input"], ["row_present30"], axes=[1, 3], keepdims=1),
+        helper.make_node("ReduceMax", ["input"], ["col_present30"], axes=[1, 2], keepdims=1),
+        helper.make_node("ArgMax", ["row_present30"], ["last_row"], axis=2, keepdims=1, select_last_index=1),
+        helper.make_node("ArgMax", ["col_present30"], ["last_col"], axis=3, keepdims=1, select_last_index=1),
+        helper.make_node("Cast", ["last_row"], ["last_row_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["last_col"], ["last_col_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("LessOrEqual", ["row_grid_i32", "last_row_i32"], ["input_row_valid"]),
+        helper.make_node("LessOrEqual", ["col_grid_i32", "last_col_i32"], ["input_col_valid"]),
+        helper.make_node("And", ["input_row_valid", "input_col_valid"], ["input_valid"]),
+        helper.make_node("Slice", ["input", "slice_ch0_starts", "slice_ch0_ends", "slice_ch0_axes"], ["input0_12"]),
+        helper.make_node("Equal", ["input0_12", "zero_f32"], ["nonzero_raw"]),
+        helper.make_node("And", ["input_valid", "nonzero_raw"], ["nonzero_bool"]),
         helper.make_node("Cast", ["nonzero_bool"], ["nonzero_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["nonzero_u8"], ["row_present"], axes=[3], keepdims=1),
         helper.make_node("ReduceMax", ["nonzero_u8"], ["col_present"], axes=[2], keepdims=1),
@@ -70,11 +84,15 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Add", ["safe_r_offset", "safe_c"], ["safe_spatial"]),
         helper.make_node("Reshape", ["safe_spatial", "shape_index_1x144"], ["safe_spatial_flat_i32"]),
         helper.make_node("Cast", ["safe_spatial_flat_i32"], ["safe_spatial_flat"], to=onnx.TensorProto.INT64),
-        helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Reshape", ["input_color_u8", "shape_flat_1x144"], ["color_flat_u8"]),
-        helper.make_node("GatherElements", ["color_flat_u8", "safe_spatial_flat"], ["gathered_flat"], axis=2),
-        helper.make_node("Reshape", ["gathered_flat", "shape_1x1x12x12"], ["gathered_color"]),
-        helper.make_node("Where", ["crop_valid", "gathered_color", "invalid_u8"], ["color12"]),
+        helper.make_node("ReduceMax", ["input"], ["present_colors"], axes=[0, 2, 3], keepdims=1),
+        helper.make_node("ArgMax", ["present_colors"], ["fg_color_i64"], axis=1, keepdims=1, select_last_index=1),
+        helper.make_node("Cast", ["fg_color_i64"], ["fg_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Reshape", ["nonzero_u8", "shape_flat_1x144"], ["nonzero_flat_u8"]),
+        helper.make_node("GatherElements", ["nonzero_flat_u8", "safe_spatial_flat"], ["gathered_flat"], axis=2),
+        helper.make_node("Reshape", ["gathered_flat", "shape_1x1x12x12"], ["gathered_nonzero_u8"]),
+        helper.make_node("Greater", ["gathered_nonzero_u8", "zero_u8"], ["gathered_nonzero"]),
+        helper.make_node("Where", ["gathered_nonzero", "fg_color_u8", "zero_u8"], ["cropped_color"]),
+        helper.make_node("Where", ["crop_valid", "cropped_color", "invalid_u8"], ["color12"]),
         helper.make_node("Pad", ["color12", "pads_color12_to30", "invalid_u8"], ["color30"], mode="constant"),
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
