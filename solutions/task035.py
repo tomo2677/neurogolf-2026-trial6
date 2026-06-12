@@ -70,7 +70,6 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Concat", ["false_col", "left_core"], ["left_neighbor"], axis=3),
         helper.make_node("Not", ["left_neighbor"], ["not_left"]),
         helper.make_node("And", ["is_eight", "not_left"], ["left_edge"]),
-        helper.make_node("And", ["is_eight", "right_col5"], ["right_edge"]),
         helper.make_node("Where", ["is_eight", "eight_u8", "zero_u8"], ["base0"]),
     ]
 
@@ -92,8 +91,7 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Max", ["base0", "top_orig", "bottom_orig", "left_orig", "right_orig"], ["color"]),
             helper.make_node("Pad", ["top_u8", "top_pads", "zero_u8"], ["top_color"], mode="constant"),
             helper.make_node("Greater", ["top_color", "zero_u8"], ["top_present"]),
-            helper.make_node("And", ["is_eight", "top_present"], ["top_mask"]),
-            helper.make_node("Where", ["top_mask", "top_color", "color"], ["after_top"]),
+            helper.make_node("Where", ["top_present", "top_color", "color"], ["after_top"]),
             helper.make_node("Expand", ["bottom_u8", "shape_10x10"], ["bottom_color"]),
             helper.make_node("Greater", ["bottom_color", "zero_u8"], ["bottom_present"]),
             helper.make_node("And", ["bottom_edge", "bottom_present"], ["bottom_mask"]),
@@ -104,7 +102,7 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Where", ["left_mask", "left_color", "after_bottom"], ["after_left"]),
             helper.make_node("Expand", ["right_u8", "shape_10x10"], ["right_color"]),
             helper.make_node("Greater", ["right_color", "zero_u8"], ["right_present"]),
-            helper.make_node("And", ["right_edge", "right_present"], ["right_mask"]),
+            helper.make_node("And", ["right_col5", "right_present"], ["right_mask"]),
             helper.make_node("Where", ["right_mask", "right_color", "after_left"], ["color10"]),
             helper.make_node("Pad", ["color10", "output_pads", "invalid_u8"], ["color30"], mode="constant"),
             helper.make_node("Equal", ["colors10", "color30"], ["output"]),
