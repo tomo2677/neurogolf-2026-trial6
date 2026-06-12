@@ -39,22 +39,10 @@ def _color_id(nodes: list[onnx.NodeProto], mask: str, output: str) -> None:
     nodes.extend(
         [
             helper.make_node("And", [mask, "nonblack_bool"], [f"{output}_nonblack_bool"]),
-            helper.make_node("Cast", [f"{output}_nonblack_bool"], [f"{output}_nonblack_u8"], to=onnx.TensorProto.UINT8),
-            helper.make_node("ReduceMax", [f"{output}_nonblack_u8"], [f"{output}_row_scores"], axes=[3], keepdims=1),
-            helper.make_node("ArgMax", [f"{output}_row_scores"], [f"{output}_row"], axis=2, keepdims=1, select_last_index=0),
-            helper.make_node("Equal", ["row_idx", f"{output}_row"], [f"{output}_row_line"]),
-            helper.make_node("And", [f"{output}_nonblack_bool", f"{output}_row_line"], [f"{output}_row_nonblack_bool"]),
-            helper.make_node(
-                "Cast",
-                [f"{output}_row_nonblack_bool"],
-                [f"{output}_row_nonblack_u8"],
-                to=onnx.TensorProto.UINT8,
-            ),
-            helper.make_node("ReduceMax", [f"{output}_row_nonblack_u8"], [f"{output}_col_scores"], axes=[2], keepdims=1),
-            helper.make_node("ArgMax", [f"{output}_col_scores"], [f"{output}_col"], axis=3, keepdims=1, select_last_index=0),
+            helper.make_node("Where", [f"{output}_nonblack_bool", "input_color_u8", "zero_u8"], [f"{output}_color_grid"]),
+            helper.make_node("ReduceMax", [f"{output}_color_grid"], [output], axes=[2, 3], keepdims=1),
         ]
     )
-    _color_at_coord(nodes, f"{output}_row", f"{output}_col", output)
 
 
 def _unique(nodes: list[onnx.NodeProto], name: str, color: str, others: list[str]) -> None:
@@ -83,10 +71,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("zero_i64", [0], [1, 1, 1, 1]),
         _int64_tensor("zero_pad", [0], [1]),
         _int64_tensor("shape1", [1], [1]),
-        _int64_tensor("shape112", [1, 1, 2], [3]),
-        _int64_tensor("unsq_axis1", [1], [1]),
-        _int64_tensor("unsq_batch_axes", [0, 1], [2]),
-        _int64_tensor("gathernd_index_shape", [1, 10, 1, 1, 2], [5]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("outside_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
