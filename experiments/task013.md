@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 15.47499488424215 | 13599 | 99 | 2026-06-13T07:17:42+09:00 | exp006 |
+| passes_local | 15.475067890265178 | 13599 | 98 | 2026-06-13T07:52:05+09:00 | exp007 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -20,6 +20,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp004 | impl_opt | gather-extreme-points | passes_local | 15.437876630165512 | 14111 | 105 | 0.369368379111 | promoted | Auto promoted after canonical re-score. |
 | exp005 | impl_opt | dynamic-slice-colors | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp006 | impl_opt | dynamic-slice-colors-shapes | passes_local | 15.47499488424215 | 13599 | 99 | 0.0371182540766 | promoted | Auto promoted after canonical re-score. |
+| exp007 | impl_opt | reuse-shape1 | passes_local | 15.475067890265178 | 13599 | 98 | 7.30060230278e-05 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
