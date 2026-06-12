@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.2591833724327 | 6124 | 129 | 2026-06-13T07:31:56+09:00 | exp009 |
+| passes_local | 16.260463577440323 | 6124 | 121 | 2026-06-13T07:39:04+09:00 | exp010 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -22,6 +22,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp006 | impl_opt | h006 | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp007 | impl_opt | h006 | passes_local | 16.21752373107546 | 6412 | 107 | 0.17245559115 | promoted | Auto promoted after canonical re-score. |
 | exp009 | impl_opt | bool-neighbor-center | passes_local | 16.2591833724327 | 6124 | 129 | 0.0416596413572 | promoted | Auto promoted after canonical re-score. |
+| exp010 | impl_opt | reuse-shift-up-pad | passes_local | 16.260463577440323 | 6124 | 121 | 0.00128020500762 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

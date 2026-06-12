@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.77180097965592 | 75045 | 177 | 2026-06-13T07:36:41+09:00 | exp007 |
+| passes_local | 13.900108212637889 | 65771 | 393 | 2026-06-13T07:39:43+09:00 | exp011 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -21,6 +21,10 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp005 | impl_opt | int32-crop-indices | passes_local | 13.145827999248258 | 138751 | 1919 | 0.120309008674 | promoted | Auto promoted after canonical re-score. |
 | exp006 | impl_opt | crop5-window | passes_local | 13.47388194124379 | 101151 | 177 | 0.328053941996 | promoted | Auto promoted after canonical re-score. |
 | exp007 | impl_opt | f16-full-input-density | passes_local | 13.77180097965592 | 75045 | 177 | 0.297919038412 | promoted | Auto promoted after canonical re-score. |
+| exp008 | rule_redesign | right-pair-target | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp009 | rule_redesign | right-pair-target-opset13 | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp010 | rule_redesign | right-pair-target-slice | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp011 | rule_redesign | right-pair-target-slice-axes | passes_local | 13.900108212637889 | 65771 | 393 | 0.128307232982 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

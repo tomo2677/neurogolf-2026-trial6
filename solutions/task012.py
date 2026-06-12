@@ -109,7 +109,7 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Greater", ["center_fill_score", "zero_f16"], ["center_fill"]),
             helper.make_node("Greater", ["arm_fill_score", "zero_f16"], ["arm_fill"]),
             helper.make_node("Where", ["center_mask", "color12", "zero_u8"], ["center_value"]),
-            helper.make_node("Pad", ["color12", "pads_shift_1_0", "zero_u8"], ["up_color"], mode="constant"),
+            helper.make_node("Pad", ["color12", "pads_shift_up", "zero_u8"], ["up_color"], mode="constant"),
             helper.make_node("Where", ["center_mask", "up_color", "zero_u8"], ["arm_value"]),
             helper.make_node("ReduceMax", ["center_value"], ["center_color"], axes=[0, 1, 2, 3], keepdims=1),
             helper.make_node("ReduceMax", ["arm_value"], ["arm_color"], axes=[0, 1, 2, 3], keepdims=1),
@@ -119,8 +119,6 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Equal", ["colors10", "color30"], ["output"]),
         ]
     )
-    initializers.append(_int64_tensor("pads_shift_1_0", [0, 0, 1, 0, 0, 0, -1, 0], [8]))
-
     value_infos = []
     for slot in range(2):
         value_infos.extend(
