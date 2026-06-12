@@ -8,8 +8,9 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 SIZE = 10
 NONZERO = 9
-KERNEL = 19
-MID = 9
+RADIUS = 6
+KERNEL = 13
+MID = 6
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
@@ -19,6 +20,10 @@ def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -
 
 def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+
+
+def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
 def _diag_kernel(offsets: list[tuple[int, int]]) -> list[float]:
@@ -31,18 +36,19 @@ def _diag_kernel(offsets: list[tuple[int, int]]) -> list[float]:
 
 
 def build_model() -> onnx.ModelProto:
-    x, y = make_io_value_infos()
+    x, _ = make_io_value_infos()
+    y = helper.make_tensor_value_info("output", onnx.TensorProto.UINT8, GRID_SHAPE)
 
     initializers = [
         _int64_tensor("nonzero_starts", [0, 1, 0, 0], [4]),
         _int64_tensor("nonzero_ends", [1, 10, SIZE, SIZE], [4]),
         _int64_tensor("output_pads", [0, 0, 0, 0, 0, 0, 20, 20], [8]),
         _f32_tensor("zero_f32", [0.0], [1]),
-        _f32_tensor("one_f32", [1.0], [1]),
-        _f32_tensor("ul_w", _diag_kernel([(-k, -k) for k in range(SIZE)]), [NONZERO, 1, KERNEL, KERNEL]),
-        _f32_tensor("dr_w", _diag_kernel([(k, k) for k in range(SIZE)]), [NONZERO, 1, KERNEL, KERNEL]),
-        _f32_tensor("ur_w", _diag_kernel([(-k, k) for k in range(SIZE)]), [NONZERO, 1, KERNEL, KERNEL]),
-        _f32_tensor("dl_w", _diag_kernel([(k, -k) for k in range(SIZE)]), [NONZERO, 1, KERNEL, KERNEL]),
+        _u8_tensor("one_u8", [1], [1]),
+        _f32_tensor("ul_w", _diag_kernel([(-k, -k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
+        _f32_tensor("dr_w", _diag_kernel([(k, k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
+        _f32_tensor("ur_w", _diag_kernel([(-k, k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
+        _f32_tensor("dl_w", _diag_kernel([(k, -k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
     ]
 
     conv_attrs = {
@@ -64,14 +70,14 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("And", ["ul", "dr"], ["main_diag"]),
         helper.make_node("And", ["ur", "dl"], ["anti_diag"]),
         helper.make_node("Or", ["main_diag", "anti_diag"], ["line_bool"]),
-        helper.make_node("Cast", ["line_bool"], ["line9"], to=onnx.TensorProto.FLOAT),
-        helper.make_node("ReduceMax", ["line9"], ["line_any"], axes=[1], keepdims=1),
-        helper.make_node("Sub", ["one_f32", "line_any"], ["zero10"]),
-        helper.make_node("Concat", ["zero10", "line9"], ["output10"], axis=1),
-        helper.make_node("Pad", ["output10", "output_pads"], ["output"], mode="constant"),
+        helper.make_node("Cast", ["line_bool"], ["line9_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("ReduceMax", ["line9_u8"], ["line_any_u8"], axes=[1], keepdims=1),
+        helper.make_node("Sub", ["one_u8", "line_any_u8"], ["zero10_u8"]),
+        helper.make_node("Concat", ["zero10_u8", "line9_u8"], ["output10_u8"], axis=1),
+        helper.make_node("Pad", ["output10_u8", "output_pads"], ["output"], mode="constant"),
     ]
 
     graph = helper.make_graph(nodes, "task037_diagonal_pair_lines_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 14)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
