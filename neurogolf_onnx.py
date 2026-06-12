@@ -285,6 +285,12 @@ def update_ledger(task: str | int, **updates: Any) -> dict[str, dict[str, Any]]:
         entry[key] = value
     entry["task"] = task_id
     entry.setdefault("updated_at", None)
+    public_score = entry.get("official_public_score")
+    local_score = entry.get("local_points")
+    if isinstance(public_score, (int, float)) and isinstance(local_score, (int, float)):
+        entry["official_delta_public_vs_local"] = float(public_score) - float(local_score)
+    elif "official_public_score" in updates or "local_points" in updates:
+        entry["official_delta_public_vs_local"] = None
     write_ledger(ledger)
     return ledger
 
