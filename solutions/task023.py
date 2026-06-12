@@ -7,7 +7,8 @@ from onnx import helper
 from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
-SIZE = 11
+HEIGHT = 9
+WIDTH = 11
 PROPAGATION_STEPS = 4
 SQUARE = [(0, 0), (0, 1), (1, 0), (1, 1)]
 H_BAR = [(0, 0), (0, 1), (0, 2)]
@@ -37,9 +38,9 @@ def _shift(
     dc: int,
 ) -> str:
     row_start = max(0, -dr)
-    row_end = SIZE - max(0, dr)
+    row_end = HEIGHT - max(0, dr)
     col_start = max(0, -dc)
-    col_end = SIZE - max(0, dc)
+    col_end = WIDTH - max(0, dc)
     pad_top = max(0, dr)
     pad_bottom = max(0, -dr)
     pad_left = max(0, dc)
@@ -166,11 +167,11 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("eight_u8", [8], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 30 - SIZE, 30 - SIZE], [8]),
+        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 30 - HEIGHT, 30 - WIDTH], [8]),
         _int64_tensor("black_starts", [0, 0, 0, 0], [4]),
-        _int64_tensor("black_ends", [1, 1, SIZE, SIZE], [4]),
+        _int64_tensor("black_ends", [1, 1, HEIGHT, WIDTH], [4]),
         _int64_tensor("gray_starts", [0, 5, 0, 0], [4]),
-        _int64_tensor("gray_ends", [1, 6, SIZE, SIZE], [4]),
+        _int64_tensor("gray_ends", [1, 6, HEIGHT, WIDTH], [4]),
         _int64_tensor("axes_hw", [2, 3], [2]),
     ]
 
