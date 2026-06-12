@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.900108212637889 | 65771 | 393 | 2026-06-13T07:39:43+09:00 | exp011 |
+| passes_local | 14.046197944203515 | 57071 | 100 | 2026-06-13T07:41:35+09:00 | exp012 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -25,6 +25,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp009 | rule_redesign | right-pair-target-opset13 | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp010 | rule_redesign | right-pair-target-slice | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp011 | rule_redesign | right-pair-target-slice-axes | passes_local | 13.900108212637889 | 65771 | 393 | 0.128307232982 | promoted | Auto promoted after canonical re-score. |
+| exp012 | impl_opt | right-pair-pad13 | passes_local | 14.046197944203515 | 57071 | 100 | 0.146089731566 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

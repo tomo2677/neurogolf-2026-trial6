@@ -33,10 +33,6 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
-def _bool_tensor(name: str, values: list[bool], dims: list[int]) -> onnx.TensorProto:
-    return helper.make_tensor(name, onnx.TensorProto.BOOL, dims, values)
-
-
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
@@ -49,16 +45,14 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pair_count_starts", [1], [1]),
         _int64_tensor("pair_count_ends", [10], [1]),
         _int64_tensor("pair_count_axes", [1], [1]),
-        _int64_tensor("right_starts", [1], [1]),
-        _int64_tensor("right_ends", [SIZE], [1]),
-        _int64_tensor("axis_col", [3], [1]),
+        _int64_tensor("pair_sum_axes", [2, 3], [2]),
         _int32_tensor("row_grid_i32", [r for r in range(OUT) for _ in range(OUT)], [1, 1, OUT, OUT]),
         _int32_tensor("col_grid_i32", [c for _ in range(OUT) for c in range(OUT)], [1, 1, OUT, OUT]),
         _int32_tensor("zero_i32", [0], [1]),
         _int64_tensor("one_i64", [1], [1]),
         _int32_tensor("width_i32", [SIZE], [1]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, SIZE - OUT, SIZE - OUT], [8]),
-        _bool_tensor("false_right_col", [False] * (10 * SIZE), [1, 10, SIZE, 1]),
+        _int64_tensor("pads_shift_right", [0, 0, 0, -1, 0, 0, 0, 1], [8]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
@@ -66,11 +60,10 @@ def build_model() -> onnx.ModelProto:
 
     nodes = [
         helper.make_node("Cast", ["input"], ["input_bool"], to=onnx.TensorProto.BOOL),
-        helper.make_node("Slice", ["input_bool", "right_starts", "right_ends", "axis_col"], ["right_core"]),
-        helper.make_node("Concat", ["right_core", "false_right_col"], ["right_bool"], axis=3),
+        helper.make_node("Pad", ["input_bool", "pads_shift_right"], ["right_bool"], mode="constant"),
         helper.make_node("And", ["input_bool", "right_bool"], ["right_pair_bool"]),
         helper.make_node("Cast", ["right_pair_bool"], ["right_pair_f16"], to=onnx.TensorProto.FLOAT16),
-        helper.make_node("ReduceSum", ["right_pair_f16"], ["pair_counts10"], axes=[2, 3], keepdims=0),
+        helper.make_node("ReduceSum", ["right_pair_f16", "pair_sum_axes"], ["pair_counts10"], keepdims=0),
         helper.make_node("Slice", ["pair_counts10", "pair_count_starts", "pair_count_ends", "pair_count_axes"], ["pair_counts"]),
         helper.make_node("ArgMax", ["pair_counts"], ["target_idx0"], axis=1, keepdims=1),
         helper.make_node("Add", ["target_idx0", "one_i64"], ["target_idx"]),
@@ -111,6 +104,6 @@ def build_model() -> onnx.ModelProto:
     ]
 
     graph = helper.make_graph(nodes, "task036_dense_color_bbox_crop_color_grid_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
