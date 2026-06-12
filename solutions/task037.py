@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import onnx
 from onnx import helper
 
@@ -20,6 +21,10 @@ def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -
 
 def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+
+
+def _f16_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT16, dims, np.asarray(values, dtype=np.float16).ravel())
 
 
 def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
@@ -43,12 +48,12 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("nonzero_starts", [0, 1, 0, 0], [4]),
         _int64_tensor("nonzero_ends", [1, 10, SIZE, SIZE], [4]),
         _int64_tensor("output_pads", [0, 0, 0, 0, 0, 0, 20, 20], [8]),
-        _f32_tensor("zero_f32", [0.0], [1]),
+        _f16_tensor("zero_f16", [0.0], [1]),
         _u8_tensor("one_u8", [1], [1]),
-        _f32_tensor("ul_w", _diag_kernel([(-k, -k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
-        _f32_tensor("dr_w", _diag_kernel([(k, k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
-        _f32_tensor("ur_w", _diag_kernel([(-k, k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
-        _f32_tensor("dl_w", _diag_kernel([(k, -k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
+        _f16_tensor("ul_w", _diag_kernel([(-k, -k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
+        _f16_tensor("dr_w", _diag_kernel([(k, k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
+        _f16_tensor("ur_w", _diag_kernel([(-k, k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
+        _f16_tensor("dl_w", _diag_kernel([(k, -k) for k in range(RADIUS + 1)]), [NONZERO, 1, KERNEL, KERNEL]),
     ]
 
     conv_attrs = {
@@ -59,14 +64,15 @@ def build_model() -> onnx.ModelProto:
 
     nodes = [
         helper.make_node("Slice", ["input", "nonzero_starts", "nonzero_ends"], ["input9"]),
-        helper.make_node("Conv", ["input9", "ul_w"], ["ul_score"], **conv_attrs),
-        helper.make_node("Conv", ["input9", "dr_w"], ["dr_score"], **conv_attrs),
-        helper.make_node("Conv", ["input9", "ur_w"], ["ur_score"], **conv_attrs),
-        helper.make_node("Conv", ["input9", "dl_w"], ["dl_score"], **conv_attrs),
-        helper.make_node("Greater", ["ul_score", "zero_f32"], ["ul"]),
-        helper.make_node("Greater", ["dr_score", "zero_f32"], ["dr"]),
-        helper.make_node("Greater", ["ur_score", "zero_f32"], ["ur"]),
-        helper.make_node("Greater", ["dl_score", "zero_f32"], ["dl"]),
+        helper.make_node("Cast", ["input9"], ["input9_f16"], to=onnx.TensorProto.FLOAT16),
+        helper.make_node("Conv", ["input9_f16", "ul_w"], ["ul_score"], **conv_attrs),
+        helper.make_node("Conv", ["input9_f16", "dr_w"], ["dr_score"], **conv_attrs),
+        helper.make_node("Conv", ["input9_f16", "ur_w"], ["ur_score"], **conv_attrs),
+        helper.make_node("Conv", ["input9_f16", "dl_w"], ["dl_score"], **conv_attrs),
+        helper.make_node("Greater", ["ul_score", "zero_f16"], ["ul"]),
+        helper.make_node("Greater", ["dr_score", "zero_f16"], ["dr"]),
+        helper.make_node("Greater", ["ur_score", "zero_f16"], ["ur"]),
+        helper.make_node("Greater", ["dl_score", "zero_f16"], ["dl"]),
         helper.make_node("And", ["ul", "dr"], ["main_diag"]),
         helper.make_node("And", ["ur", "dl"], ["anti_diag"]),
         helper.make_node("Or", ["main_diag", "anti_diag"], ["line_bool"]),
