@@ -23,13 +23,13 @@ def _color_at_coord(nodes: list[onnx.NodeProto], row: str, col: str, output: str
         [
             helper.make_node("Reshape", [row, "shape1"], [f"{output}_row1"]),
             helper.make_node("Reshape", [col, "shape1"], [f"{output}_col1"]),
-            helper.make_node("Unsqueeze", [f"{output}_row1", "unsq_axis1"], [f"{output}_row11"]),
-            helper.make_node("Unsqueeze", [f"{output}_col1", "unsq_axis1"], [f"{output}_col11"]),
-            helper.make_node("Concat", [f"{output}_row11", f"{output}_col11"], [f"{output}_indices12"], axis=1),
-            helper.make_node("Reshape", [f"{output}_indices12", "shape112"], [f"{output}_spatial_indices"]),
-            helper.make_node("Unsqueeze", [f"{output}_spatial_indices", "unsq_batch_axes"], [f"{output}_indices_batched"]),
-            helper.make_node("Expand", [f"{output}_indices_batched", "gathernd_index_shape"], [f"{output}_indices"]),
-            helper.make_node("GatherND", ["input", f"{output}_indices"], [f"{output}_onehot"], batch_dims=2),
+            helper.make_node("Add", [row, "one_i64"], [f"{output}_row_end"]),
+            helper.make_node("Add", [col, "one_i64"], [f"{output}_col_end"]),
+            helper.make_node("Reshape", [f"{output}_row_end", "shape1"], [f"{output}_row_end1"]),
+            helper.make_node("Reshape", [f"{output}_col_end", "shape1"], [f"{output}_col_end1"]),
+            helper.make_node("Concat", ["zero_i64", "zero_i64", f"{output}_row1", f"{output}_col1"], [f"{output}_starts"], axis=0),
+            helper.make_node("Concat", ["one_i64", "ten_i64", f"{output}_row_end1", f"{output}_col_end1"], [f"{output}_ends"], axis=0),
+            helper.make_node("Slice", ["input", f"{output}_starts", f"{output}_ends", "axes4"], [f"{output}_onehot"]),
             helper.make_node("ArgMax", [f"{output}_onehot"], [f"{output}_i64"], axis=1, keepdims=1),
             helper.make_node("Cast", [f"{output}_i64"], [output], to=onnx.TensorProto.UINT8),
         ]
@@ -48,12 +48,10 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("col_idx", list(range(30)), [1, 1, 1, 30]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("two_i64", [2], [1]),
+        _int64_tensor("ten_i64", [10], [1]),
         _int64_tensor("zero_i64", [0], [1]),
+        _int64_tensor("axes4", [0, 1, 2, 3], [4]),
         _int64_tensor("shape1", [1], [1]),
-        _int64_tensor("shape112", [1, 1, 2], [3]),
-        _int64_tensor("unsq_axis1", [1], [1]),
-        _int64_tensor("unsq_batch_axes", [0, 1], [2]),
-        _int64_tensor("gathernd_index_shape", [1, 10, 1, 1, 2], [5]),
         _int64_tensor("col_gather_shape", [1, 1, 30, 1], [4]),
         _int64_tensor("row_gather_shape", [1, 1, 1, 30], [4]),
         _f32_tensor("zero_f32", [0.0], [1]),
@@ -137,7 +135,27 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task013_periodic_lines_graph", [x], [y], initializers)
+    value_infos = []
+    for name in ["c0_color", "c1_color", "r0_color", "r1_color"]:
+        value_infos.extend(
+            [
+                helper.make_tensor_value_info(f"{name}_onehot", onnx.TensorProto.FLOAT, [1, 10, 1, 1]),
+                helper.make_tensor_value_info(f"{name}_i64", onnx.TensorProto.INT64, [1, 1, 1, 1]),
+                helper.make_tensor_value_info(name, onnx.TensorProto.UINT8, [1, 1, 1, 1]),
+            ]
+        )
+    value_infos.extend(
+        [
+            helper.make_tensor_value_info("h_color_line", onnx.TensorProto.UINT8, [1, 1, 1, 30]),
+            helper.make_tensor_value_info("h_color_grid", onnx.TensorProto.UINT8, [1, 1, 1, 30]),
+            helper.make_tensor_value_info("v_color_line", onnx.TensorProto.UINT8, [1, 1, 30, 1]),
+            helper.make_tensor_value_info("v_color_grid", onnx.TensorProto.UINT8, [1, 1, 30, 1]),
+            helper.make_tensor_value_info("color_grid", onnx.TensorProto.UINT8, [1, 1, 30, 30]),
+            helper.make_tensor_value_info("color30", onnx.TensorProto.UINT8, [1, 1, 30, 30]),
+        ]
+    )
+
+    graph = helper.make_graph(nodes, "task013_periodic_lines_graph", [x], [y], initializers, value_info=value_infos)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
