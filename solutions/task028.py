@@ -28,7 +28,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("top_ends", [1, 10, 3, 8], [4]),
         _int64_tensor("bottom_starts", [0, 1, 7, 2], [4]),
         _int64_tensor("bottom_ends", [1, 10, 8, 8], [4]),
-        _int64_tensor("width_axis", [3], [1]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("shape_row10", [1, 1, 1, 10], [4]),
         _int64_tensor("pads_hw", [0, 0, 20, 20], [4]),
@@ -41,12 +40,12 @@ def build_model() -> onnx.ModelProto:
 
     nodes = [
         helper.make_node("Slice", ["input", "top_starts", "top_ends"], ["top_row"]),
-        helper.make_node("ReduceMax", ["top_row", "width_axis"], ["top_present"], keepdims=1),
+        helper.make_node("MaxPool", ["top_row"], ["top_present"], kernel_shape=[1, 6]),
         helper.make_node("ArgMax", ["top_present"], ["top_idx0"], axis=1, keepdims=1),
         helper.make_node("Add", ["top_idx0", "one_i64"], ["top_color_i64"]),
         helper.make_node("Cast", ["top_color_i64"], ["top_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Slice", ["input", "bottom_starts", "bottom_ends"], ["bottom_row"]),
-        helper.make_node("ReduceMax", ["bottom_row", "width_axis"], ["bottom_present"], keepdims=1),
+        helper.make_node("MaxPool", ["bottom_row"], ["bottom_present"], kernel_shape=[1, 6]),
         helper.make_node("ArgMax", ["bottom_present"], ["bottom_idx0"], axis=1, keepdims=1),
         helper.make_node("Add", ["bottom_idx0", "one_i64"], ["bottom_color_i64"]),
         helper.make_node("Cast", ["bottom_color_i64"], ["bottom_color_u8"], to=onnx.TensorProto.UINT8),
@@ -75,7 +74,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task028_cols2_7_template_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task028_maxpool_row_reduce_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
