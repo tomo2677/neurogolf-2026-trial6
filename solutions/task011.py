@@ -30,7 +30,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("channel8_starts", [0, 8, 0, 0], [4]),
         _int64_tensor("channel8_ends", [1, 9, 11, 11], [4]),
         _int64_tensor("slice_channel_start", [0], [1]),
-        _int64_tensor("slice_channel_end", [10], [1]),
+        _int64_tensor("slice_channel_end", [7], [1]),
         _int64_tensor("shape_1x9", [1, 9], [2]),
         _int64_tensor("row_start_table", [0, 0, 0, 4, 4, 4, 8, 8, 8], [9]),
         _int64_tensor("col_start_table", [0, 4, 8, 0, 4, 8, 0, 4, 8], [9]),
@@ -104,7 +104,7 @@ def build_model() -> onnx.ModelProto:
     )
 
     value_infos = [
-        helper.make_tensor_value_info("selected_onehot", onnx.TensorProto.FLOAT, [1, 10, 3, 3]),
+        helper.make_tensor_value_info("selected_onehot", onnx.TensorProto.FLOAT, [1, 7, 3, 3]),
         helper.make_tensor_value_info("pattern_i64", onnx.TensorProto.INT64, [1, 1, 3, 3]),
         helper.make_tensor_value_info("pattern", onnx.TensorProto.UINT8, [1, 1, 3, 3]),
     ]
