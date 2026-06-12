@@ -20,6 +20,10 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
+def _bool_tensor(name: str, values: list[bool], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.BOOL, dims, values)
+
+
 def _gather_coords(nodes: list[onnx.NodeProto], source: str, src_r: str, src_c: str, output: str) -> None:
     nodes.extend(
         [
@@ -50,10 +54,8 @@ def build_model() -> onnx.ModelProto:
 
     initializers = [
         _int64_tensor("two_i64", [2], [1]),
-        _int64_tensor("zero_i64", [0], [1]),
         _int32_tensor("zero_i32", [0], [1]),
         _int32_tensor("neg_one_i32", [-1], [1]),
-        _int32_tensor("ten_i32", [10], [1]),
         _int32_tensor("size_i32", [30], [1]),
         _int32_tensor("width_i32", [30], [1]),
         _int64_tensor("shape1", [1], [1]),
@@ -65,12 +67,13 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
+        _bool_tensor("valid10_bool", [r < 10 and c < 10 for r in range(30) for c in range(30)], [1, 1, 30, 30]),
     ]
 
     nodes: list[onnx.NodeProto] = [
         helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Greater", ["input_color_i64", "zero_i64"], ["nonzero_bool"]),
+        helper.make_node("Greater", ["input_color_u8", "zero_u8"], ["nonzero_bool"]),
         helper.make_node("Cast", ["nonzero_bool"], ["nonzero_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["nonzero_u8"], ["row_present"], axes=[3], keepdims=1),
         helper.make_node("ReduceMax", ["nonzero_u8"], ["col_present"], axes=[2], keepdims=1),
@@ -106,9 +109,6 @@ def build_model() -> onnx.ModelProto:
     nodes.extend(
         [
             helper.make_node("Max", ["input_color_u8", "rot90", "rot180", "rot270"], ["placed_color"]),
-            helper.make_node("Less", ["row_grid_i32", "ten_i32"], ["row_valid10"]),
-            helper.make_node("Less", ["col_grid_i32", "ten_i32"], ["col_valid10"]),
-            helper.make_node("And", ["row_valid10", "col_valid10"], ["valid10_bool"]),
             helper.make_node("Where", ["valid10_bool", "placed_color", "invalid_u8"], ["color30"]),
             helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
         ]
