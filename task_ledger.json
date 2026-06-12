@@ -153,10 +153,10 @@
   },
   "task020": {
     "task": "task020",
-    "status": "rule_invalid",
-    "local_points": null,
-    "memory_bytes_approx": null,
-    "params": null,
-    "updated_at": "2026-06-12T12:04:13+09:00"
+    "status": "passes_local",
+    "local_points": 11.032492222096845,
+    "memory_bytes_approx": 1161392,
+    "params": 2765,
+    "updated_at": "2026-06-12T12:21:22+09:00"
   }
 }
