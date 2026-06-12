@@ -132,11 +132,11 @@ def _or_many(nodes: list[onnx.NodeProto], sources: list[str], output: str) -> st
     return output
 
 
-def _sum_bool_as_internal(nodes: list[onnx.NodeProto], sources: list[str], output: str) -> str:
+def _sum_bool_as_u8(nodes: list[onnx.NodeProto], sources: list[str], output: str) -> str:
     casted = []
     for index, source in enumerate(sources):
         casted_name = f"{output}_cast_{index}"
-        nodes.append(helper.make_node("Cast", [source], [casted_name], to=INTERNAL_TYPE))
+        nodes.append(helper.make_node("Cast", [source], [casted_name], to=onnx.TensorProto.UINT8))
         casted.append(casted_name)
     return _sum_many(nodes, casted, output)
 
@@ -196,7 +196,7 @@ def build_model() -> onnx.ModelProto:
 
     initializers = [
         _f16_tensor("zero_f32", [0.0], [1]),
-        _f16_tensor("one_f32", [1.0], [1]),
+        _u8_tensor("one_u8", [1], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("two_u8", [2], [1]),
         _u8_tensor("eight_u8", [8], [1]),
@@ -237,11 +237,11 @@ def build_model() -> onnx.ModelProto:
         for name, active, offsets in (("s", s_active, SQUARE), ("h", h_active, H_BAR), ("v", v_active, V_BAR)):
             for index, (dr, dc) in enumerate(offsets):
                 cover_terms.append(_shift(nodes, initializers, active, f"step{step}_{name}_count_{index}", dr, dc))
-        count = _sum_bool_as_internal(nodes, cover_terms, f"step{step}_candidate_count")
+        count = _sum_bool_as_u8(nodes, cover_terms, f"step{step}_candidate_count")
 
         nodes.extend(
             [
-                helper.make_node("Equal", [count, "one_f32"], [f"step{step}_count_one_bool"]),
+                helper.make_node("Equal", [count, "one_u8"], [f"step{step}_count_one_bool"]),
                 helper.make_node("And", [remaining, f"step{step}_count_one_bool"], [f"step{step}_forced"]),
             ]
         )

@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.966869947697983 | 61785 | 106 | 2026-06-13T07:57:44+09:00 | exp016 |
+| passes_local | 14.096487368869953 | 54261 | 106 | 2026-06-13T08:01:03+09:00 | exp018 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -29,6 +29,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp014 | rule_redesign | window11-cover | passes_local | 13.750662547972082 | 75507 | 1322 | 1.99423419931 | promoted | Auto promoted after canonical re-score. |
 | exp015 | rule_redesign | window9x11-cover | passes_local | 13.947413022599758 | 61785 | 1322 | 0.196750474628 | promoted | Auto promoted after canonical re-score. |
 | exp016 | impl_opt | dedupe-initializers | passes_local | 13.966869947697983 | 61785 | 106 | 0.0194569250982 | promoted | Auto promoted after canonical re-score. |
+| exp017 | impl_opt | u8-count-current | passes_local | 14.09646897552834 | 54261 | 107 | 0.12959902783 | promoted | Auto promoted after canonical re-score. |
+| exp018 | impl_opt | u8-count-drop-unused-one | passes_local | 14.096487368869953 | 54261 | 106 | 1.83933416125e-05 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
