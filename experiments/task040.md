@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.36324788756422 | 1953 | 120 | 2026-06-13T05:02:47+09:00 | exp003 |
+| passes_local | 17.377825405182378 | 1925 | 118 | 2026-06-13T06:21:20+09:00 | exp005 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -17,6 +17,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp001 | rule_redesign | edge-only-guide-marker | passes_local | 16.851843560078375 | 2793 | 664 | 0.693002536024 | promoted | Auto promoted after canonical re-score. |
 | exp002 | impl_opt | broadcast-edge-masks | passes_local | 17.02168903013228 | 2793 | 124 | 0.169845470054 | promoted | Auto promoted after canonical re-score. |
 | exp003 | impl_opt | h003 | passes_local | 17.36324788756422 | 1953 | 120 | 0.341558857432 | promoted | Auto promoted after canonical re-score. |
+| exp005 | impl_opt | top-slice3-pad-axes | passes_local | 17.377825405182378 | 1925 | 118 | 0.0145775176182 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
