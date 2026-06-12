@@ -39,6 +39,7 @@ def build_model() -> onnx.ModelProto:
 
     initializers = [
         _int64_tensor("shape_color1", [1, 1, 1, 1], [4]),
+        _int64_tensor("shape_1", [1], [1]),
         _int64_tensor("shape_index_1x25", [1, 1, OUT * OUT], [3]),
         _int64_tensor("shape_flat_1x900", [1, 1, SIZE * SIZE], [3]),
         _int64_tensor("shape_1x1x5x5", [1, 1, OUT, OUT], [4]),
@@ -66,8 +67,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ArgMax", ["pair_counts"], ["target_idx0"], axis=1, keepdims=1),
         helper.make_node("Add", ["target_idx0", "one_i64"], ["target_idx"]),
         helper.make_node("Reshape", ["target_idx", "shape_color1"], ["target_color_i64"]),
-        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
-        helper.make_node("Equal", ["input_color_i64", "target_color_i64"], ["target_mask_bool"]),
+        helper.make_node("Reshape", ["target_idx", "shape_1"], ["target_channel_start"]),
+        helper.make_node("Add", ["target_channel_start", "one_i64"], ["target_channel_end"]),
+        helper.make_node("Slice", ["input_bool", "target_channel_start", "target_channel_end", "one_i64"], ["target_mask_bool"]),
         helper.make_node("Cast", ["target_mask_bool"], ["target_mask_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["target_mask_u8"], ["row_present"], axes=[3], keepdims=1),
         helper.make_node("ReduceMax", ["target_mask_u8"], ["col_present"], axes=[2], keepdims=1),
@@ -101,7 +103,19 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task036_dense_color_bbox_crop_color_grid_graph", [x], [y], initializers)
+    value_infos = [
+        helper.make_tensor_value_info("target_mask_bool", onnx.TensorProto.BOOL, [1, 1, SIZE, SIZE]),
+        helper.make_tensor_value_info("target_mask_u8", onnx.TensorProto.UINT8, [1, 1, SIZE, SIZE]),
+    ]
+
+    graph = helper.make_graph(
+        nodes,
+        "task036_dense_color_bbox_crop_color_grid_graph",
+        [x],
+        [y],
+        initializers,
+        value_info=value_infos,
+    )
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
