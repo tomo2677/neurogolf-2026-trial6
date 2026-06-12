@@ -66,7 +66,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pads_color10_to30", [0, 0, 0, 0, 0, 0, 30 - SIZE, 30 - SIZE], [8]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
-        _u8_tensor("one_u8", [1], [1]),
         _u8_tensor("two_u8", [2], [1]),
         _u8_tensor("four_u8", [4], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
@@ -86,7 +85,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ArgMax", ["c1_ref_row_score"], ["ref_top"], axis=2, keepdims=1),
     ]
 
-    shifted_masks: list[tuple[str, str]] = [("c1_u8", "one_u8")]
+    shifted_masks: list[tuple[str, str]] = []
     for color_name, mask_name, color_value in (("c2", "c2_u8", "two_u8"), ("c4", "c4_u8", "four_u8")):
         nodes.extend(
             [
