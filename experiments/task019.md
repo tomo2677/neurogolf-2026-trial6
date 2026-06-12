@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 15.839900844460564 | 9148 | 362 | 2026-06-13T08:23:20+09:00 | exp008 |
+| passes_local | 15.919654424640004 | 8428 | 353 | 2026-06-13T08:24:56+09:00 | exp009 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -22,6 +22,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp006 | rule_redesign | twelve-window-shift | passes_local | 14.84914468592548 | 25240 | 373 | 1.78458901357 | promoted | Auto promoted after canonical re-score. |
 | exp007 | impl_opt | reuse-shape-width | passes_local | 14.849300868815961 | 25240 | 369 | 0.00015618289048 | promoted | Auto promoted after canonical re-score. |
 | exp008 | impl_opt | mod-tile-gather | passes_local | 15.839900844460564 | 9148 | 362 | 0.990599975645 | promoted | Auto promoted after canonical re-score. |
+| exp009 | impl_opt | gather-1d-tile | passes_local | 15.919654424640004 | 8428 | 353 | 0.0797535801794 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
