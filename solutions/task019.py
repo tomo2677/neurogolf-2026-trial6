@@ -12,6 +12,11 @@ def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -
     return helper.make_tensor(name, onnx.TensorProto.INT64, shape, values)
 
 
+def _int32_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
+    shape = [len(values)] if dims is None else dims
+    return helper.make_tensor(name, onnx.TensorProto.INT32, shape, values)
+
+
 def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
@@ -33,20 +38,21 @@ def _f16_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorP
 def _shift_color(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, output: str) -> None:
     nodes.extend(
         [
-            helper.make_node("Sub", ["row_grid_i64", dr], [f"{output}_src_r"]),
-            helper.make_node("Sub", ["col_grid_i64", dc], [f"{output}_src_c"]),
-            helper.make_node("Greater", [f"{output}_src_r", "neg_one_i64"], [f"{output}_r_nonneg"]),
-            helper.make_node("Less", [f"{output}_src_r", "size_i64"], [f"{output}_r_lt_size"]),
-            helper.make_node("Greater", [f"{output}_src_c", "neg_one_i64"], [f"{output}_c_nonneg"]),
-            helper.make_node("Less", [f"{output}_src_c", "size_i64"], [f"{output}_c_lt_size"]),
+            helper.make_node("Sub", ["row_grid_i32", dr], [f"{output}_src_r"]),
+            helper.make_node("Sub", ["col_grid_i32", dc], [f"{output}_src_c"]),
+            helper.make_node("Greater", [f"{output}_src_r", "neg_one_i32"], [f"{output}_r_nonneg"]),
+            helper.make_node("Less", [f"{output}_src_r", "size_i32"], [f"{output}_r_lt_size"]),
+            helper.make_node("Greater", [f"{output}_src_c", "neg_one_i32"], [f"{output}_c_nonneg"]),
+            helper.make_node("Less", [f"{output}_src_c", "size_i32"], [f"{output}_c_lt_size"]),
             helper.make_node("And", [f"{output}_r_nonneg", f"{output}_r_lt_size"], [f"{output}_r_ok"]),
             helper.make_node("And", [f"{output}_c_nonneg", f"{output}_c_lt_size"], [f"{output}_c_ok"]),
             helper.make_node("And", [f"{output}_r_ok", f"{output}_c_ok"], [f"{output}_in_bounds"]),
-            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_r", "zero_i64"], [f"{output}_safe_r"]),
-            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_c", "zero_i64"], [f"{output}_safe_c"]),
-            helper.make_node("Mul", [f"{output}_safe_r", "width_30_i64"], [f"{output}_safe_r_offset"]),
+            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_r", "zero_i32"], [f"{output}_safe_r"]),
+            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_c", "zero_i32"], [f"{output}_safe_c"]),
+            helper.make_node("Mul", [f"{output}_safe_r", "width_30_i32"], [f"{output}_safe_r_offset"]),
             helper.make_node("Add", [f"{output}_safe_r_offset", f"{output}_safe_c"], [f"{output}_safe_spatial"]),
-            helper.make_node("Reshape", [f"{output}_safe_spatial", "shape_index_1x900"], [f"{output}_indices"]),
+            helper.make_node("Reshape", [f"{output}_safe_spatial", "shape_index_1x900"], [f"{output}_indices_i32"]),
+            helper.make_node("Cast", [f"{output}_indices_i32"], [f"{output}_indices"], to=onnx.TensorProto.INT64),
             helper.make_node("Reshape", [source, "shape_flat_1x900"], [f"{output}_source_flat"]),
             helper.make_node("GatherElements", [f"{output}_source_flat", f"{output}_indices"], [f"{output}_shifted_flat"], axis=2),
             helper.make_node("Reshape", [f"{output}_shifted_flat", "shape_1x1x30x30"], [f"{output}_shifted"]),
@@ -60,20 +66,20 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("row_idx", list(range(30)), [1, 1, 30, 1]),
-        _int64_tensor("col_idx", list(range(30)), [1, 1, 1, 30]),
+        _int32_tensor("row_idx", list(range(30)), [1, 1, 30, 1]),
+        _int32_tensor("col_idx", list(range(30)), [1, 1, 1, 30]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("two_i64", [2], [1]),
-        _int64_tensor("zero_i64", [0], [1]),
-        _int64_tensor("neg_one_i64", [-1], [1]),
-        _int64_tensor("size_i64", [30], [1]),
-        _int64_tensor("width_30_i64", [30], [1]),
+        _int32_tensor("zero_i32", [0], [1]),
+        _int32_tensor("neg_one_i32", [-1], [1]),
+        _int32_tensor("size_i32", [30], [1]),
+        _int32_tensor("width_30_i32", [30], [1]),
         _int64_tensor("shape1", [1], [1]),
         _int64_tensor("shape_index_1x900", [1, 1, 900], [3]),
         _int64_tensor("shape_flat_1x900", [1, 1, 900], [3]),
         _int64_tensor("shape_1x1x30x30", [1, 1, 30, 30], [4]),
-        _int64_tensor("row_grid_i64", [r for r in range(30) for _ in range(30)], [1, 1, 30, 30]),
-        _int64_tensor("col_grid_i64", [c for _ in range(30) for c in range(30)], [1, 1, 30, 30]),
+        _int32_tensor("row_grid_i32", [r for r in range(30) for _ in range(30)], [1, 1, 30, 30]),
+        _int32_tensor("col_grid_i32", [c for _ in range(30) for c in range(30)], [1, 1, 30, 30]),
         _f16_tensor("zero_f16", [0.0], [1]),
         _f16_tensor("diag_kernel", [1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0], [1, 1, 3, 3]),
         _u8_tensor("zero_u8", [0], [1]),
@@ -94,16 +100,20 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Reshape", ["width_raw", "shape1"], ["width"]),
         helper.make_node("Mul", ["height", "two_i64"], ["out_height"]),
         helper.make_node("Mul", ["width", "two_i64"], ["out_width"]),
-        helper.make_node("Less", ["row_idx", "out_height"], ["row_valid"]),
-        helper.make_node("Less", ["col_idx", "out_width"], ["col_valid"]),
+        helper.make_node("Cast", ["height"], ["height_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["width"], ["width_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["out_height"], ["out_height_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["out_width"], ["out_width_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Less", ["row_idx", "out_height_i32"], ["row_valid"]),
+        helper.make_node("Less", ["col_idx", "out_width_i32"], ["col_valid"]),
         helper.make_node("And", ["row_valid", "col_valid"], ["valid_out"]),
         helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
     ]
 
-    _shift_color(nodes, "input_color_u8", "zero_i64", "width", "tile_right")
-    _shift_color(nodes, "input_color_u8", "height", "zero_i64", "tile_down")
-    _shift_color(nodes, "input_color_u8", "height", "width", "tile_down_right")
+    _shift_color(nodes, "input_color_u8", "zero_i32", "width_i32", "tile_right")
+    _shift_color(nodes, "input_color_u8", "height_i32", "zero_i32", "tile_down")
+    _shift_color(nodes, "input_color_u8", "height_i32", "width_i32", "tile_down_right")
 
     nodes.extend(
         [
