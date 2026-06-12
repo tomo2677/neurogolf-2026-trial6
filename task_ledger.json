@@ -129,34 +129,34 @@
   },
   "task017": {
     "task": "task017",
-    "status": "passes_local",
-    "local_points": 10.52786569555905,
-    "memory_bytes_approx": 458783,
-    "params": 1469488,
-    "updated_at": "2026-06-12T11:01:23+09:00"
+    "status": "rule_invalid",
+    "local_points": null,
+    "memory_bytes_approx": null,
+    "params": null,
+    "updated_at": "2026-06-12T12:04:13+09:00"
   },
   "task018": {
     "task": "task018",
-    "status": "passes_local",
+    "status": "rule_invalid",
     "local_points": null,
     "memory_bytes_approx": null,
-    "params": 979,
-    "updated_at": "2026-06-12T11:08:40+09:00"
+    "params": null,
+    "updated_at": "2026-06-12T12:04:13+09:00"
   },
   "task019": {
     "task": "task019",
-    "status": "passes_local",
+    "status": "rule_invalid",
     "local_points": null,
     "memory_bytes_approx": null,
-    "params": 110,
-    "updated_at": "2026-06-12T11:10:41+09:00"
+    "params": null,
+    "updated_at": "2026-06-12T12:04:13+09:00"
   },
   "task020": {
     "task": "task020",
-    "status": "passes_local",
+    "status": "rule_invalid",
     "local_points": null,
     "memory_bytes_approx": null,
-    "params": 950,
-    "updated_at": "2026-06-12T11:12:33+09:00"
+    "params": null,
+    "updated_at": "2026-06-12T12:04:13+09:00"
   }
 }
