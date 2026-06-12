@@ -9,7 +9,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 H = 21
 W = 21
-MAX_PERIOD = 21
+PERIODS = [2, 4, 5, 6, 7, 8, 9]
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
@@ -54,7 +54,7 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("outside_u8", [255], [1]),
     ]
 
-    for p in range(1, MAX_PERIOD + 1):
+    for p in PERIODS:
         p2 = p * p
         initializers.extend(
             [
@@ -75,8 +75,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Reshape", ["input_nonzero", "shape_flat"], ["input_flat"]),
     ]
 
-    color_candidates: list[str] = []
-    for p in range(1, MAX_PERIOD + 1):
+    color_candidates: list[tuple[int, str]] = []
+    for p in PERIODS:
         nodes.extend(
             [
                 helper.make_node("MatMul", ["input_flat", f"period_mask_{p}"], [f"counts_{p}"]),
@@ -95,16 +95,16 @@ def build_model() -> onnx.ModelProto:
                 helper.make_node("Pad", [f"color21_{p}", "pads_output", "outside_u8"], [f"color30_{p}"], mode="constant"),
             ]
         )
-        color_candidates.append(f"color30_{p}")
+        color_candidates.append((p, f"color30_{p}"))
 
-    current = color_candidates[-1]
-    for p in range(MAX_PERIOD - 1, 0, -1):
+    current = color_candidates[-1][1]
+    for p, candidate in reversed(color_candidates[:-1]):
         selected = f"selected_color30_{p}"
-        nodes.append(helper.make_node("Where", [f"period_ok_{p}", color_candidates[p - 1], current], [selected]))
+        nodes.append(helper.make_node("Where", [f"period_ok_{p}", candidate, current], [selected]))
         current = selected
     nodes.append(helper.make_node("Equal", ["colors10", current], ["output"]))
 
-    graph = helper.make_graph(nodes, "task017_periodic_fill_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task017_periodic_fill_subset_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 11)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
