@@ -91,8 +91,7 @@ def _grow_component(nodes: list[onnx.NodeProto], seed: str, nonzero: str, prefix
 
 def _transform_tensor(nodes: list[onnx.NodeProto], source: str, name: str, transform: str) -> str:
     if transform == "id":
-        nodes.append(helper.make_node("Identity", [source], [name]))
-        return name
+        return source
 
     current = source
     if transform.startswith("trans"):
@@ -107,33 +106,18 @@ def _transform_tensor(nodes: list[onnx.NodeProto], source: str, name: str, trans
         nodes.append(helper.make_node("Gather", [current, "reverse_idx"], [f"{name}_v"], axis=2))
         current = f"{name}_v"
 
-    if current != name:
-        nodes.append(helper.make_node("Identity", [current], [name]))
-    return name
+    return current
 
 
 def _transform_point(nodes: list[onnx.NodeProto], row: str, col: str, prefix: str, transform: str) -> tuple[str, str]:
     if transform == "id":
-        nodes.extend(
-            [
-                helper.make_node("Identity", [row], [f"{prefix}_tr"]),
-                helper.make_node("Identity", [col], [f"{prefix}_tc"]),
-            ]
-        )
+        return row, col
     elif transform == "hflip":
-        nodes.extend(
-            [
-                helper.make_node("Identity", [row], [f"{prefix}_tr"]),
-                helper.make_node("Sub", ["last_i64", col], [f"{prefix}_tc"]),
-            ]
-        )
+        nodes.append(helper.make_node("Sub", ["last_i64", col], [f"{prefix}_tc"]))
+        return row, f"{prefix}_tc"
     elif transform == "vflip":
-        nodes.extend(
-            [
-                helper.make_node("Sub", ["last_i64", row], [f"{prefix}_tr"]),
-                helper.make_node("Identity", [col], [f"{prefix}_tc"]),
-            ]
-        )
+        nodes.append(helper.make_node("Sub", ["last_i64", row], [f"{prefix}_tr"]))
+        return f"{prefix}_tr", col
     elif transform == "hvflip":
         nodes.extend(
             [
@@ -141,27 +125,15 @@ def _transform_point(nodes: list[onnx.NodeProto], row: str, col: str, prefix: st
                 helper.make_node("Sub", ["last_i64", col], [f"{prefix}_tc"]),
             ]
         )
+        return f"{prefix}_tr", f"{prefix}_tc"
     elif transform == "transpose":
-        nodes.extend(
-            [
-                helper.make_node("Identity", [col], [f"{prefix}_tr"]),
-                helper.make_node("Identity", [row], [f"{prefix}_tc"]),
-            ]
-        )
+        return col, row
     elif transform == "trans_hflip":
-        nodes.extend(
-            [
-                helper.make_node("Identity", [col], [f"{prefix}_tr"]),
-                helper.make_node("Sub", ["last_i64", row], [f"{prefix}_tc"]),
-            ]
-        )
+        nodes.append(helper.make_node("Sub", ["last_i64", row], [f"{prefix}_tc"]))
+        return col, f"{prefix}_tc"
     elif transform == "trans_vflip":
-        nodes.extend(
-            [
-                helper.make_node("Sub", ["last_i64", col], [f"{prefix}_tr"]),
-                helper.make_node("Identity", [row], [f"{prefix}_tc"]),
-            ]
-        )
+        nodes.append(helper.make_node("Sub", ["last_i64", col], [f"{prefix}_tr"]))
+        return f"{prefix}_tr", row
     elif transform == "trans_hvflip":
         nodes.extend(
             [
@@ -169,9 +141,9 @@ def _transform_point(nodes: list[onnx.NodeProto], row: str, col: str, prefix: st
                 helper.make_node("Sub", ["last_i64", row], [f"{prefix}_tc"]),
             ]
         )
+        return f"{prefix}_tr", f"{prefix}_tc"
     else:
         raise ValueError(transform)
-    return f"{prefix}_tr", f"{prefix}_tc"
 
 
 def _dynamic_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, output: str) -> None:
@@ -391,8 +363,7 @@ def build_model() -> onnx.ModelProto:
     ]
 
     source_mask_all = _grow_component(nodes, "base_mask", "nonzero_mask", "source_all")
-    nodes.append(helper.make_node("Identity", [source_mask_all], ["source_mask_all"]))
-    _cast_f32(nodes, "source_mask_all", "source_mask_all_f32")
+    _cast_f32(nodes, source_mask_all, "source_mask_all_f32")
 
     nodes.extend(
         [
@@ -409,12 +380,12 @@ def build_model() -> onnx.ModelProto:
     initializers.append(_int64_tensor("seed_shape", [1, 1, SIZE, SIZE], [4]))
 
     comp1 = _grow_component(nodes, "first_base_seed", "nonzero_mask", "comp1")
-    nodes.append(helper.make_node("Identity", [comp1], ["comp1_mask"]))
+    comp1_mask = comp1
     nodes.extend(
         [
-            helper.make_node("Not", ["comp1_mask"], ["not_comp1_mask"]),
-            helper.make_node("And", ["source_mask_all", "not_comp1_mask"], ["comp2_mask"]),
-            helper.make_node("Not", ["source_mask_all"], ["not_source_mask"]),
+            helper.make_node("Not", [comp1_mask], ["not_comp1_mask"]),
+            helper.make_node("And", [source_mask_all, "not_comp1_mask"], ["comp2_mask"]),
+            helper.make_node("Not", [source_mask_all], ["not_source_mask"]),
             helper.make_node("And", ["anchor_color_mask", "not_source_mask"], ["target_anchor_mask"]),
             helper.make_node("Cast", ["target_anchor_mask"], ["target_anchor_f32"], to=onnx.TensorProto.FLOAT),
             helper.make_node("Reshape", ["target_anchor_f32", "shape_flat900"], ["target_anchor_flat"]),
@@ -427,7 +398,7 @@ def build_model() -> onnx.ModelProto:
     target1_row, target1_col = _flat_position(nodes, "target_anchor_index1", "target1")
     candidate_outputs = []
     candidate_outputs.extend(
-        _component_outputs(nodes, "comp1_mask", [target0_row, target1_row], [target0_col, target1_col], "comp1")
+        _component_outputs(nodes, comp1_mask, [target0_row, target1_row], [target0_col, target1_col], "comp1")
     )
     candidate_outputs.extend(
         _component_outputs(nodes, "comp2_mask", [target0_row, target1_row], [target0_col, target1_col], "comp2")

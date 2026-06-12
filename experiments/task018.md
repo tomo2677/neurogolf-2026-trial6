@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 9.069829054193692 | 8283984 | 2787 | 2026-06-13T07:59:40+09:00 | exp013 |
+| passes_local | 9.109044501135914 | 7965304 | 2787 | 2026-06-13T08:20:51+09:00 | exp014 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -22,6 +22,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp009 | impl_opt | int32-static-shift | passes_local | 9.056021454579346 | 8399184 | 2801 | 0.0662931135678 | promoted | Auto promoted after canonical re-score. |
 | exp010 | impl_opt | where-shift-bounds | passes_local | 9.069827364755408 | 8283984 | 2801 | 0.0138059101761 | promoted | Auto promoted after canonical re-score. |
 | exp013 | impl_opt | dedupe-initializers | passes_local | 9.069829054193692 | 8283984 | 2787 | 1.68943828349e-06 | promoted | Auto promoted after canonical re-score. |
+| exp014 | impl_opt | remove-transform-identities | passes_local | 9.109044501135914 | 7965304 | 2787 | 0.0392154469422 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
