@@ -176,8 +176,7 @@ def _static_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, ou
             helper.make_node("Reshape", [source, flat_shape], [f"{output}_source_flat"]),
             helper.make_node("GatherElements", [f"{output}_source_flat", f"{output}_indices"], [f"{output}_shifted_flat"], axis=2),
             helper.make_node("Reshape", [f"{output}_shifted_flat", output_shape], [f"{output}_shifted"]),
-            helper.make_node("Cast", [f"{output}_in_bounds"], [f"{output}_in_bounds_f32"], to=onnx.TensorProto.FLOAT),
-            helper.make_node("Mul", [f"{output}_shifted", f"{output}_in_bounds_f32"], [output]),
+            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_shifted", "zero_f32"], [output]),
         ]
     )
 
