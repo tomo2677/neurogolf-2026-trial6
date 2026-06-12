@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.519470792955353 | 4074 | 746 | 2026-06-13T07:26:38+09:00 | exp008 |
+| passes_local | 16.52030101301134 | 4074 | 742 | 2026-06-13T07:44:58+09:00 | exp009 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -21,6 +21,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp006 | rule_redesign | kernel11-public-range | fails_local | 0.0 | 4123 | 564 | -16.5073044402 | fails_local | Candidate did not pass local validation. |
 | exp007 | impl_opt | sparse-ray-weight | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp008 | impl_opt | subtract-marker-color | passes_local | 16.519470792955353 | 4074 | 746 | 0.0121663527712 | promoted | Auto promoted after canonical re-score. |
+| exp009 | impl_opt | reuse-slice-scalars | passes_local | 16.52030101301134 | 4074 | 742 | 0.000830220055988 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
