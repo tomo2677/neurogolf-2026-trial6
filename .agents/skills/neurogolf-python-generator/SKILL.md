@@ -37,4 +37,5 @@ Use this skill when creating or repairing `solutions/taskNNN.py`.
 - Future candidate-file operation is allowed, but the current canonical file is `solutions/taskNNN.py`.
 - If `solutions/taskNNN.py` is missing at workflow start, it is a first-created task under `neurogolf-solve-loop`.
 - For first-created tasks, failed implementations are left uncommitted in the working tree; commit only after local `passes_local` is confirmed by the solve-loop.
+- For post-pass cost or `local_points` improvement, use `neurogolf-cost-experiment`; this generator skill targets canonical solution creation and repair.
 - Do not use Kaggle CLI/API/browser upload or submit.

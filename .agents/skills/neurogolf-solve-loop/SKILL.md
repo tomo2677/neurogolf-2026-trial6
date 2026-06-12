@@ -7,7 +7,7 @@ description: Parent NeuroGolf workflow that alternates solution generation and l
 
 Use this skill when asked to solve a task end-to-end.
 
-When a task already passes and the goal is lower cost or higher `local_points`, use `neurogolf-cost-experiment` instead.
+When a task already passes and the goal is lower cost or higher `local_points`, use `neurogolf-cost-experiment` instead. Post-pass cost improvement and its commit/push flow belong to that skill.
 
 ## Workflow
 

@@ -31,7 +31,38 @@ The candidate must define `build_model() -> onnx.ModelProto`. Keep candidate `.p
 5. Run `tools/experiment_task.py` with the candidate, hypothesis id, and mode.
 6. Read the experiment report and the bounded note.
 7. If the candidate improves `local_points`, the tool auto-promotes it by re-running canonical build/score.
-8. Move to the next task or next hypothesis until a blocker or user stop condition is reached.
+8. If the report has `decision == "promoted"`, run the promotion commit flow below.
+9. Move to the next task or next hypothesis until a blocker or user stop condition is reached.
+
+## Promotion Commit Flow
+
+Commit and push only after `tools/experiment_task.py` reports `decision == "promoted"`.
+
+The improvement must satisfy both conditions:
+
+- Candidate report has `status == "passes_local"`.
+- Canonical re-score after promotion has higher numeric `local_points` than the baseline.
+
+Stage only the promoted task files:
+
+```bash
+git add solutions/taskNNN.py experiments/taskNNN.md task_ledger.json task_ledger.md
+git diff --cached --name-only
+git diff --cached --stat
+git commit -m "Improve taskNNN solution cost"
+git push origin main
+```
+
+Before commit, confirm `git diff --cached --name-only` contains only:
+
+- `solutions/taskNNN.py`
+- `experiments/taskNNN.md`
+- `task_ledger.json`
+- `task_ledger.md`
+
+If any other file is staged, unstage it before committing. If `git push origin main` fails, stop and do not move to the next task or experiment.
+
+Do not commit candidates that are `not_better`, tied, `build_failed`, `score_failed`, or `promotion_failed`. Candidate `.py` files and raw reports under `outputs/experiments/` remain ignored artifacts.
 
 ## Notes Discipline
 

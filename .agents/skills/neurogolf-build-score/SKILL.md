@@ -7,7 +7,7 @@ description: Build a NeuroGolf solution Python generator into ONNX and score it 
 
 Use this skill after editing `solutions/taskNNN.py`.
 
-For ignored candidate files or post-pass cost experiments, use `neurogolf-cost-experiment` instead.
+For ignored candidate files or post-pass cost experiments, use `neurogolf-cost-experiment` and `tools/experiment_task.py` instead.
 
 ## Commands
 
