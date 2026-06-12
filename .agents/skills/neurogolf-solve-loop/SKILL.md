@@ -70,4 +70,5 @@ If any other file is staged, unstage it before committing. If `git push origin m
 ## Scope
 
 - This workflow is local only.
-- Do not use Kaggle CLI/API/browser upload/submit.
+- Do not submit to Kaggle from this solve loop.
+- For official single-task scoring after a local pass, use `neurogolf-official-submit-score`.

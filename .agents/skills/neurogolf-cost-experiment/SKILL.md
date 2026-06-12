@@ -99,7 +99,8 @@ Not blockers:
 
 ## Integrity
 
-- Do not use Kaggle CLI/API/browser upload or submit.
+- Do not submit to Kaggle from this cost experiment workflow.
+- For official single-task scoring after a promoted local pass, use `neurogolf-official-submit-score`.
 - Build and score one task at a time.
 - Do not convert an arbitrary Python runtime solver to ONNX.
 - Do not claim improvement unless the canonical re-score after promotion reports `passes_local` and higher `local_points`; for `rule_invalid` baselines, call it a compliant replacement instead.

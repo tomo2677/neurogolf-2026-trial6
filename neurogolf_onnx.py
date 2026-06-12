@@ -23,9 +23,18 @@ LEDGER_COLUMNS = [
     "task",
     "status",
     "local_points",
+    "official_public_score",
+    "official_delta_public_vs_local",
     "memory_bytes_approx",
     "params",
     "updated_at",
+    "official_status",
+    "official_private_score",
+    "official_submission_ref",
+    "official_run_id",
+    "official_zip_sha256",
+    "official_submitted_at",
+    "official_completed_at",
 ]
 STATUS_VALUES = {
     "no_solution",
@@ -241,7 +250,7 @@ def load_ledger() -> dict[str, dict[str, Any]]:
 
 
 def ledger_entry(task: str | int) -> dict[str, Any]:
-    return {
+    entry = {
         "task": normalize_task_id(task),
         "status": "no_solution",
         "local_points": None,
@@ -249,6 +258,9 @@ def ledger_entry(task: str | int) -> dict[str, Any]:
         "params": None,
         "updated_at": None,
     }
+    for column in LEDGER_COLUMNS:
+        entry.setdefault(column, None)
+    return entry
 
 
 def initialize_ledger(existing: dict[str, dict[str, Any]] | None = None) -> dict[str, dict[str, Any]]:
