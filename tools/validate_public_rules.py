@@ -77,6 +77,13 @@ def _shape(value_info: onnx.ValueInfoProto) -> list[int | None]:
     return dims
 
 
+def _dtype_name(elem_type: int) -> str:
+    try:
+        return onnx.TensorProto.DataType.Name(elem_type)
+    except ValueError:
+        return str(elem_type)
+
+
 def _check_graph(model: onnx.ModelProto, issues: list[dict[str, Any]]) -> onnx.ModelProto | None:
     try:
         onnx.checker.check_model(model, full_check=True)
@@ -140,6 +147,21 @@ def _check_graph(model: onnx.ModelProto, issues: list[dict[str, Any]]) -> onnx.M
         for attr in node.attribute:
             if attr.type in (onnx.AttributeProto.GRAPH, onnx.AttributeProto.GRAPHS):
                 issues.append(_issue("subgraph", "Subgraphs are not permitted", op_type=node.op_type, attr=attr.name))
+        if node.op_type == "TopK" and node.input:
+            data_input = tensor_map.get(node.input[0])
+            if data_input is None or not data_input.type.HasField("tensor_type"):
+                issues.append(_issue("topk_input_metadata", "TopK data input must have inferred tensor metadata", input=node.input[0]))
+            else:
+                elem_type = data_input.type.tensor_type.elem_type
+                if elem_type != onnx.TensorProto.FLOAT:
+                    issues.append(
+                        _issue(
+                            "topk_input_dtype",
+                            "TopK data input must be FLOAT for official runtime compatibility",
+                            input=node.input[0],
+                            dtype=_dtype_name(elem_type),
+                        )
+                    )
         for output_name in node.output:
             if not output_name:
                 continue

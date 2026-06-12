@@ -39,6 +39,7 @@ uv run python tools/official_submission.py poll --run-dir submissions/official/t
 4. Run `submit --confirm-submit` only when submit is intended.
 5. Accept an official score only if the Kaggle submissions CSV has exactly one row whose `description` contains the manifest `run_id`.
 6. Check `task_ledger.json` and `task_ledger.md` for the updated official columns.
+7. If a row returns `SubmissionStatus.ERROR`, inspect `docs/neurogolf_official_runtime_observations.md` before resubmitting.
 
 ## Integrity
 
@@ -47,3 +48,4 @@ uv run python tools/official_submission.py poll --run-dir submissions/official/t
 - Do not put manifest files inside `submission.zip`.
 - Raw artifacts stay under ignored `submissions/official/taskNNN/<run_id>/`.
 - Treat Kaggle `publicScore` as authoritative for the submitted zip; local score remains a development estimate.
+- Known official-runtime guardrail: keep `TopK` data input as `FLOAT`.

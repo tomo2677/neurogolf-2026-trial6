@@ -94,8 +94,7 @@ def build_model() -> onnx.ModelProto:
         repeat_dilations[(dy, dx)] = dilations
     nodes: list[onnx.NodeProto] = [
         helper.make_node("ReduceMax", ["input"], ["present_scores10"], axes=[0, 2, 3], keepdims=0),
-        helper.make_node("Cast", ["present_scores10"], ["present_scores10_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Slice", ["present_scores10_u8", "score_start", "score_end"], ["present_scores"]),
+        helper.make_node("Slice", ["present_scores10", "score_start", "score_end"], ["present_scores"]),
         helper.make_node("TopK", ["present_scores", "k4"], ["top_scores", "top_indices"], axis=0, largest=1, sorted=1),
         helper.make_node("Split", ["top_indices"], [f"top_idx_{slot}" for slot in range(SELECTED_COLORS)], axis=0, split=[1] * SELECTED_COLORS),
     ]

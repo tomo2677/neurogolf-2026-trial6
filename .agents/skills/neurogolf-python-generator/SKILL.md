@@ -30,6 +30,7 @@ Use this skill when creating or repairing `solutions/taskNNN.py`.
 - Python is only the ONNX graph generator.
 - Prefer small static ONNX graphs using standard ONNX ops.
 - Avoid `Loop`, `Scan`, `NonZero`, `Unique`, `Script`, `Function`, and `Sequence` ops.
+- Use `TopK` only with `FLOAT` data input; see `docs/neurogolf_official_runtime_observations.md` for the official-runtime `TopK(UINT8)` failure observation.
 - Keep the generated model rule-compliant before optimizing score: file size must stay within `1.44 MB`, graph shapes must be static, and utility-rejected constructs from `docs/neurogolf_public_facts.md` must be avoided.
 
 ## Reattempt Policy
@@ -40,4 +41,4 @@ Use this skill when creating or repairing `solutions/taskNNN.py`.
 - If `solutions/taskNNN.py` is missing at workflow start, it is a first-created task under `neurogolf-solve-loop`.
 - For first-created tasks, failed implementations are left uncommitted in the working tree; commit only after local `passes_local` is confirmed by the solve-loop.
 - For post-pass cost or `local_points` improvement, use `neurogolf-cost-experiment`; this generator skill targets canonical solution creation and repair.
-- Do not use Kaggle CLI/API/browser upload or submit.
+- Do not submit to Kaggle from this generator workflow; use `neurogolf-official-submit-score` only when official scoring is explicitly requested.

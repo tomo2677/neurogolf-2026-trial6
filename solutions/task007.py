@@ -50,8 +50,7 @@ def build_model() -> onnx.ModelProto:
     ]
     nodes: list[onnx.NodeProto] = [
         helper.make_node("ReduceSum", ["input", "count_axes"], ["color_counts10"], keepdims=0),
-        helper.make_node("Cast", ["color_counts10"], ["color_counts10_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Slice", ["color_counts10_u8", "present_start", "present_end"], ["present_counts"]),
+        helper.make_node("Slice", ["color_counts10", "present_start", "present_end"], ["present_counts"]),
         helper.make_node("TopK", ["present_counts", "k3"], ["top_counts", "top_indices"], axis=0, largest=1, sorted=1),
     ]
 

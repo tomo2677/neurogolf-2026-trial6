@@ -7,7 +7,7 @@ description: Improve already passing or rule-invalid NeuroGolf tasks by lowering
 
 Use this skill after a task already has `status == passes_local`, or when replacing a `rule_invalid` task with the first compliant local pass. For first-pass solving, use `neurogolf-solve-loop` instead.
 
-Before writing candidates, read `docs/neurogolf_public_facts.md` and keep the candidate inside the public ONNX interface, file size, static-shape, banned-op, and validator constraints. The tools hard-gate violations as `rule_invalid`.
+Before writing candidates, read `docs/neurogolf_public_facts.md` and keep the candidate inside the public ONNX interface, file size, static-shape, banned-op, and validator constraints. Also read `docs/neurogolf_official_runtime_observations.md` for observed official-runtime incompatibilities. The tools hard-gate violations as `rule_invalid`.
 
 ## Command
 
@@ -102,6 +102,7 @@ Not blockers:
 - Do not submit to Kaggle from this cost experiment workflow.
 - For official single-task scoring after a promoted local pass, use `neurogolf-official-submit-score`.
 - Build and score one task at a time.
+- Keep `TopK` data input as `FLOAT`; `TopK(non-FLOAT)` has produced official `SubmissionStatus.ERROR`.
 - Do not convert an arbitrary Python runtime solver to ONNX.
 - Do not claim improvement unless the canonical re-score after promotion reports `passes_local` and higher `local_points`; for `rule_invalid` baselines, call it a compliant replacement instead.
 - Do not treat `rule_invalid` as a valid best, even if it has a high local functional score.

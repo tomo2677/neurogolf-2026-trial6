@@ -11,6 +11,8 @@ For ignored candidate files or post-pass cost experiments, use `neurogolf-cost-e
 
 Before build/score, check `docs/neurogolf_public_facts.md` for the current local public rules reference. Build and score tools hard-gate public rule violations as `rule_invalid`.
 
+Also check `docs/neurogolf_official_runtime_observations.md` for local guardrails derived from official runtime failures. In particular, `TopK` data input must remain `FLOAT`; local tooling treats `TopK(non-FLOAT)` as invalid to avoid official `SubmissionStatus.ERROR`.
+
 ## Commands
 
 Run from repo root:
