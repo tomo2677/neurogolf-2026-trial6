@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.47388194124379 | 101151 | 177 | 2026-06-13T07:34:52+09:00 | exp006 |
+| passes_local | 13.77180097965592 | 75045 | 177 | 2026-06-13T07:36:41+09:00 | exp007 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -20,6 +20,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp004 | impl_opt | f16-density-count | passes_local | 13.025518990574064 | 156735 | 1919 | 0.0973285472839 | promoted | Auto promoted after canonical re-score. |
 | exp005 | impl_opt | int32-crop-indices | passes_local | 13.145827999248258 | 138751 | 1919 | 0.120309008674 | promoted | Auto promoted after canonical re-score. |
 | exp006 | impl_opt | crop5-window | passes_local | 13.47388194124379 | 101151 | 177 | 0.328053941996 | promoted | Auto promoted after canonical re-score. |
+| exp007 | impl_opt | f16-full-input-density | passes_local | 13.77180097965592 | 75045 | 177 | 0.297919038412 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

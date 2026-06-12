@@ -10,6 +10,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 SIZE = 30
 NONZERO = 9
 OUT = 5
+DENSITY_CHANNELS = 10
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
@@ -39,8 +40,6 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("nonzero_starts", [0, 1, 0, 0], [4]),
-        _int64_tensor("nonzero_ends", [1, 10, SIZE, SIZE], [4]),
         _int64_tensor("shape_color1", [1, 1, 1, 1], [4]),
         _int64_tensor("shape_index_1x25", [1, 1, OUT * OUT], [3]),
         _int64_tensor("shape_flat_1x900", [1, 1, SIZE * SIZE], [3]),
@@ -48,10 +47,9 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("row_grid_i32", [r for r in range(OUT) for _ in range(OUT)], [1, 1, OUT, OUT]),
         _int32_tensor("col_grid_i32", [c for _ in range(OUT) for c in range(OUT)], [1, 1, OUT, OUT]),
         _int32_tensor("zero_i32", [0], [1]),
-        _int64_tensor("one_i64", [1], [1]),
         _int32_tensor("width_i32", [SIZE], [1]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, SIZE - OUT, SIZE - OUT], [8]),
-        _f16_tensor("density_w", [1.0] * (NONZERO * 3 * 3), [NONZERO, 1, 3, 3]),
+        _f16_tensor("density_w", [0.0] * 9 + [1.0] * ((DENSITY_CHANNELS - 1) * 3 * 3), [DENSITY_CHANNELS, 1, 3, 3]),
         _f16_tensor("two_f16", [2.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
@@ -59,22 +57,20 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes = [
-        helper.make_node("Slice", ["input", "nonzero_starts", "nonzero_ends"], ["input_nonzero"]),
-        helper.make_node("Cast", ["input_nonzero"], ["input_nonzero_f16"], to=onnx.TensorProto.FLOAT16),
+        helper.make_node("Cast", ["input"], ["input_f16"], to=onnx.TensorProto.FLOAT16),
         helper.make_node(
             "Conv",
-            ["input_nonzero_f16", "density_w"],
+            ["input_f16", "density_w"],
             ["same_color_3x3"],
             kernel_shape=[3, 3],
             pads=[1, 1, 1, 1],
-            group=NONZERO,
+            group=DENSITY_CHANNELS,
         ),
         helper.make_node("Greater", ["same_color_3x3", "two_f16"], ["dense_bool"]),
         helper.make_node("Cast", ["dense_bool"], ["dense_f16"], to=onnx.TensorProto.FLOAT16),
         helper.make_node("ReduceSum", ["dense_f16"], ["dense_counts"], axes=[2, 3], keepdims=0),
         helper.make_node("ArgMax", ["dense_counts"], ["target_idx"], axis=1, keepdims=1),
-        helper.make_node("Add", ["target_idx", "one_i64"], ["target_color_i64_raw"]),
-        helper.make_node("Reshape", ["target_color_i64_raw", "shape_color1"], ["target_color_i64"]),
+        helper.make_node("Reshape", ["target_idx", "shape_color1"], ["target_color_i64"]),
         helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Equal", ["input_color_i64", "target_color_i64"], ["target_mask_bool"]),
         helper.make_node("Cast", ["target_mask_bool"], ["target_mask_u8"], to=onnx.TensorProto.UINT8),
