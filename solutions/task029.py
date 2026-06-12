@@ -33,10 +33,10 @@ def _add_frame_candidate(nodes: list[onnx.NodeProto], color: int) -> tuple[str, 
     prefix = f"c{color}"
     nodes.extend(
         [
-            helper.make_node("Slice", ["input", f"{prefix}_starts", f"{prefix}_ends"], [f"{prefix}_ch"]),
-            helper.make_node("Greater", [f"{prefix}_ch", "zero_f32"], [f"{prefix}_mask"]),
-            helper.make_node("ReduceMax", [f"{prefix}_ch"], [f"{prefix}_row_score"], axes=[3], keepdims=1),
-            helper.make_node("ReduceMax", [f"{prefix}_ch"], [f"{prefix}_col_score"], axes=[2], keepdims=1),
+            helper.make_node("Equal", ["input_color_u8", f"{prefix}_u8"], [f"{prefix}_mask"]),
+            helper.make_node("Cast", [f"{prefix}_mask"], [f"{prefix}_mask_f16"], to=onnx.TensorProto.FLOAT16),
+            helper.make_node("ReduceMax", [f"{prefix}_mask_f16"], [f"{prefix}_row_score"], axes=[3], keepdims=1),
+            helper.make_node("ReduceMax", [f"{prefix}_mask_f16"], [f"{prefix}_col_score"], axes=[2], keepdims=1),
             helper.make_node("ArgMax", [f"{prefix}_row_score"], [f"{prefix}_r_min"], axis=2, keepdims=1),
             helper.make_node("ArgMax", [f"{prefix}_row_score"], [f"{prefix}_r_max"], axis=2, keepdims=1, select_last_index=1),
             helper.make_node("ArgMax", [f"{prefix}_col_score"], [f"{prefix}_c_min"], axis=3, keepdims=1),
@@ -123,14 +123,12 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
     for color in COLORS:
-        initializers.extend(
-            [
-                _int64_tensor(f"c{color}_starts", [0, color, 0, 0], [4]),
-                _int64_tensor(f"c{color}_ends", [1, color + 1, SIZE, SIZE], [4]),
-            ]
-        )
+        initializers.append(_u8_tensor(f"c{color}_u8", [color], [1]))
 
-    nodes: list[onnx.NodeProto] = []
+    nodes: list[onnx.NodeProto] = [
+        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
+        helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
+    ]
     nodes.append(helper.make_node("Cast", ["zero_f32"], ["zero_f16"], to=onnx.TensorProto.FLOAT16))
     scores: list[str] = []
     r_mins: list[str] = []
@@ -174,9 +172,7 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Add", ["safe_r_offset", "safe_c"], ["safe_spatial"]),
             helper.make_node("Reshape", ["safe_spatial", "shape_index_1x529"], ["safe_spatial_flat_i32"]),
             helper.make_node("Cast", ["safe_spatial_flat_i32"], ["safe_spatial_flat"], to=onnx.TensorProto.INT64),
-            helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
-            helper.make_node("Reshape", ["input_color_i64", "shape_flat_1x900"], ["color_flat_i64"]),
-            helper.make_node("Cast", ["color_flat_i64"], ["color_flat_u8"], to=onnx.TensorProto.UINT8),
+            helper.make_node("Reshape", ["input_color_u8", "shape_flat_1x900"], ["color_flat_u8"]),
             helper.make_node("GatherElements", ["color_flat_u8", "safe_spatial_flat"], ["gathered_flat"], axis=2),
             helper.make_node("Reshape", ["gathered_flat", "shape_1x1x23x23"], ["gathered_color"]),
             helper.make_node("Where", ["crop_valid", "gathered_color", "invalid_u8"], ["color23"]),
