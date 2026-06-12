@@ -46,15 +46,15 @@ def _shift(
     pad_right = max(0, -dc)
     initializers.extend(
         [
-            _int64_tensor(f"{output}_starts", [0, 0, row_start, col_start], [4]),
-            _int64_tensor(f"{output}_ends", [1, 1, row_end, col_end], [4]),
-            _int64_tensor(f"{output}_pads", [0, 0, pad_top, pad_left, 0, 0, pad_bottom, pad_right], [8]),
+            _int64_tensor(f"{output}_starts_hw", [row_start, col_start], [2]),
+            _int64_tensor(f"{output}_ends_hw", [row_end, col_end], [2]),
+            _int64_tensor(f"{output}_pads_hw", [pad_top, pad_left, pad_bottom, pad_right], [4]),
         ]
     )
     nodes.extend(
         [
-            helper.make_node("Slice", [source, f"{output}_starts", f"{output}_ends"], [f"{output}_crop"]),
-            helper.make_node("Pad", [f"{output}_crop", f"{output}_pads"], [output], mode="constant"),
+            helper.make_node("Slice", [source, f"{output}_starts_hw", f"{output}_ends_hw", "axes_hw"], [f"{output}_crop"]),
+            helper.make_node("Pad", [f"{output}_crop", f"{output}_pads_hw", "", "axes_hw"], [output], mode="constant"),
         ]
     )
     return output
@@ -158,6 +158,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("black_ends", [1, 1, SIZE, SIZE], [4]),
         _int64_tensor("gray_starts", [0, 5, 0, 0], [4]),
         _int64_tensor("gray_ends", [1, 6, SIZE, SIZE], [4]),
+        _int64_tensor("axes_hw", [2, 3], [2]),
     ]
 
     nodes = [
@@ -253,6 +254,6 @@ def build_model() -> onnx.ModelProto:
     )
 
     graph = helper.make_graph(nodes, "task023_exact_cover_propagation_f16_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
