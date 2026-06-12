@@ -26,12 +26,12 @@ def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
-    row_top_values = [r < 5 for r in range(SIZE) for _ in range(SIZE)]
-    col_left_values = [c < 5 for _ in range(SIZE) for c in range(SIZE)]
-    top_edge_values = [r == 0 for r in range(SIZE) for _ in range(SIZE)]
-    bottom_edge_values = [r == SIZE - 1 for r in range(SIZE) for _ in range(SIZE)]
-    left_edge_values = [c == 0 for _ in range(SIZE) for c in range(SIZE)]
-    right_edge_values = [c == SIZE - 1 for _ in range(SIZE) for c in range(SIZE)]
+    row_top_values = [r < 5 for r in range(SIZE)]
+    col_left_values = [c < 5 for c in range(SIZE)]
+    top_edge_values = [r == 0 for r in range(SIZE)]
+    bottom_edge_values = [r == SIZE - 1 for r in range(SIZE)]
+    left_edge_values = [c == 0 for c in range(SIZE)]
+    right_edge_values = [c == SIZE - 1 for c in range(SIZE)]
 
     initializers = [
         _int64_tensor("top_zero_starts", [0, 0, 0, 0], [4]),
@@ -49,12 +49,12 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
-        _bool_tensor("row_top", row_top_values, [1, 1, SIZE, SIZE]),
-        _bool_tensor("col_left", col_left_values, [1, 1, SIZE, SIZE]),
-        _bool_tensor("top_edge", top_edge_values, [1, 1, SIZE, SIZE]),
-        _bool_tensor("bottom_edge", bottom_edge_values, [1, 1, SIZE, SIZE]),
-        _bool_tensor("left_edge", left_edge_values, [1, 1, SIZE, SIZE]),
-        _bool_tensor("right_edge", right_edge_values, [1, 1, SIZE, SIZE]),
+        _bool_tensor("row_top", row_top_values, [1, 1, SIZE, 1]),
+        _bool_tensor("col_left", col_left_values, [1, 1, 1, SIZE]),
+        _bool_tensor("top_edge", top_edge_values, [1, 1, SIZE, 1]),
+        _bool_tensor("bottom_edge", bottom_edge_values, [1, 1, SIZE, 1]),
+        _bool_tensor("left_edge", left_edge_values, [1, 1, 1, SIZE]),
+        _bool_tensor("right_edge", right_edge_values, [1, 1, 1, SIZE]),
     ]
 
     nodes = [
