@@ -18,12 +18,19 @@ def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorP
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
 
 
-def _color_at_mask(nodes: list[onnx.NodeProto], mask: str, output: str) -> None:
+def _color_at_coord(nodes: list[onnx.NodeProto], row: str, col: str, output: str) -> None:
     nodes.extend(
         [
-            helper.make_node("Where", [mask, "input", "zero_f32"], [f"{output}_onehot"]),
-            helper.make_node("ReduceMax", [f"{output}_onehot"], [f"{output}_scores"], axes=[0, 2, 3], keepdims=0),
-            helper.make_node("ArgMax", [f"{output}_scores"], [f"{output}_i64"], axis=0, keepdims=1),
+            helper.make_node("Reshape", [row, "shape1"], [f"{output}_row1"]),
+            helper.make_node("Reshape", [col, "shape1"], [f"{output}_col1"]),
+            helper.make_node("Unsqueeze", [f"{output}_row1", "unsq_axis1"], [f"{output}_row11"]),
+            helper.make_node("Unsqueeze", [f"{output}_col1", "unsq_axis1"], [f"{output}_col11"]),
+            helper.make_node("Concat", [f"{output}_row11", f"{output}_col11"], [f"{output}_indices12"], axis=1),
+            helper.make_node("Reshape", [f"{output}_indices12", "shape112"], [f"{output}_spatial_indices"]),
+            helper.make_node("Unsqueeze", [f"{output}_spatial_indices", "unsq_batch_axes"], [f"{output}_indices_batched"]),
+            helper.make_node("Expand", [f"{output}_indices_batched", "gathernd_index_shape"], [f"{output}_indices"]),
+            helper.make_node("GatherND", ["input", f"{output}_indices"], [f"{output}_onehot"], batch_dims=2),
+            helper.make_node("ArgMax", [f"{output}_onehot"], [f"{output}_i64"], axis=1, keepdims=1),
             helper.make_node("Cast", [f"{output}_i64"], [output], to=onnx.TensorProto.UINT8),
         ]
     )
@@ -34,14 +41,20 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("nonblack_start", [1, 0, 0], [3]),
-        _int64_tensor("nonblack_end", [10, 30, 30], [3]),
+        _int64_tensor("input0_start", [0, 0, 0], [3]),
+        _int64_tensor("input0_end", [1, 30, 30], [3]),
         _int64_tensor("axes3", [1, 2, 3], [3]),
         _int64_tensor("row_idx", list(range(30)), [1, 1, 30, 1]),
         _int64_tensor("col_idx", list(range(30)), [1, 1, 1, 30]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("two_i64", [2], [1]),
         _int64_tensor("zero_i64", [0], [1]),
+        _int64_tensor("shape1", [1], [1]),
+        _int64_tensor("shape112", [1, 1, 2], [3]),
+        _int64_tensor("unsq_axis1", [1], [1]),
+        _int64_tensor("unsq_batch_axes", [0, 1], [2]),
+        _int64_tensor("gathernd_index_shape", [1, 10, 1, 1, 2], [5]),
+        _f32_tensor("one_f32", [1.0], [1]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("outside_u8", [255], [1]),
@@ -57,8 +70,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("LessOrEqual", ["col_idx", "last_col"], ["col_valid"]),
         helper.make_node("And", ["row_valid", "col_valid"], ["valid_area"]),
         helper.make_node("LessOrEqual", ["last_row", "last_col"], ["wide_bool"]),
-        helper.make_node("Slice", ["input", "nonblack_start", "nonblack_end", "axes3"], ["nonblack_input"]),
-        helper.make_node("ReduceMax", ["nonblack_input"], ["nonblack_f32"], axes=[1], keepdims=1),
+        helper.make_node("Slice", ["input", "input0_start", "input0_end", "axes3"], ["input0"]),
+        helper.make_node("Sub", ["one_f32", "input0"], ["nonzero_raw"]),
+        helper.make_node("Where", ["valid_area", "nonzero_raw", "zero_f32"], ["nonblack_f32"]),
         helper.make_node("Cast", ["nonblack_f32"], ["nonblack_bool"], to=onnx.TensorProto.BOOL),
         helper.make_node("ReduceMax", ["nonblack_f32"], ["point_cols"], axes=[2], keepdims=1),
         helper.make_node("ArgMax", ["point_cols"], ["c0"], axis=3, keepdims=1, select_last_index=0),
@@ -74,11 +88,23 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("And", ["nonblack_bool", "r0_mask_line"], ["r0_point_mask"]),
         helper.make_node("Equal", ["row_idx", "r1"], ["r1_mask_line"]),
         helper.make_node("And", ["nonblack_bool", "r1_mask_line"], ["r1_point_mask"]),
+        helper.make_node("Cast", ["c0_point_mask"], ["c0_point_f32"], to=onnx.TensorProto.FLOAT),
+        helper.make_node("Cast", ["c1_point_mask"], ["c1_point_f32"], to=onnx.TensorProto.FLOAT),
+        helper.make_node("Cast", ["r0_point_mask"], ["r0_point_f32"], to=onnx.TensorProto.FLOAT),
+        helper.make_node("Cast", ["r1_point_mask"], ["r1_point_f32"], to=onnx.TensorProto.FLOAT),
+        helper.make_node("ReduceMax", ["c0_point_f32"], ["c0_point_rows"], axes=[3], keepdims=1),
+        helper.make_node("ArgMax", ["c0_point_rows"], ["c0_row"], axis=2, keepdims=1, select_last_index=0),
+        helper.make_node("ReduceMax", ["c1_point_f32"], ["c1_point_rows"], axes=[3], keepdims=1),
+        helper.make_node("ArgMax", ["c1_point_rows"], ["c1_row"], axis=2, keepdims=1, select_last_index=0),
+        helper.make_node("ReduceMax", ["r0_point_f32"], ["r0_point_cols"], axes=[2], keepdims=1),
+        helper.make_node("ArgMax", ["r0_point_cols"], ["r0_col"], axis=3, keepdims=1, select_last_index=0),
+        helper.make_node("ReduceMax", ["r1_point_f32"], ["r1_point_cols"], axes=[2], keepdims=1),
+        helper.make_node("ArgMax", ["r1_point_cols"], ["r1_col"], axis=3, keepdims=1, select_last_index=0),
     ]
-    _color_at_mask(nodes, "c0_point_mask", "c0_color")
-    _color_at_mask(nodes, "c1_point_mask", "c1_color")
-    _color_at_mask(nodes, "r0_point_mask", "r0_color")
-    _color_at_mask(nodes, "r1_point_mask", "r1_color")
+    _color_at_coord(nodes, "c0_row", "c0", "c0_color")
+    _color_at_coord(nodes, "c1_row", "c1", "c1_color")
+    _color_at_coord(nodes, "r0", "r0_col", "r0_color")
+    _color_at_coord(nodes, "r1", "r1_col", "r1_color")
 
     nodes.extend(
         [
