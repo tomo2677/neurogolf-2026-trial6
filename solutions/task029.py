@@ -74,12 +74,12 @@ def _add_frame_candidate(nodes: list[onnx.NodeProto], color: int) -> tuple[str, 
             helper.make_node("And", [f"{prefix}_col_gt_min", f"{prefix}_col_lt_max"], [f"{prefix}_inner_col"]),
             helper.make_node("And", [f"{prefix}_inner_row", f"{prefix}_inner_col"], [f"{prefix}_inner"]),
             helper.make_node("And", [f"{prefix}_mask", f"{prefix}_inner"], [f"{prefix}_interior_hit"]),
-            helper.make_node("Cast", [f"{prefix}_missing_border"], [f"{prefix}_missing_f32"], to=onnx.TensorProto.FLOAT),
-            helper.make_node("Cast", [f"{prefix}_interior_hit"], [f"{prefix}_interior_f32"], to=onnx.TensorProto.FLOAT),
-            helper.make_node("ReduceSum", [f"{prefix}_missing_f32"], [f"{prefix}_missing_count"], axes=[0, 1, 2, 3], keepdims=1),
-            helper.make_node("ReduceSum", [f"{prefix}_interior_f32"], [f"{prefix}_interior_count"], axes=[0, 1, 2, 3], keepdims=1),
-            helper.make_node("Equal", [f"{prefix}_missing_count", "zero_f32"], [f"{prefix}_border_ok"]),
-            helper.make_node("Equal", [f"{prefix}_interior_count", "zero_f32"], [f"{prefix}_interior_ok"]),
+            helper.make_node("Cast", [f"{prefix}_missing_border"], [f"{prefix}_missing_f16"], to=onnx.TensorProto.FLOAT16),
+            helper.make_node("Cast", [f"{prefix}_interior_hit"], [f"{prefix}_interior_f16"], to=onnx.TensorProto.FLOAT16),
+            helper.make_node("ReduceSum", [f"{prefix}_missing_f16"], [f"{prefix}_missing_count"], axes=[0, 1, 2, 3], keepdims=1),
+            helper.make_node("ReduceSum", [f"{prefix}_interior_f16"], [f"{prefix}_interior_count"], axes=[0, 1, 2, 3], keepdims=1),
+            helper.make_node("Equal", [f"{prefix}_missing_count", "zero_f16"], [f"{prefix}_border_ok"]),
+            helper.make_node("Equal", [f"{prefix}_interior_count", "zero_f16"], [f"{prefix}_interior_ok"]),
             helper.make_node("And", [f"{prefix}_height_ok", f"{prefix}_width_ok"], [f"{prefix}_size_ok"]),
             helper.make_node("And", [f"{prefix}_border_ok", f"{prefix}_interior_ok"], [f"{prefix}_shape_ok"]),
             helper.make_node("And", [f"{prefix}_size_ok", f"{prefix}_shape_ok"], [f"{prefix}_valid"]),
@@ -131,6 +131,7 @@ def build_model() -> onnx.ModelProto:
         )
 
     nodes: list[onnx.NodeProto] = []
+    nodes.append(helper.make_node("Cast", ["zero_f32"], ["zero_f16"], to=onnx.TensorProto.FLOAT16))
     scores: list[str] = []
     r_mins: list[str] = []
     r_maxes: list[str] = []
