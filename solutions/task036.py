@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import onnx
 from onnx import helper
 
@@ -17,6 +18,10 @@ def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -
 
 def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+
+
+def _f16_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT16, dims, np.asarray(values, dtype=np.float16).ravel())
 
 
 def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
@@ -39,8 +44,8 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("zero_i64", [0], [1]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("width_i64", [SIZE], [1]),
-        _f32_tensor("density_w", [1.0] * (NONZERO * 3 * 3), [NONZERO, 1, 3, 3]),
-        _f32_tensor("two_f32", [2.0], [1]),
+        _f16_tensor("density_w", [1.0] * (NONZERO * 3 * 3), [NONZERO, 1, 3, 3]),
+        _f16_tensor("two_f16", [2.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
@@ -48,17 +53,18 @@ def build_model() -> onnx.ModelProto:
 
     nodes = [
         helper.make_node("Slice", ["input", "nonzero_starts", "nonzero_ends"], ["input_nonzero"]),
+        helper.make_node("Cast", ["input_nonzero"], ["input_nonzero_f16"], to=onnx.TensorProto.FLOAT16),
         helper.make_node(
             "Conv",
-            ["input_nonzero", "density_w"],
+            ["input_nonzero_f16", "density_w"],
             ["same_color_3x3"],
             kernel_shape=[3, 3],
             pads=[1, 1, 1, 1],
             group=NONZERO,
         ),
-        helper.make_node("Greater", ["same_color_3x3", "two_f32"], ["dense_bool"]),
-        helper.make_node("Cast", ["dense_bool"], ["dense_f32"], to=onnx.TensorProto.FLOAT),
-        helper.make_node("ReduceSum", ["dense_f32"], ["dense_counts"], axes=[2, 3], keepdims=0),
+        helper.make_node("Greater", ["same_color_3x3", "two_f16"], ["dense_bool"]),
+        helper.make_node("Cast", ["dense_bool"], ["dense_f16"], to=onnx.TensorProto.FLOAT16),
+        helper.make_node("ReduceSum", ["dense_f16"], ["dense_counts"], axes=[2, 3], keepdims=0),
         helper.make_node("ArgMax", ["dense_counts"], ["target_idx"], axis=1, keepdims=1),
         helper.make_node("Add", ["target_idx", "one_i64"], ["target_color_i64_raw"]),
         helper.make_node("Reshape", ["target_color_i64_raw", "shape_color1"], ["target_color_i64"]),
