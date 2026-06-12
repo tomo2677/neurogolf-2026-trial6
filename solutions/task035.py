@@ -39,8 +39,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("right_color_ends", [1, 10, SIZE, SIZE], [4]),
         _int64_tensor("row1_starts", [1], [1]),
         _int64_tensor("row10_ends", [SIZE], [1]),
-        _int64_tensor("col1_starts", [1], [1]),
-        _int64_tensor("col10_ends", [SIZE], [1]),
         _int64_tensor("col0_starts", [0], [1]),
         _int64_tensor("col9_ends", [SIZE - 1], [1]),
         _int64_tensor("axis_row", [2], [1]),
@@ -58,6 +56,7 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
         _bool_tensor("false_row", [False] * SIZE, [1, 1, 1, SIZE]),
         _bool_tensor("false_col", [False] * SIZE, [1, 1, SIZE, 1]),
+        _bool_tensor("right_col5", [c == 5 for c in range(SIZE)], [1, 1, 1, SIZE]),
     ]
 
     nodes = [
@@ -71,10 +70,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Concat", ["false_col", "left_core"], ["left_neighbor"], axis=3),
         helper.make_node("Not", ["left_neighbor"], ["not_left"]),
         helper.make_node("And", ["is_eight", "not_left"], ["left_edge"]),
-        helper.make_node("Slice", ["is_eight", "col1_starts", "col10_ends", "axis_col"], ["right_core"]),
-        helper.make_node("Concat", ["right_core", "false_col"], ["right_neighbor"], axis=3),
-        helper.make_node("Not", ["right_neighbor"], ["not_right"]),
-        helper.make_node("And", ["is_eight", "not_right"], ["right_edge"]),
+        helper.make_node("And", ["is_eight", "right_col5"], ["right_edge"]),
         helper.make_node("Where", ["is_eight", "eight_u8", "zero_u8"], ["base0"]),
     ]
 
