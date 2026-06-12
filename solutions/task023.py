@@ -8,7 +8,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
 SIZE = 30
-PROPAGATION_STEPS = 12
+PROPAGATION_STEPS = 10
 SQUARE = [(0, 0), (0, 1), (1, 0), (1, 1)]
 H_BAR = [(0, 0), (0, 1), (0, 2)]
 V_BAR = [(0, 0), (1, 0), (2, 0)]
