@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.351355536959836 | 111492 | 3044 | 2026-06-13T08:07:45+09:00 | exp012 |
+| passes_local | 13.412514522204688 | 104697 | 3044 | 2026-06-13T08:27:19+09:00 | exp013 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -24,6 +24,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp009 | impl_opt | dedupe-initializers | passes_local | 13.328943217037034 | 114087 | 3045 | 0.00663707955363 | promoted | Auto promoted after canonical re-score. |
 | exp011 | impl_opt | drop-fallback-period-ok | passes_local | 13.351346806118576 | 111492 | 3045 | 0.0224035890815 | promoted | Auto promoted after canonical re-score. |
 | exp012 | impl_opt | drop-unused-fallback-size | passes_local | 13.351355536959836 | 111492 | 3044 | 8.73084126063e-06 | promoted | Auto promoted after canonical re-score. |
+| exp013 | impl_opt | select-before-pad | passes_local | 13.412514522204688 | 104697 | 3044 | 0.0611589852449 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

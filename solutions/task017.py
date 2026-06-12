@@ -155,17 +155,21 @@ def build_model() -> onnx.ModelProto:
                 helper.make_node("Add", [f"tile_zero_flat_{p}", "one_i64"], [f"tile_color_i64_{p}"]),
                 helper.make_node("Cast", [f"tile_color_i64_{p}"], [f"tile_color_u8_{p}"], to=onnx.TensorProto.UINT8),
                 helper.make_node("Gather", [f"tile_color_u8_{p}", f"period_index_{p}"], [f"color21_{p}"], axis=0),
-                helper.make_node("Pad", [f"color21_{p}", "pads_output", "outside_u8"], [f"color30_{p}"], mode="constant"),
             ]
         )
-        color_candidates.append((p, f"color30_{p}"))
+        color_candidates.append((p, f"color21_{p}"))
 
     current = color_candidates[-1][1]
     for p, candidate in reversed(color_candidates[:-1]):
-        selected = f"selected_color30_{p}"
+        selected = f"selected_color21_{p}"
         nodes.append(helper.make_node("Where", [f"period_ok_{p}", candidate, current], [selected]))
         current = selected
-    nodes.append(helper.make_node("Equal", ["colors10", current], ["output"]))
+    nodes.extend(
+        [
+            helper.make_node("Pad", [current, "pads_output", "outside_u8"], ["color30"], mode="constant"),
+            helper.make_node("Equal", ["colors10", "color30"], ["output"]),
+        ]
+    )
 
     graph = helper.make_graph(nodes, "task017_periodic_fill_subset_graph", [x], [y], initializers)
     _dedupe_initializers(graph)

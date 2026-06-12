@@ -27,10 +27,8 @@ def _gather_coords_padded(nodes: list[onnx.NodeProto], src_r: str, src_c: str, o
             helper.make_node("Add", [src_c, "pad_offset_i32"], [f"{output}_pad_c"]),
             helper.make_node("Mul", [f"{output}_pad_r", "padded_width_i32"], [f"{output}_r_offset"]),
             helper.make_node("Add", [f"{output}_r_offset", f"{output}_pad_c"], [f"{output}_spatial"]),
-            helper.make_node("Reshape", [f"{output}_spatial", "shape_index_1x100"], [f"{output}_indices_i32"]),
-            helper.make_node("Cast", [f"{output}_indices_i32"], [f"{output}_indices"], to=onnx.TensorProto.INT64),
-            helper.make_node("GatherElements", ["input_color30_flat", f"{output}_indices"], [f"{output}_flat"], axis=2),
-            helper.make_node("Reshape", [f"{output}_flat", "shape_1x1x10x10"], [output]),
+            helper.make_node("Cast", [f"{output}_spatial"], [f"{output}_indices"], to=onnx.TensorProto.INT64),
+            helper.make_node("Gather", ["input_color30_flat", f"{output}_indices"], [output], axis=0),
         ]
     )
 
@@ -46,9 +44,7 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("pad_offset_i32", [10], [1]),
         _int32_tensor("padded_width_i32", [30], [1]),
         _int64_tensor("shape1", [1], [1]),
-        _int64_tensor("shape_index_1x100", [1, 1, 100], [3]),
-        _int64_tensor("shape_flat_1x900", [1, 1, 900], [3]),
-        _int64_tensor("shape_1x1x10x10", [1, 1, 10, 10], [4]),
+        _int64_tensor("shape_flat900", [900], [1]),
         _int32_tensor("row_grid_i32", [r for r in range(10) for _ in range(10)], [1, 1, 10, 10]),
         _int32_tensor("col_grid_i32", [c for _ in range(10) for c in range(10)], [1, 1, 10, 10]),
         _int64_tensor("pads_source", [0, 0, 10, 10, 0, 0, 10, 10], [8]),
@@ -63,7 +59,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ArgMax", ["input10"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Pad", ["input_color_u8", "pads_source", "zero_u8"], ["input_color30_u8"], mode="constant"),
-        helper.make_node("Reshape", ["input_color30_u8", "shape_flat_1x900"], ["input_color30_flat"]),
+        helper.make_node("Reshape", ["input_color30_u8", "shape_flat900"], ["input_color30_flat"]),
         helper.make_node("Greater", ["input_color_u8", "zero_u8"], ["nonzero_bool"]),
         helper.make_node("Cast", ["nonzero_bool"], ["nonzero_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["nonzero_u8"], ["row_present"], axes=[3], keepdims=1),
