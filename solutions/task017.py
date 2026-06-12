@@ -9,7 +9,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 H = 21
 W = 21
-PERIODS = [2, 4, 5, 6, 7, 8, 9]
+PERIODS = [4, 5, 6, 7, 8, 9]
 INTERNAL_TYPE = onnx.TensorProto.FLOAT16
 
 
