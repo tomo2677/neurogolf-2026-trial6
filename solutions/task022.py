@@ -14,8 +14,8 @@ def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -
     return helper.make_tensor(name, onnx.TensorProto.INT64, shape, values)
 
 
-def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
-    return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
 def _shift(
@@ -51,54 +51,50 @@ def _shift(
 
 
 def build_model() -> onnx.ModelProto:
-    x, y = make_io_value_infos()
+    x, _ = make_io_value_infos()
+    y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _f32_tensor("zero_f32", [0.0], [1]),
-        _f32_tensor("channel0", [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [1, 10, 1, 1]),
-        _f32_tensor("nonzero_channels", [0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1, 10, 1, 1]),
-        _int64_tensor("gray_starts", [0, 5, 0, 0], [4]),
-        _int64_tensor("gray_ends", [1, 6, SIZE, SIZE], [4]),
-        _int64_tensor("nonzero_starts", [0, 1, 0, 0], [4]),
-        _int64_tensor("nonzero_ends", [1, 10, 1, 1], [4]),
+        _int64_tensor("five_i64", [5], [1]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, SIZE - 3, SIZE - 3], [8]),
+        _u8_tensor("zero_u8", [0], [1]),
+        _u8_tensor("invalid_u8", [255], [1]),
+        _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
 
-    nodes = [
-        helper.make_node("Slice", ["input", "gray_starts", "gray_ends"], ["gray_mask"]),
+    nodes: list[onnx.NodeProto] = [
+        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
+        helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Equal", ["input_color_i64", "five_i64"], ["gray_bool"]),
+        helper.make_node("Cast", ["gray_bool"], ["gray_u8"], to=onnx.TensorProto.UINT8),
     ]
 
     slots: list[str] = []
     for row, dr in enumerate((-1, 0, 1)):
         for col, dc in enumerate((-1, 0, 1)):
             prefix = f"slot_{row}_{col}"
-            _shift(nodes, initializers, "gray_mask", f"{prefix}_neighbor_mask", dr, dc)
+            _shift(nodes, initializers, "gray_u8", f"{prefix}_neighbor_u8", dr, dc)
             nodes.extend(
                 [
-                    helper.make_node("Mul", ["input", f"{prefix}_neighbor_mask"], [f"{prefix}_masked_input"]),
-                    helper.make_node("ReduceMax", [f"{prefix}_masked_input"], [f"{prefix}_raw"], axes=[2, 3], keepdims=1),
-                    helper.make_node("Slice", [f"{prefix}_raw", "nonzero_starts", "nonzero_ends"], [f"{prefix}_raw_nonzero"]),
-                    helper.make_node("ReduceMax", [f"{prefix}_raw_nonzero"], [f"{prefix}_nonzero_any"], axes=[1], keepdims=1),
-                    helper.make_node("Equal", [f"{prefix}_nonzero_any", "zero_f32"], [f"{prefix}_zero_bool"]),
-                    helper.make_node("Cast", [f"{prefix}_zero_bool"], [f"{prefix}_zero_f32"], to=onnx.TensorProto.FLOAT),
-                    helper.make_node("Mul", [f"{prefix}_raw", "nonzero_channels"], [f"{prefix}_nonzero_part"]),
-                    helper.make_node("Mul", [f"{prefix}_zero_f32", "channel0"], [f"{prefix}_zero_part"]),
-                    helper.make_node("Max", [f"{prefix}_nonzero_part", f"{prefix}_zero_part"], [f"{prefix}_onehot"]),
+                    helper.make_node("Greater", [f"{prefix}_neighbor_u8", "zero_u8"], [f"{prefix}_neighbor_bool"]),
+                    helper.make_node("Where", [f"{prefix}_neighbor_bool", "input_color_u8", "zero_u8"], [f"{prefix}_color_grid"]),
+                    helper.make_node("ReduceMax", [f"{prefix}_color_grid"], [f"{prefix}_color"], axes=[2, 3], keepdims=1),
                 ]
             )
-            slots.append(f"{prefix}_onehot")
+            slots.append(f"{prefix}_color")
 
     nodes.extend(
         [
             helper.make_node("Concat", slots[0:3], ["row0"], axis=3),
             helper.make_node("Concat", slots[3:6], ["row1"], axis=3),
             helper.make_node("Concat", slots[6:9], ["row2"], axis=3),
-            helper.make_node("Concat", ["row0", "row1", "row2"], ["output3"], axis=2),
-            helper.make_node("Pad", ["output3", "pads_output"], ["output"], mode="constant"),
+            helper.make_node("Concat", ["row0", "row1", "row2"], ["color3"], axis=2),
+            helper.make_node("Pad", ["color3", "pads_output", "invalid_u8"], ["color30"], mode="constant"),
+            helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
         ]
     )
 
     graph = helper.make_graph(nodes, "task022_gray_center_overlay_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
