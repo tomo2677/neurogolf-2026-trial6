@@ -69,15 +69,13 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("slice_hw_starts", [0, 0], [2]),
         _int64_tensor("slice_hw_ends", [INPUT_SIZE, INPUT_SIZE], [2]),
         _int64_tensor("slice_hw_axes", [2, 3], [2]),
-        _int64_tensor("pads_color6_to12", [0, 0, 0, 0, 0, 0, OUT_SIZE - INPUT_SIZE, OUT_SIZE - INPUT_SIZE], [8]),
         _int64_tensor("pads_color12_to30", [0, 0, 0, 0, 0, 0, 30 - OUT_SIZE, 30 - OUT_SIZE], [8]),
         _int32_tensor("row_idx", list(range(OUT_SIZE)), [1, 1, OUT_SIZE, 1]),
         _int32_tensor("col_idx", list(range(OUT_SIZE)), [1, 1, 1, OUT_SIZE]),
         _int32_tensor("one_i32", [1], [1]),
         _int32_tensor("two_i32", [2], [1]),
-        _int32_tensor("zero_i32", [0], [1]),
-        _int32_tensor("neg_one_i32", [-1], [1]),
-        _int32_tensor("size_i32", [OUT_SIZE], [1]),
+        _int32_tensor("input_width_i32", [INPUT_SIZE], [1]),
+        _int64_tensor("shape_index_1x36", [1, 1, INPUT_SIZE * INPUT_SIZE], [3]),
         _int64_tensor("shape_index_1x144", [1, 1, OUT_SIZE * OUT_SIZE], [3]),
         _int64_tensor("shape_1x1x12x12", [1, 1, OUT_SIZE, OUT_SIZE], [4]),
         _int32_tensor("row_grid_i32", [r for r in range(OUT_SIZE) for _ in range(OUT_SIZE)], [1, 1, OUT_SIZE, OUT_SIZE]),
@@ -108,16 +106,20 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("And", ["row_valid", "col_valid"], ["valid_out"]),
         helper.make_node("ArgMax", ["input6"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Pad", ["input_color_u8", "pads_color6_to12", "zero_u8"], ["input_color12_u8"], mode="constant"),
     ]
-
-    _shift_color(nodes, "input_color12_u8", "zero_i32", "width_dyn_i32", "tile_right")
-    _shift_color(nodes, "input_color12_u8", "height_i32", "zero_i32", "tile_down")
-    _shift_color(nodes, "input_color12_u8", "height_i32", "width_dyn_i32", "tile_down_right")
 
     nodes.extend(
         [
-            helper.make_node("Max", ["input_color12_u8", "tile_right", "tile_down", "tile_down_right"], ["tiled_color"]),
+            helper.make_node("Mod", ["row_grid_i32", "height_i32"], ["tile_src_r"], fmod=0),
+            helper.make_node("Mod", ["col_grid_i32", "width_dyn_i32"], ["tile_src_c"], fmod=0),
+            helper.make_node("Mul", ["tile_src_r", "input_width_i32"], ["tile_src_r_offset"]),
+            helper.make_node("Add", ["tile_src_r_offset", "tile_src_c"], ["tile_src_spatial"]),
+            helper.make_node("Reshape", ["tile_src_spatial", "shape_index_1x144"], ["tile_indices_i32"]),
+            helper.make_node("Cast", ["tile_indices_i32"], ["tile_indices"], to=onnx.TensorProto.INT64),
+            helper.make_node("Reshape", ["input_color_u8", "shape_index_1x36"], ["input_color_flat"]),
+            helper.make_node("GatherElements", ["input_color_flat", "tile_indices"], ["tiled_flat"], axis=2),
+            helper.make_node("Reshape", ["tiled_flat", "shape_1x1x12x12"], ["tiled_raw"]),
+            helper.make_node("Where", ["valid_out", "tiled_raw", "zero_u8"], ["tiled_color"]),
             helper.make_node("Greater", ["tiled_color", "zero_u8"], ["colored"]),
             helper.make_node("Cast", ["colored"], ["colored_f16"], to=onnx.TensorProto.FLOAT16),
             helper.make_node(
