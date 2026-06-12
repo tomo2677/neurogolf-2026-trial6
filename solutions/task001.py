@@ -30,7 +30,6 @@ def build_model() -> onnx.ModelProto:
     initializers = [
         _int64_tensor("zero_starts", [0, 0, 0, 0]),
         _int64_tensor("zero_ends", [1, 1, 3, 3]),
-        _int64_tensor("shape_spatial9", [1, 1, 9, 9]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 21, 21]),
         _int64_tensor("block_axes", [3, 5]),
         _int64_tensor("inner_axes", [2, 4]),
@@ -44,7 +43,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Unsqueeze", ["mask_bool3", "block_axes"], ["block_mask6"]),
         helper.make_node("Unsqueeze", ["mask_bool3", "inner_axes"], ["inner_mask6"]),
         helper.make_node("And", ["block_mask6", "inner_mask6"], ["spatial_bool6"]),
-        helper.make_node("Reshape", ["spatial_bool6", "shape_spatial9"], ["spatial_bool9"]),
+        helper.make_node("Flatten", ["spatial_bool6"], ["spatial_bool9"], axis=4),
         helper.make_node("ReduceMax", ["input"], ["color10"], axes=[2, 3], keepdims=1),
         helper.make_node("Cast", ["color10"], ["color10_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Sub", ["color10_u8", "black10"], ["color_onehot_u8"]),
