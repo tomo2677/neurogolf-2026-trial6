@@ -34,10 +34,9 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("rev9_ends", [-10, -10], [2]),
         _int64_tensor("rev_axes", [2, 3], [2]),
         _int64_tensor("rev_steps", [-1, -1], [2]),
+        _int64_tensor("pads_rot10", [0, 0, 1, 1, 0, 0, 0, 0], [8]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 7, 20, 20], [8]),
         _int64_tensor("sum_axes4", [0, 1, 2, 3], [4]),
-        _bool_tensor("false_col9", [False] * 9, [1, 1, 9, 1]),
-        _bool_tensor("false_row10", [False] * 10, [1, 1, 1, 10]),
     ]
 
     nodes = [
@@ -46,8 +45,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Slice", ["blue_bool", "rev10_starts", "rev10_ends", "rev_axes", "rev_steps"], ["rot9"]),
         helper.make_node("Slice", ["blue_bool", "inner_starts", "inner_ends"], ["inner9"]),
         helper.make_node("Slice", ["inner9", "rev9_starts", "rev9_ends", "rev_axes", "rev_steps"], ["rot10_inner"]),
-        helper.make_node("Concat", ["false_col9", "rot10_inner"], ["rot10_body"], axis=3),
-        helper.make_node("Concat", ["false_row10", "rot10_body"], ["rot10"], axis=2),
+        helper.make_node("Pad", ["rot10_inner", "pads_rot10"], ["rot10"], mode="constant"),
         helper.make_node("And", ["blue_bool", "rot9"], ["overlap9_bool"]),
         helper.make_node("And", ["blue_bool", "rot10"], ["overlap10_bool"]),
         helper.make_node("Cast", ["overlap9_bool"], ["overlap9_cells"], to=onnx.TensorProto.FLOAT16),
