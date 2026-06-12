@@ -19,13 +19,16 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
+def _bool_tensor(name: str, values: list[bool], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.BOOL, dims, values)
+
+
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
         _int64_tensor("axes3", [1, 2, 3]),
-        _int64_tensor("resize_sizes", [1, 1, 9, 9]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 19, 19]),
         _int64_tensor("channel8_starts", [0, 8, 0, 0], [4]),
         _int64_tensor("channel8_ends", [1, 9, 11, 11], [4]),
@@ -36,10 +39,12 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("col_start_table", [0, 4, 8, 0, 4, 8, 0, 4, 8], [9]),
         _int64_tensor("row_end_table", [3, 3, 3, 7, 7, 7, 11, 11, 11], [9]),
         _int64_tensor("col_end_table", [3, 7, 11, 3, 7, 11, 3, 7, 11], [9]),
+        _int64_tensor("expand_index11", [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2], [11]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
         _u8_tensor("outside_u8", [255], [1]),
-        _u8_tensor("sep_row", [5] * 9, [1, 1, 1, 9]),
-        _u8_tensor("sep_col", [5] * 11, [1, 1, 11, 1]),
+        _u8_tensor("five_u8", [5], [1]),
+        _bool_tensor("sep_rows", [False, False, False, True, False, False, False, True, False, False, False], [1, 1, 11, 1]),
+        _bool_tensor("sep_cols", [False, False, False, True, False, False, False, True, False, False, False], [1, 1, 1, 11]),
     ]
     nodes: list[onnx.NodeProto] = [
         helper.make_node("Slice", ["input", "channel8_starts", "channel8_ends"], ["blue11"]),
@@ -66,38 +71,10 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Slice", ["input", "selected_start", "selected_end", "axes3"], ["selected_onehot"]),
             helper.make_node("ArgMax", ["selected_onehot"], ["pattern_i64"], axis=1, keepdims=1),
             helper.make_node("Cast", ["pattern_i64"], ["pattern"], to=onnx.TensorProto.UINT8),
-            helper.make_node(
-                "Resize",
-                ["pattern", "", "", "resize_sizes"],
-                ["expanded9"],
-                mode="nearest",
-                coordinate_transformation_mode="asymmetric",
-                nearest_mode="floor",
-            ),
-            helper.make_node(
-                "Split",
-                ["expanded9"],
-                ["row_block0", "row_block1", "row_block2"],
-                axis=2,
-            ),
-            helper.make_node(
-                "Concat",
-                ["row_block0", "sep_row", "row_block1", "sep_row", "row_block2"],
-                ["expanded11x9"],
-                axis=2,
-            ),
-            helper.make_node(
-                "Split",
-                ["expanded11x9"],
-                ["col_block0", "col_block1", "col_block2"],
-                axis=3,
-            ),
-            helper.make_node(
-                "Concat",
-                ["col_block0", "sep_col", "col_block1", "sep_col", "col_block2"],
-                ["color11"],
-                axis=3,
-            ),
+            helper.make_node("Gather", ["pattern", "expand_index11"], ["expanded11x3"], axis=2),
+            helper.make_node("Gather", ["expanded11x3", "expand_index11"], ["expanded11"], axis=3),
+            helper.make_node("Or", ["sep_rows", "sep_cols"], ["sep_mask"]),
+            helper.make_node("Where", ["sep_mask", "five_u8", "expanded11"], ["color11"]),
             helper.make_node("Pad", ["color11", "pads_output", "outside_u8"], ["color30"], mode="constant"),
             helper.make_node("Equal", ["colors10", "color30"], ["output"]),
         ]
@@ -107,6 +84,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_tensor_value_info("selected_onehot", onnx.TensorProto.FLOAT, [1, 7, 3, 3]),
         helper.make_tensor_value_info("pattern_i64", onnx.TensorProto.INT64, [1, 1, 3, 3]),
         helper.make_tensor_value_info("pattern", onnx.TensorProto.UINT8, [1, 1, 3, 3]),
+        helper.make_tensor_value_info("expanded11x3", onnx.TensorProto.UINT8, [1, 1, 11, 3]),
+        helper.make_tensor_value_info("expanded11", onnx.TensorProto.UINT8, [1, 1, 11, 11]),
+        helper.make_tensor_value_info("color11", onnx.TensorProto.UINT8, [1, 1, 11, 11]),
     ]
     graph = helper.make_graph(nodes, "task011_dynamic_slice_block_graph", [x], [y], initializers, value_info=value_infos)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
