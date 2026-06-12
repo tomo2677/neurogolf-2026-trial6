@@ -203,7 +203,6 @@ def mark_quota_skipped(manifest_path: Path, manifest: dict[str, Any], quota_stat
         manifest["task"],
         official_status="quota_skipped",
         official_public_score=None,
-        official_private_score=None,
         official_delta_public_vs_local=None,
         official_submission_ref=None,
         official_run_id=manifest["run_id"],
@@ -380,7 +379,6 @@ def submit(args: argparse.Namespace) -> int:
         manifest["task"],
         official_status="submitted",
         official_public_score=None,
-        official_private_score=None,
         official_delta_public_vs_local=None,
         official_submission_ref=None,
         official_run_id=manifest["run_id"],
@@ -395,7 +393,6 @@ def submit(args: argparse.Namespace) -> int:
 
 def update_ledger_from_match(manifest: dict[str, Any], row: dict[str, str], normalized_status: str) -> None:
     public_score = parse_float(row.get("publicScore"))
-    private_score = parse_float(row.get("privateScore"))
     local_points = parse_float(manifest.get("local_points_at_submit"))
     delta = None
     if public_score is not None and local_points is not None:
@@ -405,7 +402,6 @@ def update_ledger_from_match(manifest: dict[str, Any], row: dict[str, str], norm
         manifest["task"],
         official_status=normalized_status,
         official_public_score=public_score if normalized_status == "complete" else None,
-        official_private_score=private_score if normalized_status == "complete" else None,
         official_delta_public_vs_local=delta if normalized_status == "complete" else None,
         official_submission_ref=row.get("ref"),
         official_run_id=manifest["run_id"],
@@ -471,7 +467,6 @@ def poll_once(run_dir: Path, attempt: int) -> tuple[str, dict[str, Any] | None]:
         "submission_row": row,
         "normalized_status": normalized_status,
         "public_score": parse_float(row.get("publicScore")),
-        "private_score": parse_float(row.get("privateScore")),
         "observed_at": utc_timestamp(),
     }
     save_manifest(manifest_path, manifest)

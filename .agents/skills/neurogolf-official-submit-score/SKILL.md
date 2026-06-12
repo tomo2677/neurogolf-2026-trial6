@@ -62,5 +62,7 @@ uv run python tools/official_submission.py quota
 - Do not put manifest files inside `submission.zip`.
 - Raw artifacts stay under ignored `submissions/official/taskNNN/<run_id>/`.
 - Treat Kaggle `publicScore` as authoritative for the submitted zip; local score remains a development estimate.
+- This competition does not expose a usable private official score. Do not add
+  `official_private_score` to the ledger; track `official_public_score` only.
 - Team daily quota policy: limit is `100`; if remaining submissions are `10` or fewer, or quota cannot be checked, the script must skip submit and write `official_status=quota_skipped`.
 - Known official-runtime guardrail: keep `TopK` data input as `FLOAT`.

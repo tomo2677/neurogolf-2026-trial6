@@ -29,7 +29,6 @@ LEDGER_COLUMNS = [
     "params",
     "updated_at",
     "official_status",
-    "official_private_score",
     "official_submission_ref",
     "official_run_id",
     "official_zip_sha256",

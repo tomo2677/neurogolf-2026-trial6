@@ -69,4 +69,6 @@ commits.
 - Do not continue after an unmatched, ambiguous, or errored official row.
 - Do not claim completion unless `task_ledger.*` contains both local and
   official columns for the task.
+- Official score tracking is public-score only for this competition; do not
+  introduce an `official_private_score` ledger column.
 - Keep generated artifacts under ignored directories.
