@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.79047956794679 | 73734 | 96 | 2026-06-13T04:15:41+09:00 | exp002 |
+| passes_local | 14.44052211130028 | 38454 | 87 | 2026-06-13T04:17:09+09:00 | exp003 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -16,6 +16,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | exp001 | impl_opt | gathernd-u8-color-grid | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp002 | impl_opt | gathernd-u8-color-grid-shapeinfo | passes_local | 13.79047956794679 | 73734 | 96 | 1.12812418769 | promoted | Auto promoted after canonical re-score. |
+| exp003 | impl_opt | argmax-nonblack-u8 | passes_local | 14.44052211130028 | 38454 | 87 | 0.650042543353 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

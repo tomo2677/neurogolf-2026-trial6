@@ -77,9 +77,6 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("nonblack_start", [1, 0, 0], [3]),
-        _int64_tensor("nonblack_end", [10, 30, 30], [3]),
-        _int64_tensor("axes3", [1, 2, 3], [3]),
         _int64_tensor("row_idx", list(range(30)), [1, 1, 30, 1]),
         _int64_tensor("col_idx", list(range(30)), [1, 1, 1, 30]),
         _int64_tensor("one_i64", [1], [1, 1, 1, 1]),
@@ -90,19 +87,20 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("unsq_axis1", [1], [1]),
         _int64_tensor("unsq_batch_axes", [0, 1], [2]),
         _int64_tensor("gathernd_index_shape", [1, 10, 1, 1, 2], [5]),
-        _f32_tensor("zero_f32", [0.0], [1]),
+        _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("outside_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("Slice", ["input", "nonblack_start", "nonblack_end", "axes3"], ["nonblack_input"]),
-        helper.make_node("ReduceMax", ["nonblack_input"], ["nonblack"], axes=[1], keepdims=1),
-        helper.make_node("Cast", ["nonblack"], ["nonblack_bool"], to=onnx.TensorProto.BOOL),
-        helper.make_node("ReduceMax", ["nonblack"], ["row_has"], axes=[3], keepdims=1),
-        helper.make_node("ReduceMax", ["nonblack"], ["col_has"], axes=[2], keepdims=1),
-        helper.make_node("Equal", ["row_has", "zero_f32"], ["row_zero"]),
-        helper.make_node("Equal", ["col_has", "zero_f32"], ["col_zero"]),
+        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
+        helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Greater", ["input_color_i64", "zero_i64"], ["nonblack_bool"]),
+        helper.make_node("Cast", ["nonblack_bool"], ["nonblack_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("ReduceMax", ["nonblack_u8"], ["row_has"], axes=[3], keepdims=1),
+        helper.make_node("ReduceMax", ["nonblack_u8"], ["col_has"], axes=[2], keepdims=1),
+        helper.make_node("Equal", ["row_has", "zero_u8"], ["row_zero"]),
+        helper.make_node("Equal", ["col_has", "zero_u8"], ["col_zero"]),
         helper.make_node("Cast", ["row_zero"], ["row_zero_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Cast", ["col_zero"], ["col_zero_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ArgMax", ["row_zero_u8"], ["top_end"], axis=2, keepdims=1, select_last_index=0),
@@ -178,8 +176,6 @@ def build_model() -> onnx.ModelProto:
                 ["target_pads"],
                 axis=0,
             ),
-            helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=1),
-            helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
             helper.make_node("Where", ["target_mask", "input_color_u8", "outside_u8"], ["target_color_u8"]),
             helper.make_node("Pad", ["target_color_u8", "target_pads", "outside_u8"], ["shifted_color_u8"], mode="constant"),
             helper.make_node("Equal", ["colors10", "shifted_color_u8"], ["output"]),
