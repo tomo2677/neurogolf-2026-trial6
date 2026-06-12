@@ -31,7 +31,8 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("width_axis", [3], [1]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("shape_row10", [1, 1, 1, 10], [4]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 20, 20], [8]),
+        _int64_tensor("pads_hw", [0, 0, 20, 20], [4]),
+        _int64_tensor("pad_axes_hw", [2, 3], [2]),
         _bool_tensor("edge_cols", [True, False, False, False, False, False, False, False, False, True], [1, 1, 1, 10]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
@@ -70,7 +71,7 @@ def build_model() -> onnx.ModelProto:
             ["color10"],
             axis=2,
         ),
-        helper.make_node("Pad", ["color10", "pads_output", "invalid_u8"], ["color30"], mode="constant"),
+        helper.make_node("Pad", ["color10", "pads_hw", "invalid_u8", "pad_axes_hw"], ["color30"], mode="constant"),
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
