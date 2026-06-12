@@ -27,9 +27,8 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("row15_starts", [0, 0, 0, 0], [4]),
+        _int64_tensor("starts15", [0, 0, 0, 0], [4]),
         _int64_tensor("row15_ends", [1, 1, SIZE, 1], [4]),
-        _int64_tensor("col15_starts", [0, 0, 0, 0], [4]),
         _int64_tensor("col15_ends", [1, 1, 1, SIZE], [4]),
         _int64_tensor("row_ch1_starts", [0, 1, 0, 0], [4]),
         _int64_tensor("row_ch1_ends", [1, 2, SIZE, 1], [4]),
@@ -49,8 +48,8 @@ def build_model() -> onnx.ModelProto:
     nodes = [
         helper.make_node("ReduceMax", ["input"], ["row_present30"], axes=[1, 3], keepdims=1),
         helper.make_node("ReduceMax", ["input"], ["col_present30"], axes=[1, 2], keepdims=1),
-        helper.make_node("Slice", ["row_present30", "row15_starts", "row15_ends"], ["row_present15"]),
-        helper.make_node("Slice", ["col_present30", "col15_starts", "col15_ends"], ["col_present15"]),
+        helper.make_node("Slice", ["row_present30", "starts15", "row15_ends"], ["row_present15"]),
+        helper.make_node("Slice", ["col_present30", "starts15", "col15_ends"], ["col_present15"]),
         helper.make_node("Cast", ["row_present15"], ["row_valid"], to=onnx.TensorProto.BOOL),
         helper.make_node("Cast", ["col_present15"], ["col_valid"], to=onnx.TensorProto.BOOL),
         helper.make_node("And", ["row_valid", "col_valid"], ["valid_area"]),
