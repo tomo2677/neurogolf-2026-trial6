@@ -70,7 +70,6 @@ def build_model() -> onnx.ModelProto:
         helper.make_tensor("one11", INTERNAL_TYPE, [1, 1], [1.0]),
         helper.make_tensor("compact_eps", INTERNAL_TYPE, [1], [0.1]),
         helper.make_tensor("tie_eps", INTERNAL_TYPE, [1], [0.01]),
-        _int32_tensor("score_start", [1]),
         _int32_tensor("score_end", [10]),
         _int64_tensor("k4", [SELECTED_COLORS]),
         _int64_tensor("color21_shape", [1, 1, 21, 21]),
@@ -94,7 +93,7 @@ def build_model() -> onnx.ModelProto:
         repeat_dilations[(dy, dx)] = dilations
     nodes: list[onnx.NodeProto] = [
         helper.make_node("ReduceMax", ["input"], ["present_scores10"], axes=[0, 2, 3], keepdims=0),
-        helper.make_node("Slice", ["present_scores10", "score_start", "score_end"], ["present_scores"]),
+        helper.make_node("Slice", ["present_scores10", "slice_one", "score_end"], ["present_scores"]),
         helper.make_node("TopK", ["present_scores", "k4"], ["top_scores", "top_indices"], axis=0, largest=1, sorted=1),
         helper.make_node("Split", ["top_indices"], [f"top_idx_{slot}" for slot in range(SELECTED_COLORS)], axis=0, split=[1] * SELECTED_COLORS),
     ]

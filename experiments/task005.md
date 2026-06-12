@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 14.246361518094261 | 46675 | 125 | 2026-06-12T07:28:06+09:00 | ledger |
+| passes_local | 14.245763406400437 | 46704 | 124 | 2026-06-13T07:53:11+09:00 | exp055 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -14,7 +14,6 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp030 | impl_opt | cast-flat-color | passes_local | 13.871619992885433 | 67232 | 844 | 0.00645716152787 | promoted | Auto promoted after canonical re-score. |
 | exp031 | impl_opt | topk-flat-present | passes_local | 13.872134256361285 | 67200 | 841 | 0.000514263475852 | promoted | Auto promoted after canonical re-score. |
 | exp032 | impl_opt | int32-dynamic-slice-indices | passes_local | 13.875077989076818 | 67000 | 841 | 0.00294373271553 | promoted | Auto promoted after canonical re-score. |
 | exp033 | impl_opt | u8-topk-derive-end | passes_local | 13.875638279262807 | 66971 | 832 | 0.000560290185989 | promoted | Auto promoted after canonical re-score. |
@@ -39,6 +38,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp052 | impl_opt | float-repeat-path | passes_local | 13.69193622266597 | 81349 | 127 | -0.554425295428 | not_better | Passed but did not improve local_points. |
 | exp053 | rule_redesign | argmax-gather-repeat | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp054 | rule_redesign | argmax-gather-repeat-opset11 | fails_local | 0.0 | 53707 | 125 | -14.2463615181 | fails_local | Candidate did not pass local validation. |
+| exp055 | impl_opt | reuse-score-start | passes_local | 14.245763406400437 | 46704 | 124 | 2.13545170151e-05 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - Official ERROR repair: the 2026-06-12 single-task official submission for the previous model returned `SubmissionStatus.ERROR` despite local `passes_local` and `passes_rules`. The common pattern with other ERROR tasks was `TopK(UINT8)`. Repaired by keeping `present_scores` as `FLOAT` through `TopK`; expected local score after repair is about `14.245742051883422`.
