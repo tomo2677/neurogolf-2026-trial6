@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.226405532639806 | 2273 | 104 | 2026-06-13T08:39:45+09:00 | exp009 |
+| passes_local | 17.22724728353126 | 2273 | 102 | 2026-06-13T08:52:04+09:00 | exp010 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -22,6 +22,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp007 | rule_redesign | selected-channels-0-6 | passes_local | 17.1953407029439 | 2358 | 94 | 0.0431032404175 | promoted | Auto promoted after canonical re-score. |
 | exp008 | impl_opt | seven-channel-bool-pad | passes_local | 17.218861490154985 | 2305 | 90 | 0.0235207872111 | promoted | Auto promoted after canonical re-score. |
 | exp009 | impl_opt | gather-expand-separators | passes_local | 17.226405532639806 | 2273 | 104 | 0.00754404248482 | promoted | Auto promoted after canonical re-score. |
+| exp010 | impl_opt | flatten-no8 | passes_local | 17.22724728353126 | 2273 | 102 | 0.000841750891453 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
