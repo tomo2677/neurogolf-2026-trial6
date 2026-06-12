@@ -32,14 +32,13 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("reverse9", list(range(8, -1, -1)), [9]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 7, 20, 20], [8]),
         _int64_tensor("sum_axes4", [0, 1, 2, 3], [4]),
-        _f32_tensor("zero_f32", [0.0], [1]),
         _bool_tensor("false_col9", [False] * 9, [1, 1, 9, 1]),
         _bool_tensor("false_row10", [False] * 10, [1, 1, 1, 10]),
     ]
 
     nodes = [
         helper.make_node("Slice", ["input", "blue_starts", "blue_ends"], ["blue10"]),
-        helper.make_node("Greater", ["blue10", "zero_f32"], ["blue_bool"]),
+        helper.make_node("Cast", ["blue10"], ["blue_bool"], to=onnx.TensorProto.BOOL),
         helper.make_node("Gather", ["blue_bool", "reverse10"], ["rot9_v"], axis=2),
         helper.make_node("Gather", ["rot9_v", "reverse10"], ["rot9"], axis=3),
         helper.make_node("Slice", ["blue_bool", "inner_starts", "inner_ends"], ["inner9"]),

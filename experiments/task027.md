@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.096773191269268 | 2639 | 67 | 2026-06-13T03:20:14+09:00 | ledger |
+| passes_local | 17.09714280871942 | 2639 | 66 | 2026-06-13T06:28:34+09:00 | exp010 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -21,6 +21,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp005 | impl_opt | f16-overlap-counts | passes_local | 17.060484739337593 | 2739 | 67 | 0.134510955462 | promoted | Auto promoted after canonical re-score. |
 | exp006 | impl_opt | xor-black-channel | passes_local | 17.096773191269268 | 2639 | 67 | 0.0362884519317 | promoted | Auto promoted after canonical re-score. |
 | exp007 | impl_opt | where-select-rotation | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp009 | impl_opt | cast-blue-pad-axes | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp010 | impl_opt | cast-blue-only | passes_local | 17.09714280871942 | 2639 | 66 | 0.000369617450151 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
