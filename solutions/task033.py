@@ -52,13 +52,15 @@ def build_model() -> onnx.ModelProto:
     nodes.append(helper.make_node("Not", ["bg00_bool"], ["template3"]))
     for br in range(3):
         for bc in range(3):
+            if br == 0 and bc == 0:
+                continue
             nodes.append(helper.make_node("And", ["template3", f"bg{br}{bc}_bool"], [f"fill{br}{bc}"]))
 
     nodes.extend(
         [
         helper.make_node(
             "Concat",
-            ["false_col1", "fill00", "false_gap3", "fill01", "false_gap3", "fill02", "false_col1"],
+            ["false_col1", "false_gap3", "false_gap3", "fill01", "false_gap3", "fill02", "false_col1"],
             ["fill_row0"],
             axis=3,
         ),
