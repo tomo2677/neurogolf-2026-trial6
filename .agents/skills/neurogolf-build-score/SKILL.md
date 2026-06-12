@@ -9,6 +9,8 @@ Use this skill after editing `solutions/taskNNN.py`.
 
 For ignored candidate files or post-pass cost experiments, use `neurogolf-cost-experiment` and `tools/experiment_task.py` instead.
 
+Before build/score, check `docs/neurogolf_public_facts.md` for the current local public rules reference. Build and score tools hard-gate public rule violations as `rule_invalid`.
+
 ## Commands
 
 Run from repo root:
@@ -19,6 +21,12 @@ uv run python tools/score_task.py --task taskNNN
 ```
 
 Canonical build/score updates `task_ledger.*` and should be used after a candidate is known to pass.
+
+To inspect ONNX public-rule compliance directly:
+
+```bash
+uv run python tools/validate_public_rules.py --onnx outputs/onnx/taskNNN.onnx --report outputs/reports/taskNNN_rules.json
+```
 
 For first-created solve-loop attempts, avoid writing failed statuses to the ledger:
 
@@ -37,6 +45,7 @@ uv run python tools/score_task.py --task taskNNN --no-ledger --report outputs/re
   - `memory_bytes_approx`
   - `params`
   - `first_failure`
+- Treat `rule_invalid` as higher priority than local functional pass; it is not a valid passing solution.
 - Treat only `status == "passes_local"` in the report as success.
 
 ## Integrity

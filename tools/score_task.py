@@ -28,6 +28,7 @@ from neurogolf_onnx import (
     update_ledger,
     utc_timestamp,
 )
+from tools.validate_public_rules import validate_onnx_file_public_rules
 
 
 def make_session(model: onnx.ModelProto, official: Any, profile_prefix: Path):
@@ -76,10 +77,44 @@ def main() -> int:
     status = "score_failed"
     scoring_source = "fallback"
     trace_path: str | None = None
+    rules_report: dict[str, Any] | None = None
 
     try:
         if not model_path.exists():
             raise FileNotFoundError(f"Missing ONNX model: {model_path}")
+
+        rules_report = validate_onnx_file_public_rules(model_path)
+        if not rules_report.get("valid"):
+            report = {
+                "task": task_id,
+                "status": "rule_invalid",
+                "local_points": None,
+                "accuracy": None,
+                "checked_examples": checked,
+                "passed_examples": passed,
+                "failed_examples": failed,
+                "ignored_over_30": ignored_over_30,
+                "first_failure": first_failure,
+                "memory_bytes_approx": memory_bytes_approx,
+                "params": params,
+                "onnx_path": str(model_path),
+                "report_path": str(out_report_path),
+                "scoring_source": scoring_source,
+                "trace_path": trace_path,
+                "rules_report": rules_report,
+            }
+            out_report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            if not args.no_ledger:
+                update_ledger(
+                    task_id,
+                    status="rule_invalid",
+                    local_points=None,
+                    memory_bytes_approx=None,
+                    params=None,
+                    updated_at=utc_timestamp(),
+                )
+            print(json.dumps(report, indent=2, ensure_ascii=False))
+            return 1
 
         model = onnx.load(model_path)
         official = load_official_utils()
@@ -122,8 +157,25 @@ def main() -> int:
         if checked == 0:
             status = "score_failed"
         elif failed == 0:
-            status = "passes_local"
-            points = local_points(memory_bytes_approx, params)
+            if memory_bytes_approx is None or params is None:
+                status = "rule_invalid"
+                points = None
+                if rules_report is not None:
+                    rules_report = dict(rules_report)
+                    rules_report["valid"] = False
+                    rules_report["status"] = "rule_invalid"
+                    rules_report["issues"] = [
+                        *rules_report.get("issues", []),
+                        {
+                            "code": "missing_cost_metrics",
+                            "message": "Functional pass had no numeric memory_bytes_approx or params.",
+                            "memory_bytes_approx": memory_bytes_approx,
+                            "params": params,
+                        },
+                    ]
+            else:
+                status = "passes_local"
+                points = local_points(memory_bytes_approx, params)
         else:
             status = "fails_local"
             points = 0.0
@@ -144,6 +196,7 @@ def main() -> int:
             "local_points": points,
             "scoring_source": scoring_source,
             "trace_path": trace_path,
+            "rules_report": rules_report,
         }
         out_report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         if not args.no_ledger:
@@ -168,6 +221,7 @@ def main() -> int:
         "report_path": str(out_report_path),
         "scoring_source": scoring_source,
         "trace_path": trace_path,
+        "rules_report": rules_report,
     }
     out_report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     if not args.no_ledger:

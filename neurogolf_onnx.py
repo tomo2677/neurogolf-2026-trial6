@@ -32,6 +32,7 @@ STATUS_VALUES = {
     "generated",
     "build_failed",
     "score_failed",
+    "rule_invalid",
     "passes_local",
     "fails_local",
     "needs_human_review",

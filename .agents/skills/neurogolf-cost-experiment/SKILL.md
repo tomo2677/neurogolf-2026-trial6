@@ -1,11 +1,13 @@
 ---
 name: neurogolf-cost-experiment
-description: Improve already passing NeuroGolf tasks by lowering ONNX cost / raising local_points. Use for prompts like "cost を下げる", "passes 済みを最適化", or "task001-010 の実装を繰り返し工夫"; evaluates ignored candidate .py files and auto-promotes only better passes_local candidates.
+description: Improve already passing or rule-invalid NeuroGolf tasks by lowering ONNX cost / raising local_points while staying public-rule compliant. Use for prompts like "cost を下げる", "passes 済みを最適化", or "task001-010 の実装を繰り返し工夫"; evaluates ignored candidate .py files and auto-promotes only better rule-compliant candidates.
 ---
 
 # NeuroGolf Cost Experiment
 
-Use this skill after a task already has `status == passes_local`. For first-pass solving, use `neurogolf-solve-loop` instead.
+Use this skill after a task already has `status == passes_local`, or when replacing a `rule_invalid` task with the first compliant local pass. For first-pass solving, use `neurogolf-solve-loop` instead.
+
+Before writing candidates, read `docs/neurogolf_public_facts.md` and keep the candidate inside the public ONNX interface, file size, static-shape, banned-op, and validator constraints. The tools hard-gate violations as `rule_invalid`.
 
 ## Command
 
@@ -24,13 +26,13 @@ The candidate must define `build_model() -> onnx.ModelProto`. Keep candidate `.p
 
 ## Workflow
 
-1. Read `task_ledger.json` and select only `passes_local` tasks in the requested range.
+1. Read `task_ledger.json` and select `passes_local` tasks in the requested range. Include `rule_invalid` tasks only when the goal is a compliant replacement.
 2. For one task at a time, read `task_specs/taskNNN.md`, `solutions/taskNNN.py`, and `experiments/taskNNN.md` if it exists.
 3. Use one active hypothesis, or add one concise hypothesis to `experiments/taskNNN.md`.
 4. Write an ignored candidate `.py` under `outputs/experiments/taskNNN/work/`.
 5. Run `tools/experiment_task.py` with the candidate, hypothesis id, and mode.
 6. Read the experiment report and the bounded note.
-7. If the candidate improves `local_points`, the tool auto-promotes it by re-running canonical build/score.
+7. If the candidate is rule-compliant and improves `local_points`, the tool auto-promotes it by re-running canonical build/score. For a `rule_invalid` baseline, the first rule-compliant `passes_local` candidate may be promoted even without a numeric baseline score.
 8. If the report has `decision == "promoted"`, run the promotion commit flow below.
 9. Move to the next task or next hypothesis until a blocker or user stop condition is reached.
 
@@ -38,10 +40,12 @@ The candidate must define `build_model() -> onnx.ModelProto`. Keep candidate `.p
 
 Commit and push only after `tools/experiment_task.py` reports `decision == "promoted"`.
 
-The improvement must satisfy both conditions:
+For a `passes_local` baseline, the improvement must satisfy both conditions:
 
 - Candidate report has `status == "passes_local"`.
 - Canonical re-score after promotion has higher numeric `local_points` than the baseline.
+
+For a `rule_invalid` baseline, promotion requires canonical re-score to report `status == "passes_local"` with numeric `local_points`.
 
 Stage only the promoted task files:
 
@@ -62,7 +66,7 @@ Before commit, confirm `git diff --cached --name-only` contains only:
 
 If any other file is staged, unstage it before committing. If `git push origin main` fails, stop and do not move to the next task or experiment.
 
-Do not commit candidates that are `not_better`, tied, `build_failed`, `score_failed`, or `promotion_failed`. Candidate `.py` files and raw reports under `outputs/experiments/` remain ignored artifacts.
+Do not commit candidates that are `not_better`, tied, `build_failed`, `score_failed`, `rule_invalid`, or `promotion_failed`. Candidate `.py` files and raw reports under `outputs/experiments/` remain ignored artifacts.
 
 ## Notes Discipline
 
@@ -98,4 +102,5 @@ Not blockers:
 - Do not use Kaggle CLI/API/browser upload or submit.
 - Build and score one task at a time.
 - Do not convert an arbitrary Python runtime solver to ONNX.
-- Do not claim improvement unless the canonical re-score after promotion reports `passes_local` and higher `local_points`.
+- Do not claim improvement unless the canonical re-score after promotion reports `passes_local` and higher `local_points`; for `rule_invalid` baselines, call it a compliant replacement instead.
+- Do not treat `rule_invalid` as a valid best, even if it has a high local functional score.

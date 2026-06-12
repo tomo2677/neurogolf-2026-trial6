@@ -9,6 +9,7 @@ Use this skill when creating or repairing `solutions/taskNNN.py`.
 
 ## Inputs
 
+- Before creating or modifying ONNX generator code, read `docs/neurogolf_public_facts.md`, especially ONNX interface, constraints, validator behavior, and the minimal checklist.
 - Read `task_specs/taskNNN.md`; if missing, also check `task_specs/task_N.md`.
 - Read `data/taskNNN.json` and inspect `train`, `test`, and `arc-gen`.
 - Ignore examples where input or output exceeds 30x30.
@@ -29,6 +30,7 @@ Use this skill when creating or repairing `solutions/taskNNN.py`.
 - Python is only the ONNX graph generator.
 - Prefer small static ONNX graphs using standard ONNX ops.
 - Avoid `Loop`, `Scan`, `NonZero`, `Unique`, `Script`, `Function`, and `Sequence` ops.
+- Keep the generated model rule-compliant before optimizing score: file size must stay within `1.44 MB`, graph shapes must be static, and utility-rejected constructs from `docs/neurogolf_public_facts.md` must be avoided.
 
 ## Reattempt Policy
 

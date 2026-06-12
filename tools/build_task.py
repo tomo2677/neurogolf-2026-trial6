@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import sys
 import traceback
 from pathlib import Path
@@ -11,6 +12,7 @@ import onnx
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from neurogolf_onnx import check_and_save_model, normalize_task_id, onnx_path, solution_path, update_ledger, utc_timestamp
+from tools.validate_public_rules import RuleValidationError, require_public_rules, validate_model_public_rules
 
 
 def import_solution(path: Path):
@@ -43,7 +45,17 @@ def main() -> int:
         model = module.build_model()
         if not isinstance(model, onnx.ModelProto):
             raise TypeError("build_model() must return onnx.ModelProto")
+        rules_report = validate_model_public_rules(model, out_path)
+        require_public_rules(rules_report)
         file_size = check_and_save_model(model, out_path)
+    except RuleValidationError as exc:
+        if not args.no_ledger:
+            update_ledger(task_id, status="rule_invalid", local_points=None, memory_bytes_approx=None, params=None, updated_at=utc_timestamp())
+        print("Public rules validation failed:")
+        print(exc)
+        print("Full rule report:")
+        print(json.dumps(exc.report, indent=2, ensure_ascii=False))
+        return 1
     except Exception:
         if not args.no_ledger:
             update_ledger(task_id, status="build_failed", updated_at=utc_timestamp())

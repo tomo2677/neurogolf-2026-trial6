@@ -256,7 +256,7 @@ def update_note(task_id: str, row: dict[str, Any], ledger_entry: dict[str, Any] 
     note_path.write_text(text.rstrip() + "\n", encoding="utf-8")
 
 
-def promote_candidate(task_id: str, candidate_snapshot: Path, baseline_points: float) -> dict[str, Any]:
+def promote_candidate(task_id: str, candidate_snapshot: Path, baseline_points: float | None) -> dict[str, Any]:
     canonical_path = solution_path(task_id)
     original_bytes = canonical_path.read_bytes()
 
@@ -282,7 +282,7 @@ def promote_candidate(task_id: str, candidate_snapshot: Path, baseline_points: f
             and result["score"]["returncode"] == 0
             and score_value(canonical_report, "status") == "passes_local"
             and isinstance(canonical_points, (int, float))
-            and float(canonical_points) > baseline_points
+            and (baseline_points is None or float(canonical_points) > baseline_points)
         )
         if ok:
             result["decision"] = "promoted"
@@ -311,13 +311,15 @@ def main() -> int:
 
     ledger = load_ledger()
     baseline = ledger.get(task_id)
-    if baseline is None or baseline.get("status") != "passes_local":
-        print(f"{task_id} is not passes_local in task_ledger.json; cost experiments require a passing baseline.")
+    baseline_status = None if baseline is None else baseline.get("status")
+    if baseline is None or baseline_status not in {"passes_local", "rule_invalid"}:
+        print(f"{task_id} is not passes_local or rule_invalid in task_ledger.json; cost experiments require a passing or quarantined baseline.")
         return 2
     baseline_points = baseline.get("local_points")
-    if not isinstance(baseline_points, (int, float)):
+    if baseline_status == "passes_local" and not isinstance(baseline_points, (int, float)):
         print(f"{task_id} has no numeric local_points baseline.")
         return 2
+    comparison_baseline = float(baseline_points) if isinstance(baseline_points, (int, float)) else None
 
     exp_id, exp_dir = next_experiment_dir(task_id)
     candidate_snapshot = exp_dir / "candidate.py"
@@ -404,17 +406,14 @@ def main() -> int:
     candidate_points = score_value(candidate_report, "local_points")
     delta = points_delta(candidate_points, baseline_points)
 
-    should_promote = (
-        score["returncode"] == 0
-        and status == "passes_local"
-        and isinstance(delta, float)
-        and delta > 0.0
+    should_promote = score["returncode"] == 0 and status == "passes_local" and isinstance(candidate_points, (int, float)) and (
+        (baseline_status == "rule_invalid") or (isinstance(delta, float) and delta > 0.0)
     )
 
     accepted_exp: str | None = None
     note_entry = baseline
     if should_promote:
-        promotion = promote_candidate(task_id, candidate_snapshot, float(baseline_points))
+        promotion = promote_candidate(task_id, candidate_snapshot, comparison_baseline)
         report["promotion"] = promotion
         report["decision"] = promotion["decision"]
         if promotion["decision"] == "promoted":

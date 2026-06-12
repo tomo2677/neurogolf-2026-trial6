@@ -9,6 +9,8 @@ Use this skill when asked to solve a task end-to-end.
 
 When a task already passes and the goal is lower cost or higher `local_points`, use `neurogolf-cost-experiment` instead. Post-pass cost improvement and its commit/push flow belong to that skill.
 
+Before ONNX generation or repair, read `docs/neurogolf_public_facts.md` and keep the implementation inside the public ONNX interface, size, static-shape, and validator constraints.
+
 ## Workflow
 
 1. Check whether `solutions/taskNNN.py` exists before editing.
@@ -16,9 +18,10 @@ When a task already passes and the goal is lower cost or higher `local_points`, 
 3. Use `neurogolf-python-generator` to create or repair `solutions/taskNNN.py`.
 4. Use `neurogolf-build-score` to build and score the task.
 5. If status is `passes_local`, stop or run the first-created commit flow below.
-6. If status is `fails_local`, `build_failed`, or `score_failed`, inspect `outputs/reports/taskNNN_score.json`.
-7. Use `first_failure` or the build error to repair `solutions/taskNNN.py`.
-8. Repeat up to 10 attempts.
+6. If status is `rule_invalid`, treat it as not solved; inspect the public rules report and repair the generator before optimizing score.
+7. If status is `fails_local`, `build_failed`, or `score_failed`, inspect `outputs/reports/taskNNN_score.json`.
+8. Use `first_failure`, the public rules report, or the build error to repair `solutions/taskNNN.py`.
+9. Repeat up to 10 attempts.
 
 ## First-Created Commit Flow
 
@@ -61,6 +64,7 @@ If any other file is staged, unstage it before committing. If `git push origin m
 - Stop immediately when local validation passes.
 - Stop after 10 failed attempts and mark the task `needs_human_review`.
 - Do not claim success unless the score report shows `passes_local`.
+- Do not treat `rule_invalid` as pass, even when local examples would otherwise match.
 - For a first-created task that does not pass, leave the failed `solutions/taskNNN.py` in the working tree and do not commit it.
 
 ## Scope
