@@ -9,6 +9,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 SIZE = 30
 NONZERO = 9
+OUT = 5
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
@@ -41,14 +42,15 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("nonzero_starts", [0, 1, 0, 0], [4]),
         _int64_tensor("nonzero_ends", [1, 10, SIZE, SIZE], [4]),
         _int64_tensor("shape_color1", [1, 1, 1, 1], [4]),
-        _int64_tensor("shape_index_1x900", [1, 1, SIZE * SIZE], [3]),
+        _int64_tensor("shape_index_1x25", [1, 1, OUT * OUT], [3]),
         _int64_tensor("shape_flat_1x900", [1, 1, SIZE * SIZE], [3]),
-        _int64_tensor("shape_1x1x30x30", [1, 1, SIZE, SIZE], [4]),
-        _int32_tensor("row_grid_i32", [r for r in range(SIZE) for _ in range(SIZE)], [1, 1, SIZE, SIZE]),
-        _int32_tensor("col_grid_i32", [c for _ in range(SIZE) for c in range(SIZE)], [1, 1, SIZE, SIZE]),
+        _int64_tensor("shape_1x1x5x5", [1, 1, OUT, OUT], [4]),
+        _int32_tensor("row_grid_i32", [r for r in range(OUT) for _ in range(OUT)], [1, 1, OUT, OUT]),
+        _int32_tensor("col_grid_i32", [c for _ in range(OUT) for c in range(OUT)], [1, 1, OUT, OUT]),
         _int32_tensor("zero_i32", [0], [1]),
         _int64_tensor("one_i64", [1], [1]),
         _int32_tensor("width_i32", [SIZE], [1]),
+        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, SIZE - OUT, SIZE - OUT], [8]),
         _f16_tensor("density_w", [1.0] * (NONZERO * 3 * 3), [NONZERO, 1, 3, 3]),
         _f16_tensor("two_f16", [2.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
@@ -95,15 +97,16 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["crop_valid", "src_c", "zero_i32"], ["safe_c"]),
         helper.make_node("Mul", ["safe_r", "width_i32"], ["safe_r_offset"]),
         helper.make_node("Add", ["safe_r_offset", "safe_c"], ["safe_spatial"]),
-        helper.make_node("Reshape", ["safe_spatial", "shape_index_1x900"], ["safe_spatial_flat_i32"]),
+        helper.make_node("Reshape", ["safe_spatial", "shape_index_1x25"], ["safe_spatial_flat_i32"]),
         helper.make_node("Cast", ["safe_spatial_flat_i32"], ["safe_spatial_flat"], to=onnx.TensorProto.INT64),
         helper.make_node("Reshape", ["target_mask_u8", "shape_flat_1x900"], ["target_mask_flat"]),
         helper.make_node("GatherElements", ["target_mask_flat", "safe_spatial_flat"], ["crop_mask_flat"], axis=2),
-        helper.make_node("Reshape", ["crop_mask_flat", "shape_1x1x30x30"], ["crop_mask"]),
+        helper.make_node("Reshape", ["crop_mask_flat", "shape_1x1x5x5"], ["crop_mask"]),
         helper.make_node("Greater", ["crop_mask", "zero_u8"], ["crop_target_bool"]),
         helper.make_node("Cast", ["target_color_i64"], ["target_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Where", ["crop_target_bool", "target_color_u8", "zero_u8"], ["crop_color"]),
-        helper.make_node("Where", ["crop_valid", "crop_color", "invalid_u8"], ["color30"]),
+        helper.make_node("Where", ["crop_valid", "crop_color", "invalid_u8"], ["color5"]),
+        helper.make_node("Pad", ["color5", "pads_output", "invalid_u8"], ["color30"], mode="constant"),
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
