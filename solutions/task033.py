@@ -21,7 +21,8 @@ def build_model() -> onnx.ModelProto:
     initializers = [
         _int64_tensor("grid_color_starts", [0, 0, 5, 0], [4]),
         _int64_tensor("grid_color_ends", [1, 10, 6, 1], [4]),
-        _int64_tensor("pads_fill30", [0, 0, 0, 0, 0, 0, 13, 13], [8]),
+        _int64_tensor("pads_fill30_hw", [0, 0, 13, 13], [4]),
+        _int64_tensor("pad_axes_hw", [2, 3], [2]),
         _bool_tensor("false_col1", [False] * 3, [1, 1, 3, 1]),
         _bool_tensor("false_gap3", [False] * 9, [1, 1, 3, 3]),
         _bool_tensor("false_row1", [False] * 17, [1, 1, 1, 17]),
@@ -93,7 +94,7 @@ def build_model() -> onnx.ModelProto:
             axis=2,
         ),
         helper.make_node("And", ["template17", "background17"], ["fill17"]),
-        helper.make_node("Pad", ["fill17", "pads_fill30"], ["fill30"], mode="constant"),
+        helper.make_node("Pad", ["fill17", "pads_fill30_hw", "", "pad_axes_hw"], ["fill30"], mode="constant"),
         helper.make_node("Slice", ["input", "grid_color_starts", "grid_color_ends"], ["grid_color"]),
         helper.make_node("Where", ["fill30", "grid_color", "input"], ["output"]),
         ]
