@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.13997327288537 | 138768 | 2728 | 2026-06-13T05:59:01+09:00 | exp007 |
+| passes_local | 15.068313793105194 | 20328 | 244 | 2026-06-13T06:24:12+09:00 | exp011 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -20,6 +20,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp005 | impl_opt | int32-rotate-indices | passes_local | 13.127318343015258 | 141468 | 1830 | 0.319844649799 | promoted | Auto promoted after canonical re-score. |
 | exp006 | impl_opt | nonzero-from-u8 | passes_local | 13.127325321504065 | 141468 | 1829 | 6.97848880726e-06 | promoted | Auto promoted after canonical re-score. |
 | exp007 | impl_opt | const-valid10-mask | passes_local | 13.13997327288537 | 138768 | 2728 | 0.0126479513813 | promoted | Auto promoted after canonical re-score. |
+| exp011 | impl_opt | ten-by-ten-rotate-opset13 | passes_local | 15.068313793105194 | 20328 | 244 | 1.92834052022 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

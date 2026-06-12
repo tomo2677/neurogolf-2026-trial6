@@ -27,48 +27,37 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("axes3", [1, 2, 3]),
         _int64_tensor("resize_sizes", [1, 1, 9, 9]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 19, 19]),
+        _int64_tensor("channel8_starts", [0, 8, 0, 0], [4]),
+        _int64_tensor("channel8_ends", [1, 9, 11, 11], [4]),
         _int64_tensor("slice_channel_start", [0], [1]),
         _int64_tensor("slice_channel_end", [10], [1]),
-        _u8_tensor("zero_u8", [0], [1]),
+        _int64_tensor("shape_1x9", [1, 9], [2]),
+        _int64_tensor("row_start_table", [0, 0, 0, 4, 4, 4, 8, 8, 8], [9]),
+        _int64_tensor("col_start_table", [0, 4, 8, 0, 4, 8, 0, 4, 8], [9]),
+        _int64_tensor("row_end_table", [3, 3, 3, 7, 7, 7, 11, 11, 11], [9]),
+        _int64_tensor("col_end_table", [3, 7, 11, 3, 7, 11, 3, 7, 11], [9]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
         _u8_tensor("outside_u8", [255], [1]),
         _u8_tensor("sep_row", [5] * 9, [1, 1, 1, 9]),
         _u8_tensor("sep_col", [5] * 11, [1, 1, 11, 1]),
     ]
-    for i, start in enumerate(STARTS):
-        initializers.append(_int64_tensor(f"start{i}", [start], [1]))
-        initializers.append(_int64_tensor(f"end{i}", [start + 3], [1]))
-
-    nodes: list[onnx.NodeProto] = []
-    row_start = "start0"
-    col_start = "start0"
-    row_end = "end0"
-    col_end = "end0"
-    for br, row in enumerate(STARTS):
-        for bc, col in enumerate(STARTS):
-            name = f"b{br}{bc}"
-            initializers.extend(
-                [
-                    _int64_tensor(f"{name}_blue_start", [8, row, col], [3]),
-                    _int64_tensor(f"{name}_blue_end", [9, row + 3, col + 3], [3]),
-                ]
-            )
-            nodes.extend(
-                [
-                    helper.make_node("Slice", ["input", f"{name}_blue_start", f"{name}_blue_end", "axes3"], [f"{name}_blue"]),
-                    helper.make_node("ReduceMax", [f"{name}_blue"], [f"{name}_has8_f32"], axes=[0, 1, 2, 3], keepdims=0),
-                    helper.make_node("Cast", [f"{name}_has8_f32"], [f"{name}_has8_u8"], to=onnx.TensorProto.UINT8),
-                    helper.make_node("Equal", [f"{name}_has8_u8", "zero_u8"], [f"{name}_no8"]),
-                    helper.make_node("Where", [f"{name}_no8", f"start{br}", row_start], [f"row_start_{name}"]),
-                    helper.make_node("Where", [f"{name}_no8", f"start{bc}", col_start], [f"col_start_{name}"]),
-                    helper.make_node("Where", [f"{name}_no8", f"end{br}", row_end], [f"row_end_{name}"]),
-                    helper.make_node("Where", [f"{name}_no8", f"end{bc}", col_end], [f"col_end_{name}"]),
-                ]
-            )
-            row_start = f"row_start_{name}"
-            col_start = f"col_start_{name}"
-            row_end = f"row_end_{name}"
-            col_end = f"col_end_{name}"
+    nodes: list[onnx.NodeProto] = [
+        helper.make_node("Slice", ["input", "channel8_starts", "channel8_ends"], ["blue11"]),
+        helper.make_node("MaxPool", ["blue11"], ["has8_grid"], kernel_shape=[3, 3], strides=[4, 4]),
+        helper.make_node("Cast", ["has8_grid"], ["has8_bool"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Not", ["has8_bool"], ["no8_bool"]),
+        helper.make_node("Cast", ["no8_bool"], ["no8_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Reshape", ["no8_u8", "shape_1x9"], ["no8_flat"]),
+        helper.make_node("ArgMax", ["no8_flat"], ["selected_index"], axis=1, keepdims=0),
+        helper.make_node("Gather", ["row_start_table", "selected_index"], ["row_start"], axis=0),
+        helper.make_node("Gather", ["col_start_table", "selected_index"], ["col_start"], axis=0),
+        helper.make_node("Gather", ["row_end_table", "selected_index"], ["row_end"], axis=0),
+        helper.make_node("Gather", ["col_end_table", "selected_index"], ["col_end"], axis=0),
+    ]
+    row_start = "row_start"
+    col_start = "col_start"
+    row_end = "row_end"
+    col_end = "col_end"
 
     nodes.extend(
         [
