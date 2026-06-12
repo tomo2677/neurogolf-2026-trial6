@@ -153,10 +153,10 @@
   },
   "task020": {
     "task": "task020",
-    "status": "no_solution",
+    "status": "passes_local",
     "local_points": null,
     "memory_bytes_approx": null,
-    "params": null,
-    "updated_at": null
+    "params": 950,
+    "updated_at": "2026-06-12T11:12:33+09:00"
   }
 }
