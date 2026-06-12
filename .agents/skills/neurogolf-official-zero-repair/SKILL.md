@@ -12,6 +12,9 @@ This workflow spends Kaggle submissions. The default is one task at a time and
 one hypothesis per resubmit. If the user permits unlimited retries, still submit
 only after recording a new hidden-correctness hypothesis.
 
+When invoked by `neurogolf-score-up-autopilot`, repair only the current task and
+then return control to the parent workflow.
+
 ## Workflow
 
 1. Read `task_ledger.json`, `task_specs/taskNNN.md`, `solutions/taskNNN.py`,

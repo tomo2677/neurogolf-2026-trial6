@@ -104,8 +104,11 @@ Not blockers:
 
 ## Integrity
 
-- Do not submit to Kaggle from this cost experiment workflow.
-- For official single-task scoring after a promoted local pass, use `neurogolf-official-submit-score`.
+- Do not submit to Kaggle from this cost experiment workflow. This skill owns
+  local candidate evaluation and promotion only.
+- For autonomous official scoring after a promoted local pass, use
+  `neurogolf-score-up-autopilot`; for direct single-task scoring, use
+  `neurogolf-official-submit-score`.
 - Build and score one task at a time.
 - Keep `TopK` data input as `FLOAT`; `TopK(non-FLOAT)` has produced official `SubmissionStatus.ERROR`.
 - Do not convert an arbitrary Python runtime solver to ONNX.

@@ -10,6 +10,8 @@ Use this skill for requests such as "追加したタスクの表を埋めて",
 
 This is an end-to-end workflow. It combines local solving, local scoring,
 single-task official submission, ledger update, and task-level commits.
+When invoked by `neurogolf-score-up-autopilot`, return control to the parent
+workflow after each completed or pending task instead of stopping the whole run.
 
 ## Selection
 
@@ -34,7 +36,8 @@ For each task:
 5. If submit returns `quota_skipped`, keep the task as local-pass with official
    pending and resume it after quota resets.
 6. If official status is `SubmissionStatus.ERROR`, stop before any additional
-   submit and inspect `docs/neurogolf_official_runtime_observations.md`.
+   submit for that task, record pending/investigation context, and let the
+   parent autopilot continue another task.
 7. If official public score is `0.0`, use `neurogolf-official-zero-repair` and
    retry with one recorded hidden-correctness hypothesis per resubmit.
 8. Commit the completed task before moving to the next task.

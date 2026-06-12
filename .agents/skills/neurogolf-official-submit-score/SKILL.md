@@ -13,6 +13,10 @@ For newly added task batches or "baseline the new tasks" requests, use
 `neurogolf-new-task-baseline` as the parent workflow. It calls this skill one
 task at a time after local validation.
 
+For long-running "スコア上げといて" requests, use
+`neurogolf-score-up-autopilot` as the parent workflow. It applies the local-gain
+submit gate before calling this skill.
+
 ## Commands
 
 Run from repo root.
