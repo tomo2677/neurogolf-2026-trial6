@@ -49,51 +49,37 @@ def build_model() -> onnx.ModelProto:
                 ]
             )
 
-    nodes.extend(
-        [
-            helper.make_node("Not", ["bg00_bool"], ["template3"]),
-            helper.make_node(
-                "Concat",
-                ["false_col1", "bg00_bool", "false_gap3", "bg01_bool", "false_gap3", "bg02_bool", "false_col1"],
-                ["background_row0"],
-                axis=3,
-            ),
-            helper.make_node(
-                "Concat",
-                ["false_col1", "bg10_bool", "false_gap3", "bg11_bool", "false_gap3", "bg12_bool", "false_col1"],
-                ["background_row1"],
-                axis=3,
-            ),
-            helper.make_node(
-                "Concat",
-                ["false_col1", "bg20_bool", "false_gap3", "bg21_bool", "false_gap3", "bg22_bool", "false_col1"],
-                ["background_row2"],
-                axis=3,
-            ),
-            helper.make_node(
-                "Concat",
-                ["false_row1", "background_row0", "false_rows3", "background_row1", "false_rows3", "background_row2", "false_row1"],
-                ["background17"],
-                axis=2,
-            ),
-        ]
-    )
+    nodes.append(helper.make_node("Not", ["bg00_bool"], ["template3"]))
+    for br in range(3):
+        for bc in range(3):
+            nodes.append(helper.make_node("And", ["template3", f"bg{br}{bc}_bool"], [f"fill{br}{bc}"]))
 
     nodes.extend(
         [
         helper.make_node(
             "Concat",
-            ["false_col1", "template3", "false_gap3", "template3", "false_gap3", "template3", "false_col1"],
-            ["template_row"],
+            ["false_col1", "fill00", "false_gap3", "fill01", "false_gap3", "fill02", "false_col1"],
+            ["fill_row0"],
             axis=3,
         ),
         helper.make_node(
             "Concat",
-            ["false_row1", "template_row", "false_rows3", "template_row", "false_rows3", "template_row", "false_row1"],
-            ["template17"],
+            ["false_col1", "fill10", "false_gap3", "fill11", "false_gap3", "fill12", "false_col1"],
+            ["fill_row1"],
+            axis=3,
+        ),
+        helper.make_node(
+            "Concat",
+            ["false_col1", "fill20", "false_gap3", "fill21", "false_gap3", "fill22", "false_col1"],
+            ["fill_row2"],
+            axis=3,
+        ),
+        helper.make_node(
+            "Concat",
+            ["false_row1", "fill_row0", "false_rows3", "fill_row1", "false_rows3", "fill_row2", "false_row1"],
+            ["fill17"],
             axis=2,
         ),
-        helper.make_node("And", ["template17", "background17"], ["fill17"]),
         helper.make_node("Pad", ["fill17", "pads_fill30_hw", "", "pad_axes_hw"], ["fill30"], mode="constant"),
         helper.make_node("Slice", ["input", "grid_color_starts", "grid_color_ends"], ["grid_color"]),
         helper.make_node("Where", ["fill30", "grid_color", "input"], ["output"]),
