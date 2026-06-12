@@ -86,8 +86,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ArgMax", ["c1_ref_row_score"], ["ref_top"], axis=2, keepdims=1),
     ]
 
-    shifted_masks: list[tuple[str, str]] = []
-    for color_name, mask_name, color_value in (("c1", "c1_u8", "one_u8"), ("c2", "c2_u8", "two_u8"), ("c4", "c4_u8", "four_u8")):
+    shifted_masks: list[tuple[str, str]] = [("c1_u8", "one_u8")]
+    for color_name, mask_name, color_value in (("c2", "c2_u8", "two_u8"), ("c4", "c4_u8", "four_u8")):
         nodes.extend(
             [
                 helper.make_node("ReduceMax", [mask_name], [f"{color_name}_row_score"], axes=[3], keepdims=1),
