@@ -137,11 +137,11 @@
   },
   "task018": {
     "task": "task018",
-    "status": "no_solution",
+    "status": "passes_local",
     "local_points": null,
     "memory_bytes_approx": null,
-    "params": null,
-    "updated_at": null
+    "params": 979,
+    "updated_at": "2026-06-12T11:08:40+09:00"
   },
   "task019": {
     "task": "task019",
