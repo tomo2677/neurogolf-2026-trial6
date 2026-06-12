@@ -58,6 +58,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("five_i64", [5], [1]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, SIZE - 3, SIZE - 3], [8]),
         _u8_tensor("zero_u8", [0], [1]),
+        _u8_tensor("five_u8", [5], [1, 1, 1, 1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
@@ -66,17 +67,18 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Equal", ["input_color_i64", "five_i64"], ["gray_bool"]),
-        helper.make_node("Cast", ["gray_bool"], ["gray_u8"], to=onnx.TensorProto.UINT8),
     ]
 
     slots: list[str] = []
     for row, dr in enumerate((-1, 0, 1)):
         for col, dc in enumerate((-1, 0, 1)):
             prefix = f"slot_{row}_{col}"
-            _shift(nodes, initializers, "gray_u8", f"{prefix}_neighbor_u8", dr, dc)
+            if row == 1 and col == 1:
+                slots.append("five_u8")
+                continue
+            _shift(nodes, initializers, "gray_bool", f"{prefix}_neighbor_bool", dr, dc)
             nodes.extend(
                 [
-                    helper.make_node("Greater", [f"{prefix}_neighbor_u8", "zero_u8"], [f"{prefix}_neighbor_bool"]),
                     helper.make_node("Where", [f"{prefix}_neighbor_bool", "input_color_u8", "zero_u8"], [f"{prefix}_color_grid"]),
                     helper.make_node("ReduceMax", [f"{prefix}_color_grid"], [f"{prefix}_color"], axes=[2, 3], keepdims=1),
                 ]
