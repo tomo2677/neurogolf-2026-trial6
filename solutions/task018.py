@@ -156,9 +156,9 @@ def _static_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, ou
         index_shape = "shape_index_10x900"
         output_shape = "shape_1x10x30x30"
     elif channels == 1:
-        flat_shape = "shape_flat_1x900"
-        index_shape = "shape_index_1x900"
-        output_shape = "shape_1x1x30x30"
+        flat_shape = "shape_flat900"
+        index_shape = ""
+        output_shape = ""
     else:
         raise ValueError(channels)
 
@@ -177,15 +177,29 @@ def _static_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, ou
             helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_c", "zero_i32"], [f"{output}_safe_c"]),
             helper.make_node("Mul", [f"{output}_safe_r", "width_i32"], [f"{output}_safe_r_offset"]),
             helper.make_node("Add", [f"{output}_safe_r_offset", f"{output}_safe_c"], [f"{output}_safe_spatial"]),
-            helper.make_node("Reshape", [f"{output}_safe_spatial", "shape_index_1x900"], [f"{output}_safe_spatial_flat_i32"]),
-            helper.make_node("Cast", [f"{output}_safe_spatial_flat_i32"], [f"{output}_safe_spatial_flat"], to=onnx.TensorProto.INT64),
-            helper.make_node("Expand", [f"{output}_safe_spatial_flat", index_shape], [f"{output}_indices"]),
-            helper.make_node("Reshape", [source, flat_shape], [f"{output}_source_flat"]),
-            helper.make_node("GatherElements", [f"{output}_source_flat", f"{output}_indices"], [f"{output}_shifted_flat"], axis=2),
-            helper.make_node("Reshape", [f"{output}_shifted_flat", output_shape], [f"{output}_shifted"]),
-            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_shifted", "zero_f32"], [output]),
         ]
     )
+    if channels == 1:
+        nodes.extend(
+            [
+                helper.make_node("Cast", [f"{output}_safe_spatial"], [f"{output}_indices"], to=onnx.TensorProto.INT64),
+                helper.make_node("Reshape", [source, flat_shape], [f"{output}_source_flat"]),
+                helper.make_node("Gather", [f"{output}_source_flat", f"{output}_indices"], [f"{output}_shifted"], axis=0),
+                helper.make_node("Where", [f"{output}_in_bounds", f"{output}_shifted", "zero_f32"], [output]),
+            ]
+        )
+    else:
+        nodes.extend(
+            [
+                helper.make_node("Reshape", [f"{output}_safe_spatial", "shape_index_1x900"], [f"{output}_safe_spatial_flat_i32"]),
+                helper.make_node("Cast", [f"{output}_safe_spatial_flat_i32"], [f"{output}_safe_spatial_flat"], to=onnx.TensorProto.INT64),
+                helper.make_node("Expand", [f"{output}_safe_spatial_flat", index_shape], [f"{output}_indices"]),
+                helper.make_node("Reshape", [source, flat_shape], [f"{output}_source_flat"]),
+                helper.make_node("GatherElements", [f"{output}_source_flat", f"{output}_indices"], [f"{output}_shifted_flat"], axis=2),
+                helper.make_node("Reshape", [f"{output}_shifted_flat", output_shape], [f"{output}_shifted"]),
+                helper.make_node("Where", [f"{output}_in_bounds", f"{output}_shifted", "zero_f32"], [output]),
+            ]
+        )
 
 
 def _flat_position(nodes: list[onnx.NodeProto], flat_index: str, prefix: str) -> tuple[str, str]:
