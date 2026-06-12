@@ -218,16 +218,12 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Greater", ["input0", "zero_f32"], ["input0_bool"]),
         helper.make_node("Greater", ["gray", "zero_f32"], ["gray_bool"]),
         helper.make_node("And", ["input0_bool", "gray_bool"], ["zero_grid"]),
-        helper.make_node("Identity", ["zero_grid"], ["square_acc_0"]),
-        helper.make_node("Identity", ["zero_grid"], ["bar_acc_0"]),
-        helper.make_node("Identity", ["zero_grid"], ["covered_0"]),
-        helper.make_node("Identity", ["gray_bool"], ["remaining_0"]),
     ]
 
-    square_acc = "square_acc_0"
-    bar_acc = "bar_acc_0"
-    covered = "covered_0"
-    remaining = "remaining_0"
+    square_acc = "zero_grid"
+    bar_acc = "zero_grid"
+    covered = "zero_grid"
+    remaining = "gray_bool"
     for step in range(PROPAGATION_STEPS):
         s_active = _active_tiles(nodes, initializers, remaining, SQUARE, f"step{step}_s")
         h_active = _active_tiles(nodes, initializers, remaining, H_BAR, f"step{step}_h")
