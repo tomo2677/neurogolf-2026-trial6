@@ -138,10 +138,10 @@
   "task018": {
     "task": "task018",
     "status": "passes_local",
-    "local_points": 8.298108748965113,
-    "memory_bytes_approx": 17925504,
+    "local_points": 8.946564904291776,
+    "memory_bytes_approx": 9371056,
     "params": 2800,
-    "updated_at": "2026-06-12T12:18:38+09:00"
+    "updated_at": "2026-06-12T12:26:36+09:00"
   },
   "task019": {
     "task": "task019",

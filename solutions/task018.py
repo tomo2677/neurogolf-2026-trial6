@@ -8,7 +8,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 SIZE = 30
 GROW_STEPS = 30
-TRANSFORMS = ("id", "hflip", "vflip", "hvflip", "transpose", "trans_hflip", "trans_vflip", "trans_hvflip")
+TRANSFORMS = ("vflip", "transpose", "trans_hflip", "trans_vflip")
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
