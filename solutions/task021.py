@@ -60,15 +60,13 @@ def build_model() -> onnx.ModelProto:
 
     nodes = [
         helper.make_node("ReduceSum", ["input"], ["counts10"], axes=[0, 2, 3], keepdims=0),
-        helper.make_node("ArgMax", ["counts10"], ["bg_idx"], axis=0, keepdims=0),
+        helper.make_node("ArgMax", ["counts10"], ["bg_idx"], axis=0, keepdims=1),
         helper.make_node("Equal", ["colors10", "bg_idx"], ["bg_channel_bool"]),
-        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
-        helper.make_node("Equal", ["input_color_i64", "bg_idx"], ["bg_cell_bool"]),
-        helper.make_node("Cast", ["bg_cell_bool"], ["bg_cell_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("ReduceMax", ["bg_cell_u8"], ["row_has_bg"], axes=[3], keepdims=1),
-        helper.make_node("ReduceMax", ["bg_cell_u8"], ["col_has_bg"], axes=[2], keepdims=1),
-        helper.make_node("Greater", ["row_has_bg", "zero_u8"], ["row_non_sep_bool"]),
-        helper.make_node("Greater", ["col_has_bg", "zero_u8"], ["col_non_sep_bool"]),
+        helper.make_node("Gather", ["input", "bg_idx"], ["bg_cell"], axis=1),
+        helper.make_node("ReduceMax", ["bg_cell"], ["row_has_bg"], axes=[3], keepdims=1),
+        helper.make_node("ReduceMax", ["bg_cell"], ["col_has_bg"], axes=[2], keepdims=1),
+        helper.make_node("Greater", ["row_has_bg", "zero_f32"], ["row_non_sep_bool"]),
+        helper.make_node("Greater", ["col_has_bg", "zero_f32"], ["col_non_sep_bool"]),
         helper.make_node("Cast", ["row_non_sep_bool"], ["row_non_sep_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Cast", ["col_non_sep_bool"], ["col_non_sep_u8"], to=onnx.TensorProto.UINT8),
     ]
