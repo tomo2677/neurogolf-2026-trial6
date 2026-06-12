@@ -86,17 +86,10 @@ def build_model() -> onnx.ModelProto:
     nodes.extend(
         [
             helper.make_node("Pad", ["top_u8", "top_orig_pads", "zero_u8"], ["top_orig"], mode="constant"),
-            helper.make_node("Greater", ["top_orig", "zero_u8"], ["top_orig_present"]),
-            helper.make_node("Where", ["top_orig_present", "top_orig", "base0"], ["base_top"]),
             helper.make_node("Pad", ["bottom_u8", "bottom_orig_pads", "zero_u8"], ["bottom_orig"], mode="constant"),
-            helper.make_node("Greater", ["bottom_orig", "zero_u8"], ["bottom_orig_present"]),
-            helper.make_node("Where", ["bottom_orig_present", "bottom_orig", "base_top"], ["base_bottom"]),
             helper.make_node("Pad", ["left_u8", "left_orig_pads", "zero_u8"], ["left_orig"], mode="constant"),
-            helper.make_node("Greater", ["left_orig", "zero_u8"], ["left_orig_present"]),
-            helper.make_node("Where", ["left_orig_present", "left_orig", "base_bottom"], ["base_left"]),
             helper.make_node("Pad", ["right_u8", "right_orig_pads", "zero_u8"], ["right_orig"], mode="constant"),
-            helper.make_node("Greater", ["right_orig", "zero_u8"], ["right_orig_present"]),
-            helper.make_node("Where", ["right_orig_present", "right_orig", "base_left"], ["color"]),
+            helper.make_node("Max", ["base0", "top_orig", "bottom_orig", "left_orig", "right_orig"], ["color"]),
             helper.make_node("Pad", ["top_u8", "top_pads", "zero_u8"], ["top_color"], mode="constant"),
             helper.make_node("Greater", ["top_color", "zero_u8"], ["top_present"]),
             helper.make_node("And", ["is_eight", "top_present"], ["top_mask"]),
