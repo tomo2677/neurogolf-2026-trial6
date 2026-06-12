@@ -35,10 +35,10 @@ def build_model() -> onnx.ModelProto:
     ]
 
     initializers = [
-        _int64_tensor("top_starts", [0, 1, 2, 0], [4]),
-        _int64_tensor("top_ends", [1, 10, 3, 10], [4]),
-        _int64_tensor("bottom_starts", [0, 1, 7, 0], [4]),
-        _int64_tensor("bottom_ends", [1, 10, 8, 10], [4]),
+        _int64_tensor("top_starts", [0, 1, 2, 2], [4]),
+        _int64_tensor("top_ends", [1, 10, 3, 8], [4]),
+        _int64_tensor("bottom_starts", [0, 1, 7, 2], [4]),
+        _int64_tensor("bottom_ends", [1, 10, 8, 8], [4]),
         _int64_tensor("width_axis", [3], [1]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 20, 20], [8]),
@@ -66,7 +66,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task028_fixed_rows_template_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task028_cols2_7_template_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
