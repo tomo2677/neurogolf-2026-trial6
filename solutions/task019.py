@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import onnx
 from onnx import helper
 
@@ -17,6 +18,16 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
 
 def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+
+
+def _f16_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(
+        name,
+        onnx.TensorProto.FLOAT16,
+        dims,
+        np.asarray(values, dtype=np.float16).view(np.uint16).tolist(),
+        raw=False,
+    )
 
 
 def _shift_color(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, output: str) -> None:
@@ -63,8 +74,8 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("shape_1x1x30x30", [1, 1, 30, 30], [4]),
         _int64_tensor("row_grid_i64", [r for r in range(30) for _ in range(30)], [1, 1, 30, 30]),
         _int64_tensor("col_grid_i64", [c for _ in range(30) for c in range(30)], [1, 1, 30, 30]),
-        _f32_tensor("zero_f32", [0.0], [1]),
-        _f32_tensor("diag_kernel", [1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0], [1, 1, 3, 3]),
+        _f16_tensor("zero_f16", [0.0], [1]),
+        _f16_tensor("diag_kernel", [1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0], [1, 1, 3, 3]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("eight_u8", [8], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
@@ -98,15 +109,15 @@ def build_model() -> onnx.ModelProto:
         [
             helper.make_node("Max", ["input_color_u8", "tile_right", "tile_down", "tile_down_right"], ["tiled_color"]),
             helper.make_node("Greater", ["tiled_color", "zero_u8"], ["colored"]),
-            helper.make_node("Cast", ["colored"], ["colored_f32"], to=onnx.TensorProto.FLOAT),
+            helper.make_node("Cast", ["colored"], ["colored_f16"], to=onnx.TensorProto.FLOAT16),
             helper.make_node(
                 "Conv",
-                ["colored_f32", "diag_kernel"],
+                ["colored_f16", "diag_kernel"],
                 ["diag_score"],
                 kernel_shape=[3, 3],
                 pads=[1, 1, 1, 1],
             ),
-            helper.make_node("Greater", ["diag_score", "zero_f32"], ["diag_bool"]),
+            helper.make_node("Greater", ["diag_score", "zero_f16"], ["diag_bool"]),
             helper.make_node("And", ["diag_bool", "valid_out"], ["diag_in_output"]),
             helper.make_node("Not", ["colored"], ["not_colored"]),
             helper.make_node("And", ["diag_in_output", "not_colored"], ["eight_mask"]),
