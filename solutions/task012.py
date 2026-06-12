@@ -48,10 +48,6 @@ def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
-    cross_kernel = np.array(
-        [[[[0.0, 1.0, 0.0], [1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]],
-        dtype=np.float32,
-    )
     initializers = [
         _int64_tensor("present_start", [1]),
         _int64_tensor("present_end", [10]),
@@ -62,14 +58,16 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("slice_12", [SIZE], [1]),
         _int32_tensor("axes3", [1, 2, 3], [3]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 18, 18]),
-        _f32_tensor("four_f32", [4.0], [1]),
-        _f32_tensor("cross_kernel", cross_kernel.ravel().tolist(), [1, 1, 3, 3]),
         _f16_tensor("zero_f16", [0.0], [1]),
         _f16_tensor("center_kernel", _kernel(CENTER_OFFSETS), [1, 1, 5, 5]),
         _f16_tensor("arm_kernel", _kernel(ARM_OFFSETS), [1, 1, 5, 5]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
         _u8_tensor("outside_u8", [255], [1]),
+        _int64_tensor("pads_shift_up", [0, 0, 1, 0, 0, 0, -1, 0], [8]),
+        _int64_tensor("pads_shift_down", [0, 0, -1, 0, 0, 0, 1, 0], [8]),
+        _int64_tensor("pads_shift_left", [0, 0, 0, 1, 0, 0, 0, -1], [8]),
+        _int64_tensor("pads_shift_right", [0, 0, 0, -1, 0, 0, 0, 1], [8]),
     ]
 
     nodes: list[onnx.NodeProto] = [
@@ -95,12 +93,16 @@ def build_model() -> onnx.ModelProto:
 
     nodes.extend(
         [
-            helper.make_node("Max", ["selected_0_f32", "selected_1_f32"], ["nonzero_f32"]),
-            helper.make_node("Cast", ["nonzero_f32"], ["nonzero_bool"], to=onnx.TensorProto.BOOL),
+            helper.make_node("Or", ["selected_0_bool", "selected_1_bool"], ["nonzero_bool"]),
             helper.make_node("Max", ["selected_color_0", "selected_color_1"], ["color12"]),
-            helper.make_node("Conv", ["nonzero_f32", "cross_kernel"], ["neighbor_count"], pads=[1, 1, 1, 1]),
-            helper.make_node("Equal", ["neighbor_count", "four_f32"], ["has_four_neighbors"]),
-            helper.make_node("And", ["nonzero_bool", "has_four_neighbors"], ["center_mask"]),
+            helper.make_node("Pad", ["nonzero_bool", "pads_shift_up"], ["has_up"], mode="constant"),
+            helper.make_node("Pad", ["nonzero_bool", "pads_shift_down"], ["has_down"], mode="constant"),
+            helper.make_node("Pad", ["nonzero_bool", "pads_shift_left"], ["has_left"], mode="constant"),
+            helper.make_node("Pad", ["nonzero_bool", "pads_shift_right"], ["has_right"], mode="constant"),
+            helper.make_node("And", ["nonzero_bool", "has_up"], ["center_ud0"]),
+            helper.make_node("And", ["center_ud0", "has_down"], ["center_ud"]),
+            helper.make_node("And", ["has_left", "has_right"], ["center_lr"]),
+            helper.make_node("And", ["center_ud", "center_lr"], ["center_mask"]),
             helper.make_node("Cast", ["center_mask"], ["center_mask_f16"], to=INTERNAL_TYPE),
             helper.make_node("Conv", ["center_mask_f16", "center_kernel"], ["center_fill_score"], kernel_shape=[5, 5], pads=[2, 2, 2, 2]),
             helper.make_node("Conv", ["center_mask_f16", "arm_kernel"], ["arm_fill_score"], kernel_shape=[5, 5], pads=[2, 2, 2, 2]),
@@ -130,7 +132,6 @@ def build_model() -> onnx.ModelProto:
         )
     value_infos.extend(
         [
-            helper.make_tensor_value_info("nonzero_f32", onnx.TensorProto.FLOAT, [1, 1, SIZE, SIZE]),
             helper.make_tensor_value_info("nonzero_bool", onnx.TensorProto.BOOL, [1, 1, SIZE, SIZE]),
             helper.make_tensor_value_info("color12", onnx.TensorProto.UINT8, [1, 1, SIZE, SIZE]),
         ]
