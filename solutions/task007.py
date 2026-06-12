@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
 import onnx
 from onnx import helper
 
@@ -27,15 +26,12 @@ def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
-    remainder_index = np.fromfunction(lambda r, c: (r + c) % 3, (7, 7), dtype=int).astype(np.int64)
-
     initializers = [
         _int64_tensor("slice_axes3", [1, 2, 3], [3]),
         _int64_tensor("count_axes", [0, 2, 3], [3]),
         _int64_tensor("present_start", [1], [1]),
         _int64_tensor("present_end", [10], [1]),
         _int64_tensor("k3", [3], [1]),
-        _int64_tensor("remainder_index", remainder_index.ravel().tolist(), [7, 7]),
         _uint8_tensor("channel_ids_u8", list(range(9)), [1, 9, 1, 1]),
         _int64_tensor("pads_output", [1, 0, 0, 0, 23, 23], [6]),
     ]
@@ -72,27 +68,46 @@ def build_model() -> onnx.ModelProto:
         )
         known_u8_111[rem] = u8_111_name
 
+    rem1 = known_u8_111[1]
+    rem2 = known_u8_111[2]
     nodes.extend(
         [
             helper.make_node("Cast", ["top_indices"], ["top_indices_u8"], to=onnx.TensorProto.UINT8),
             helper.make_node("Split", ["top_indices_u8"], ["top0_u8", "top1_u8", "top2_u8"], axis=0, num_outputs=3),
             helper.make_node("Add", ["top0_u8", "top1_u8"], ["top01_u8"]),
             helper.make_node("Add", ["top01_u8", "top2_u8"], ["top_sum_u8"]),
-            helper.make_node("Sub", ["top_sum_u8", known_u8_111[1]], ["rem0_plus_rem2_u8"]),
-            helper.make_node("Sub", ["rem0_plus_rem2_u8", known_u8_111[2]], ["rem0_color_u8"]),
+            helper.make_node("Sub", ["top_sum_u8", rem1], ["rem0_plus_rem2_u8"]),
+            helper.make_node("Sub", ["rem0_plus_rem2_u8", rem2], ["rem0_color_u8"]),
             helper.make_node(
                 "Concat",
-                ["rem0_color_u8", known_u8_111[1], known_u8_111[2]],
-                ["rem_color_u8"],
+                ["rem0_color_u8", rem1, rem2, "rem0_color_u8", rem1, rem2, "rem0_color_u8"],
+                ["row0_u8"],
                 axis=2,
             ),
-            helper.make_node("Gather", ["rem_color_u8", "remainder_index"], ["selected_grid_u8"], axis=2),
+            helper.make_node(
+                "Concat",
+                [rem1, rem2, "rem0_color_u8", rem1, rem2, "rem0_color_u8", rem1],
+                ["row1_u8"],
+                axis=2,
+            ),
+            helper.make_node(
+                "Concat",
+                [rem2, "rem0_color_u8", rem1, rem2, "rem0_color_u8", rem1, rem2],
+                ["row2_u8"],
+                axis=2,
+            ),
+            helper.make_node(
+                "Concat",
+                ["row0_u8", "row1_u8", "row2_u8", "row0_u8", "row1_u8", "row2_u8", "row0_u8"],
+                ["selected_grid_u8"],
+                axis=1,
+            ),
             helper.make_node("Equal", ["channel_ids_u8", "selected_grid_u8"], ["output9"]),
             helper.make_node("Pad", ["output9", "pads_output", "", "slice_axes3"], ["output"], mode="constant"),
         ]
     )
 
-    graph = helper.make_graph(nodes, "task007_no_known_reshape", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task007_concat_rows", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
