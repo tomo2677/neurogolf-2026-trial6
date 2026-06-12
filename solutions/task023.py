@@ -7,7 +7,7 @@ from onnx import helper
 from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
-SIZE = 30
+SIZE = 11
 PROPAGATION_STEPS = 4
 SQUARE = [(0, 0), (0, 1), (1, 0), (1, 1)]
 H_BAR = [(0, 0), (0, 1), (0, 2)]
@@ -166,6 +166,7 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("eight_u8", [8], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
+        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 30 - SIZE, 30 - SIZE], [8]),
         _int64_tensor("black_starts", [0, 0, 0, 0], [4]),
         _int64_tensor("black_ends", [1, 1, SIZE, SIZE], [4]),
         _int64_tensor("gray_starts", [0, 5, 0, 0], [4]),
@@ -248,12 +249,13 @@ def build_model() -> onnx.ModelProto:
         [
             helper.make_node("Where", ["input0_bool", "zero_u8", "invalid_u8"], ["color_base"]),
             helper.make_node("Where", [bar_acc, "two_u8", "color_base"], ["color_bar"]),
-            helper.make_node("Where", [square_acc, "eight_u8", "color_bar"], ["color30"]),
+            helper.make_node("Where", [square_acc, "eight_u8", "color_bar"], ["color11"]),
+            helper.make_node("Pad", ["color11", "pads_output", "invalid_u8"], ["color30"], mode="constant"),
             helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
         ]
     )
 
-    graph = helper.make_graph(nodes, "task023_exact_cover_propagation_f16_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task023_window11_cover_propagation_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
