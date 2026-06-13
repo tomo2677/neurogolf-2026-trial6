@@ -34,8 +34,8 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("axes3", [1, 2, 3]),
         _int64_tensor("pads_output_chw", [0, 0, 0, 3, 19, 19]),
         _int64_tensor("pad_axes_chw", [1, 2, 3]),
-        _int64_tensor("channel8_starts", [0, 8, 0, 0], [4]),
-        _int64_tensor("channel8_ends", [1, 9, 11, 11], [4]),
+        _int64_tensor("channel8_starts", [8, 0, 0], [3]),
+        _int64_tensor("channel8_ends", [9, 11, 11], [3]),
         _int32_tensor("slice_channel_start", [0], [1]),
         _int32_tensor("slice_channel_end", [7], [1]),
         _int32_tensor("three_i32", [3], [1]),
@@ -47,7 +47,7 @@ def build_model() -> onnx.ModelProto:
         _bool_tensor("sep_mask", [r in (3, 7) or c in (3, 7) for r in range(11) for c in range(11)], [1, 1, 11, 11]),
     ]
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("Slice", ["input", "channel8_starts", "channel8_ends"], ["blue11"]),
+        helper.make_node("Slice", ["input", "channel8_starts", "channel8_ends", "pad_axes_chw"], ["blue11"]),
         helper.make_node("MaxPool", ["blue11"], ["has8_grid"], kernel_shape=[3, 3], strides=[4, 4]),
         helper.make_node("Cast", ["has8_grid"], ["has8_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Sub", ["one_u8", "has8_u8"], ["no8_u8"]),
