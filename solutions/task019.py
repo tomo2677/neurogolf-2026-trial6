@@ -99,16 +99,14 @@ def build_model() -> onnx.ModelProto:
             pads=[1, 1, 1, 1],
         ),
         helper.make_node("Greater", ["diag_score", "zero_f16"], ["diag_bool"]),
-        helper.make_node("And", ["diag_bool", "valid_out"], ["diag_in_output"]),
-        helper.make_node("Not", ["colored"], ["not_colored"]),
-        helper.make_node("And", ["diag_in_output", "not_colored"], ["eight_mask"]),
-        helper.make_node("Where", ["eight_mask", "eight_u8", "tiled_color"], ["filled_color"]),
+        helper.make_node("Where", ["diag_bool", "eight_u8", "zero_u8"], ["diag_color"]),
+        helper.make_node("Where", ["colored", "tiled_color", "diag_color"], ["filled_color"]),
         helper.make_node("Where", ["valid_out", "filled_color", "invalid_u8"], ["color12"]),
         helper.make_node("Pad", ["color12", "pads_color12_to30", "invalid_u8"], ["color30"], mode="constant"),
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task019_single_color_axis_gather_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task019_diag_fill_direct_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
