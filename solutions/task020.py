@@ -37,8 +37,10 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("slice_starts", [0, 0, 0, 0], [4]),
-        _int64_tensor("slice_ends", [1, 10, 10, 10], [4]),
+        _int64_tensor("slice_low_starts", [0, 0, 0, 0], [4]),
+        _int64_tensor("slice_low_ends", [1, 5, 10, 10], [4]),
+        _int64_tensor("slice8_starts", [0, 8, 0, 0], [4]),
+        _int64_tensor("slice8_ends", [1, 9, 10, 10], [4]),
         _int64_tensor("two_i64", [2], [1]),
         _int32_tensor("pad_offset_i32", [10], [1]),
         _int32_tensor("padded_width_i32", [30], [1]),
@@ -52,14 +54,18 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pads_source_hw", [10, 10, 10, 10], [4]),
         _int64_tensor("pads_output_hw", [0, 0, 20, 20], [4]),
         _u8_tensor("zero_u8", [0], [1]),
+        _u8_tensor("eight_u8", [8], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("Slice", ["input", "slice_starts", "slice_ends"], ["input10"]),
-        helper.make_node("ArgMax", ["input10"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
-        helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Slice", ["input", "slice_low_starts", "slice_low_ends"], ["input_low"]),
+        helper.make_node("ArgMax", ["input_low"], ["input_low_color_i64"], axis=1, keepdims=1, select_last_index=0),
+        helper.make_node("Cast", ["input_low_color_i64"], ["input_low_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Slice", ["input", "slice8_starts", "slice8_ends"], ["input8_f32"]),
+        helper.make_node("Cast", ["input8_f32"], ["input8_bool"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Where", ["input8_bool", "eight_u8", "input_low_color_u8"], ["input_color_u8"]),
         helper.make_node("Pad", ["input_color_u8", "pads_source_hw", "zero_u8", "pad_axes_hw"], ["input_color30_u8"], mode="constant"),
         helper.make_node("Reshape", ["input_color30_u8", "shape_flat900"], ["input_color30_flat"]),
         helper.make_node("Greater", ["input_color_u8", "zero_u8"], ["nonzero_bool"]),
