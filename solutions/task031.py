@@ -44,7 +44,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("squeeze_axes_012", [0, 1, 2], [3]),
         _int64_tensor("unsq_axis1", [1], [1]),
         _int64_tensor("unsq_axis0", [0], [1]),
-        _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
@@ -56,8 +55,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ArgMax", ["row_bg_present12"], ["last_row"], axis=2, keepdims=0, select_last_index=1),
         helper.make_node("Cast", ["last_row"], ["last_row_i32"], to=onnx.TensorProto.INT32),
         helper.make_node("LessOrEqual", ["input_row_grid_i32", "last_row_i32"], ["input_row_valid"]),
-        helper.make_node("Equal", ["input0_12", "zero_f32"], ["nonzero_raw"]),
-        helper.make_node("And", ["input_row_valid", "nonzero_raw"], ["nonzero_bool"]),
+        helper.make_node("Cast", ["input_row_valid"], ["input_row_valid_f32"], to=onnx.TensorProto.FLOAT),
+        helper.make_node("Less", ["input0_12", "input_row_valid_f32"], ["nonzero_bool"]),
         helper.make_node("Cast", ["nonzero_bool"], ["nonzero_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["nonzero_u8"], ["row_present"], axes=[3], keepdims=1),
         helper.make_node("ReduceMax", ["nonzero_u8"], ["col_present"], axes=[2], keepdims=1),
@@ -93,7 +92,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Pad", ["output_crop", "pads_color_to30"], ["output"], mode="constant"),
     ]
 
-    graph = helper.make_graph(nodes, "task031_default_false_pad_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task031_less_valid_nonzero_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
