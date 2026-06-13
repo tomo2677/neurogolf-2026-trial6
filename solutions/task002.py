@@ -7,7 +7,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
 SIZE = 30
-LINE_CLOSURE_STEPS = 3
+LINE_CLOSURE_STEPS = 2
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
@@ -162,7 +162,11 @@ def build_model() -> onnx.ModelProto:
     external = "external_0"
     for step in range(LINE_CLOSURE_STEPS):
         horizontal = _horizontal_closure(nodes, external, f"step{step}_h")
-        external = _vertical_closure(nodes, horizontal, f"step{step}_v", final=step == LINE_CLOSURE_STEPS - 1)
+        external = _vertical_closure(nodes, horizontal, f"step{step}_v")
+
+    external = _horizontal_closure(nodes, external, "step2_h")
+    nodes.append(helper.make_node("Cast", [external], ["external_final"], to=onnx.TensorProto.BOOL))
+    external = "external_final"
 
     nodes.extend(
         [
