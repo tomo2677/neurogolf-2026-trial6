@@ -350,7 +350,7 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
-        _f16_tensor("cross_kernel", [0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0], [1, 1, 3, 3]),
+        _f32_tensor("color_conv_w", [float(i) for i in range(10)], [1, 10, 1, 1]),
     ]
 
     nodes: list[onnx.NodeProto] = [
@@ -363,12 +363,13 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Slice", ["color_counts10", "slice_nonzero_start", "slice_nonzero_end", "axis0"], ["color_counts"]),
         helper.make_node("ArgMax", ["color_counts"], ["base_idx"], axis=0, keepdims=1),
         helper.make_node("Add", ["base_idx", "one_i64"], ["base_color"]),
-        helper.make_node("ArgMax", ["input"], ["color_grid"], axis=1, keepdims=1),
-        helper.make_node("Cast", ["color_grid"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Cast", ["base_color"], ["base_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Conv", ["input", "color_conv_w"], ["input_color_f32"]),
+        helper.make_node("Cast", ["input_color_f32"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Greater", ["input_color_u8", "zero_u8"], ["nonzero_mask"]),
         helper.make_node("Cast", ["nonzero_mask"], ["nonzero_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Reshape", ["base_color", "shape1111"], ["base_color1111"]),
-        helper.make_node("Equal", ["color_grid", "base_color1111"], ["base_mask"]),
+        helper.make_node("Reshape", ["base_color_u8", "shape1111"], ["base_color1111"]),
+        helper.make_node("Equal", ["input_color_u8", "base_color1111"], ["base_mask"]),
         helper.make_node("Greater", ["color_counts", "zero_f32"], ["color_present"]),
         helper.make_node("Equal", ["color_ids", "base_color"], ["base_color_vector"]),
         helper.make_node("Not", ["base_color_vector"], ["not_base_color_vector"]),
@@ -376,8 +377,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Cast", ["marker_color_vector"], ["marker_color_score"], to=onnx.TensorProto.FLOAT),
         helper.make_node("ArgMax", ["marker_color_score"], ["anchor_idx"], axis=0, keepdims=1),
         helper.make_node("Add", ["anchor_idx", "one_i64"], ["anchor_color"]),
-        helper.make_node("Reshape", ["anchor_color", "shape1111"], ["anchor_color1111"]),
-        helper.make_node("Equal", ["color_grid", "anchor_color1111"], ["anchor_color_mask"]),
+        helper.make_node("Cast", ["anchor_color"], ["anchor_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Reshape", ["anchor_color_u8", "shape1111"], ["anchor_color1111"]),
+        helper.make_node("Equal", ["input_color_u8", "anchor_color1111"], ["anchor_color_mask"]),
     ]
 
     source_mask_all = _grow_component(nodes, "base_mask", "nonzero_u8", "source_all")

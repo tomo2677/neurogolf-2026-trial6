@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 11.669689555162744 | 613620 | 1954 | 2026-06-13T17:22:22+09:00 | ledger |
+| passes_local | 11.675572897849506 | 610008 | 1955 | 2026-06-13T17:35:04+09:00 | exp035 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -11,11 +11,12 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
 | zero-repair-size30 | rule_redesign | Official zero likely came from the `SIZE=24` internal crop and 8-step component growth shortcut; restore full 30x30 crop and 30-step growth before resubmit. | official_complete |
+| conv-color-map | impl_opt | Replace full-grid ArgMax color decoding with a 1x1 FLOAT Conv and compare base/anchor colors as UINT8 to reduce INT64 memory. | promoted |
+| drop-unused-cross-kernel | impl_opt | Remove the unused cross_kernel initializer left after the current component-growth implementation. | promoted |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp001 | impl_opt | h001 | passes_local | 8.298108748965113 | 17925504 | 2800 |  | promoted | Auto promoted after canonical re-score. |
 | exp002 | impl_opt | h001 | passes_local | 8.298108748965113 | 17925504 | 2800 | 0 | not_better | Passed but did not improve local_points. |
 | exp003 | impl_opt | h002 | passes_local | 8.946564904291776 | 9371056 | 2800 | 0.648456155327 | promoted | Auto promoted after canonical re-score. |
 | exp004 | impl_opt | grow-steps-15 | passes_local | 8.975791382000043 | 9101056 | 2800 | 0.0292264777083 | promoted | Auto promoted after canonical re-score. |
@@ -39,6 +40,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp031 | impl_opt | grow-steps-15-full30 | passes_local | 11.62956790036902 | 638820 | 1954 | 0.0809097921774 | promoted | Auto promoted after canonical re-score. |
 | exp032 | impl_opt | grow-steps-8-full30 | passes_local | 11.669689555162744 | 613620 | 1954 | 0.0401216547937 | promoted | Auto promoted after canonical re-score. |
 | exp033 | impl_opt | grow-steps-4-full30 | fails_local | 0.0 | 599220 | 1954 | -11.6696895552 | fails_local | Candidate did not pass local validation. |
+| exp034 | impl_opt | conv-color-map | passes_local | 11.675558191186163 | 610008 | 1964 | 0.00586863602342 | promoted | Auto promoted after canonical re-score. |
+| exp035 | impl_opt | drop-unused-cross-kernel | passes_local | 11.675572897849506 | 610008 | 1955 | 1.47066633431e-05 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
