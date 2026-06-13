@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.850083163867893 | 1223 | 51 | 2026-06-13T10:06:18+09:00 | exp017 |
+| passes_local | 17.89093786431283 | 1191 | 32 | 2026-06-13T10:09:36+09:00 | exp018 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -24,6 +24,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp013 | impl_opt | pooled-row-windows | passes_local | 17.747237581946813 | 1372 | 40 | 0.131227039925 | promoted | Auto promoted after canonical re-score. |
 | exp015 | impl_opt | top-both-color-diff-v2 | passes_local | 17.824510286375777 | 1265 | 42 | 0.077272704429 | promoted | Auto promoted after canonical re-score. |
 | exp017 | impl_opt | actual-color-diff | passes_local | 17.850083163867893 | 1223 | 51 | 0.0255728774921 | promoted | Auto promoted after canonical re-score. |
+| exp018 | impl_opt | sub-diff-edges | passes_local | 17.89093786431283 | 1191 | 32 | 0.0408547004449 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

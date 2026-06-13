@@ -15,8 +15,8 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
-def _bool_tensor(name: str, values: list[bool], dims: list[int]) -> onnx.TensorProto:
-    return helper.make_tensor(name, onnx.TensorProto.BOOL, dims, values)
+def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
 
 
 def build_model() -> onnx.ModelProto:
@@ -24,18 +24,15 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("nonblack_starts", [0, 1, 0, 0], [4]),
-        _int64_tensor("nonblack_ends", [1, 10, 1, 1], [4]),
         _int64_tensor("axis_channel", [1], [1]),
         _int64_tensor("shape_row10", [1, 1, 1, 10], [4]),
         _int64_tensor("pads_hw", [0, 0, 20, 20], [4]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
-        _bool_tensor("edge_cols", [True, False, False, False, False, False, False, False, False, True], [1, 1, 1, 10]),
         _u8_tensor("zero_u8", [0], [1]),
-        _u8_tensor("one_u8", [1], [1]),
+        _f32_tensor("zero_f32", [0.0], [1]),
+        _u8_tensor("zero8_u8", [0] * 8, [1, 1, 1, 8]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
-        _u8_tensor("nonblack_ids_u8", list(range(1, 10)), [1, 9, 1, 1]),
     ]
 
     nodes = [
@@ -43,22 +40,16 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("MaxPool", ["input"], ["both_present"], kernel_shape=[10, 30], strides=[30, 30]),
         helper.make_node("ArgMax", ["top_present"], ["top_idx"], axis=1, keepdims=1, select_last_index=1),
         helper.make_node("Cast", ["top_idx"], ["top_color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Slice", ["both_present", "nonblack_starts", "nonblack_ends"], ["both_nonblack_f32"]),
-        helper.make_node("Cast", ["both_nonblack_f32"], ["both_nonblack"], to=onnx.TensorProto.BOOL),
-        helper.make_node("Equal", ["nonblack_ids_u8", "top_color_u8"], ["top_nonblack"]),
-        helper.make_node("Not", ["top_nonblack"], ["not_top_nonblack"]),
-        helper.make_node("And", ["both_nonblack", "not_top_nonblack"], ["bottom_only"]),
-        helper.make_node("Cast", ["bottom_only"], ["bottom_only_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("ReduceMax", ["bottom_only_u8", "axis_channel"], ["bottom_any_u8"], keepdims=1),
-        helper.make_node("Greater", ["bottom_any_u8", "zero_u8"], ["has_bottom"]),
-        helper.make_node("ArgMax", ["bottom_only_u8"], ["bottom_idx0"], axis=1, keepdims=1),
-        helper.make_node("Cast", ["bottom_idx0"], ["bottom_idx0_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Add", ["bottom_idx0_u8", "one_u8"], ["bottom_candidate_u8"]),
-        helper.make_node("Where", ["has_bottom", "bottom_candidate_u8", "top_color_u8"], ["bottom_color_u8"]),
+        helper.make_node("Sub", ["both_present", "top_present"], ["bottom_diff"]),
+        helper.make_node("ReduceMax", ["bottom_diff", "axis_channel"], ["bottom_any"], keepdims=1),
+        helper.make_node("Greater", ["bottom_any", "zero_f32"], ["has_bottom"]),
+        helper.make_node("ArgMax", ["bottom_diff"], ["bottom_idx_candidate"], axis=1, keepdims=1),
+        helper.make_node("Where", ["has_bottom", "bottom_idx_candidate", "top_idx"], ["bottom_idx"]),
+        helper.make_node("Cast", ["bottom_idx"], ["bottom_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Expand", ["top_color_u8", "shape_row10"], ["top_full"]),
-        helper.make_node("Where", ["edge_cols", "top_color_u8", "zero_u8"], ["top_edge"]),
+        helper.make_node("Concat", ["top_color_u8", "zero8_u8", "top_color_u8"], ["top_edge"], axis=3),
         helper.make_node("Expand", ["bottom_color_u8", "shape_row10"], ["bottom_full"]),
-        helper.make_node("Where", ["edge_cols", "bottom_color_u8", "zero_u8"], ["bottom_edge"]),
+        helper.make_node("Concat", ["bottom_color_u8", "zero8_u8", "bottom_color_u8"], ["bottom_edge"], axis=3),
         helper.make_node(
             "Concat",
             [
@@ -80,7 +71,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task028_actual_color_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task028_sub_diff_edges_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
