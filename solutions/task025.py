@@ -46,7 +46,6 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
@@ -66,8 +65,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ReduceMax", ["input"], ["cell_present"], axes=[1], keepdims=1),
         helper.make_node("ReduceMax", ["cell_present"], ["row_present_f32"], axes=[3], keepdims=1),
         helper.make_node("ReduceMax", ["cell_present"], ["col_present_f32"], axes=[2], keepdims=1),
-        helper.make_node("Greater", ["row_present_f32", "zero_f32"], ["row_valid"]),
-        helper.make_node("Greater", ["col_present_f32", "zero_f32"], ["col_valid"]),
+        helper.make_node("Cast", ["row_present_f32"], ["row_valid"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Cast", ["col_present_f32"], ["col_valid"], to=onnx.TensorProto.BOOL),
         helper.make_node("And", ["row_valid", "col_valid"], ["valid_area"]),
         helper.make_node("Where", ["valid_area", "input_color_u8", "invalid_u8"], ["input_color_min_base"]),
         helper.make_node("ReduceMin", ["input_color_min_base"], ["row_min_color"], axes=[3], keepdims=1),

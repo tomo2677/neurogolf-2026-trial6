@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.297289234729917 | 120839 | 60 | 2026-06-13T13:46:04+09:00 | exp013 |
+| passes_local | 13.297297506131134 | 120839 | 59 | 2026-06-13T13:50:47+09:00 | exp014 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -24,6 +24,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp011 | impl_opt | share-shift-pads | passes_local | 13.296297162954836 | 120959 | 60 | 0.000842487866798 | promoted | Auto promoted after canonical re-score. |
 | exp012 | impl_opt | drop-unused-sum-axes | passes_local | 13.295504213554668 | 120959 | 156 | -0.000792949400168 | not_better | Passed but did not improve local_points. |
 | exp013 | impl_opt | uniform-line-color-where | passes_local | 13.297289234729917 | 120839 | 60 | 0.00099207177508 | promoted | Auto promoted after canonical re-score. |
+| exp014 | impl_opt | cast-valid-area | passes_local | 13.297297506131134 | 120839 | 59 | 8.27140121729e-06 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
