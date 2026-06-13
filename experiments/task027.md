@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.644998078894744 | 1523 | 41 | 2026-06-13T12:36:31+09:00 | exp029 |
+| passes_local | 17.646918079484568 | 1523 | 38 | 2026-06-13T12:57:12+09:00 | exp030 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -14,7 +14,6 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp001 | impl_opt | bool-rotation | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp002 | impl_opt | bool-rotation-logic-select | passes_local | 16.75199429839938 | 3743 | 77 | 0.336285233348 | promoted | Auto promoted after canonical re-score. |
 | exp003 | impl_opt | direct-onehot-output3 | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp004 | impl_opt | direct-onehot-output3-opset18 | passes_local | 16.92597378387594 | 3143 | 67 | 0.173979485477 | promoted | Auto promoted after canonical re-score. |
@@ -39,6 +38,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp027 | impl_opt | u8-bitwise | passes_local | 17.521830305840215 | 1724 | 45 | 0.0168165397907 | promoted | Auto promoted after canonical re-score. |
 | exp028 | impl_opt | u8-where-select | passes_local | 17.642443799089648 | 1523 | 45 | 0.120613493249 | promoted | Auto promoted after canonical re-score. |
 | exp029 | impl_opt | col7-tail-axes | passes_local | 17.644998078894744 | 1523 | 41 | 0.0025542798051 | promoted | Auto promoted after canonical re-score. |
+| exp030 | impl_opt | dedupe-initializers | passes_local | 17.646918079484568 | 1523 | 38 | 0.00192000058982 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
