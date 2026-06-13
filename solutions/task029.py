@@ -99,11 +99,12 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors9_u8", list(range(1, 10)), [1, 9, 1, 1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
+        _f32_tensor("color_conv_w", [float(i) for i in range(10)], [1, 10, 1, 1]),
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("ArgMax", ["input"], ["input_color30_i64"], axis=1, keepdims=1, select_last_index=0),
-        helper.make_node("Cast", ["input_color30_i64"], ["input_color30_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Conv", ["input", "color_conv_w"], ["input_color30_f32"]),
+        helper.make_node("Cast", ["input_color30_f32"], ["input_color30_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Slice", ["input_color30_u8", "crop_hw_start", "crop_hw_end", "crop_hw_axes"], ["input_color_u8"]),
         helper.make_node("Equal", ["input_color_u8", "colors9_u8"], ["color_masks9"]),
         helper.make_node("Cast", ["color_masks9"], ["color_masks9_f16"], to=onnx.TensorProto.FLOAT16),

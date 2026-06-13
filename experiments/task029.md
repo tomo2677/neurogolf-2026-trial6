@@ -3,13 +3,14 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 14.40081851263735 | 40011 | 91 | 2026-06-13T15:06:15+09:00 | exp018 |
+| passes_local | 14.494603747338198 | 36411 | 101 | 2026-06-13T17:36:49+09:00 | exp020 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
 
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
+| conv-color-map | impl_opt | Replace full-grid ArgMax color decoding with a 1x1 FLOAT Conv over one-hot channels to reduce INT64 memory. | promoted |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
@@ -32,6 +33,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp016 | impl_opt | remove-unused-split | passes_local | 13.501102468014414 | 98466 | 141 | 5.07050537824e-05 | promoted | Auto promoted after canonical re-score. |
 | exp017 | impl_opt | reuse-one-shape | passes_local | 13.501112609333699 | 98466 | 140 | 1.01413192848e-05 | promoted | Auto promoted after canonical re-score. |
 | exp018 | rule_redesign | perimeter-count-min-frame | passes_local | 14.40081851263735 | 40011 | 91 | 0.899705903304 | promoted | Auto promoted after canonical re-score. |
+| exp020 | impl_opt | conv-color-map | passes_local | 14.494603747338198 | 36411 | 101 | 0.0937852347008 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
