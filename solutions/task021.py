@@ -35,8 +35,8 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("axis_col", [3], [1]),
         _int64_tensor("axis_row", [2], [1]),
         _int64_tensor("axes_all", [0, 1, 2, 3], [4]),
-        _int64_tensor("row_prev_pads", [0, 0, 1, 0, 0, 0, -1, 0], [8]),
-        _int64_tensor("col_prev_pads", [0, 0, 0, 1, 0, 0, 0, -1], [8]),
+        _int64_tensor("row_prev_pads", [1, -1], [2]),
+        _int64_tensor("col_prev_pads", [1, -1], [2]),
     ]
 
     nodes = [
@@ -49,8 +49,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Gather", ["col_has_bg10", "bg_idx"], ["col_has_bg"], axis=1),
         helper.make_node("Greater", ["row_has_bg", "zero_f32"], ["row_non_sep_bool"]),
         helper.make_node("Greater", ["col_has_bg", "zero_f32"], ["col_non_sep_bool"]),
-        helper.make_node("Pad", ["row_non_sep_bool", "row_prev_pads"], ["row_prev_bool"], mode="constant"),
-        helper.make_node("Pad", ["col_non_sep_bool", "col_prev_pads"], ["col_prev_bool"], mode="constant"),
+        helper.make_node("Pad", ["row_non_sep_bool", "row_prev_pads", "", "axis_row"], ["row_prev_bool"], mode="constant"),
+        helper.make_node("Pad", ["col_non_sep_bool", "col_prev_pads", "", "axis_col"], ["col_prev_bool"], mode="constant"),
         helper.make_node("Not", ["row_prev_bool"], ["row_prev_not"]),
         helper.make_node("Not", ["col_prev_bool"], ["col_prev_not"]),
         helper.make_node("And", ["row_non_sep_bool", "row_prev_not"], ["row_start_bool"]),
