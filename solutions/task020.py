@@ -20,20 +20,32 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
-def _gather_coords_padded(nodes: list[onnx.NodeProto], src_r: str, src_c: str, output: str, *, swap_axes: bool) -> None:
-    gathered = f"{output}_gathered" if swap_axes else output
+def _gather_coords_bounded(nodes: list[onnx.NodeProto], src_r: str, src_c: str, output: str, *, swap_axes: bool) -> None:
+    aligned = f"{output}_aligned" if swap_axes else f"{output}_raw"
     nodes.extend(
         [
-            helper.make_node("Add", [src_r, "pad_offset_i32"], [f"{output}_pad_r"]),
-            helper.make_node("Add", [src_c, "pad_offset_i32"], [f"{output}_pad_c"]),
-            helper.make_node("Reshape", [f"{output}_pad_r", "shape_vec10"], [f"{output}_pad_r_vec"]),
-            helper.make_node("Reshape", [f"{output}_pad_c", "shape_vec10"], [f"{output}_pad_c_vec"]),
-            helper.make_node("Gather", ["input_color30_u8", f"{output}_pad_r_vec"], [f"{output}_rows"], axis=2),
-            helper.make_node("Gather", [f"{output}_rows", f"{output}_pad_c_vec"], [gathered], axis=3),
+            helper.make_node("GreaterOrEqual", [src_r, "zero_i32"], [f"{output}_r_ge_zero"]),
+            helper.make_node("Less", [src_r, "size_i32"], [f"{output}_r_lt_size"]),
+            helper.make_node("And", [f"{output}_r_ge_zero", f"{output}_r_lt_size"], [f"{output}_r_in"]),
+            helper.make_node("GreaterOrEqual", [src_c, "zero_i32"], [f"{output}_c_ge_zero"]),
+            helper.make_node("Less", [src_c, "size_i32"], [f"{output}_c_lt_size"]),
+            helper.make_node("And", [f"{output}_c_ge_zero", f"{output}_c_lt_size"], [f"{output}_c_in"]),
+            helper.make_node("Where", [f"{output}_r_in", src_r, "zero_i32"], [f"{output}_safe_r"]),
+            helper.make_node("Where", [f"{output}_c_in", src_c, "zero_i32"], [f"{output}_safe_c"]),
+            helper.make_node("Reshape", [f"{output}_safe_r", "shape_vec10"], [f"{output}_safe_r_vec"]),
+            helper.make_node("Reshape", [f"{output}_safe_c", "shape_vec10"], [f"{output}_safe_c_vec"]),
+            helper.make_node("Gather", ["input_color_u8", f"{output}_safe_r_vec"], [f"{output}_rows"], axis=2),
+            helper.make_node("Gather", [f"{output}_rows", f"{output}_safe_c_vec"], [f"{output}_raw"], axis=3),
         ]
     )
     if swap_axes:
-        nodes.append(helper.make_node("Transpose", [gathered], [output], perm=[0, 1, 3, 2]))
+        nodes.append(helper.make_node("Transpose", [f"{output}_raw"], [aligned], perm=[0, 1, 3, 2]))
+    nodes.extend(
+        [
+            helper.make_node("And", [f"{output}_r_in", f"{output}_c_in"], [f"{output}_in_bounds"]),
+            helper.make_node("Where", [f"{output}_in_bounds", aligned, "zero_u8"], [output]),
+        ]
+    )
 
 
 def build_model() -> onnx.ModelProto:
@@ -53,14 +65,14 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("slice8_ends", [9, 10, 10], [3]),
         _int64_tensor("axes_chw", [1, 2, 3], [3]),
         _int64_tensor("two_i64", [2], [1]),
-        _int32_tensor("pad_offset_i32", [10], [1]),
+        _int32_tensor("zero_i32", [0], [1]),
+        _int32_tensor("size_i32", [10], [1]),
         _int64_tensor("shape1", [1], [1]),
         _int64_tensor("shape_vec10", [10], [1]),
         _int32_tensor("row_grid_i32", list(range(10)), [1, 1, 10, 1]),
         _int32_tensor("col_grid_i32", list(range(10)), [1, 1, 1, 10]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
         _int64_tensor("reduce_axis_w", [3], [1]),
-        _int64_tensor("pads_source_hw", [10, 10, 10, 10], [4]),
         _int64_tensor("pads_output_hw", [0, 0, 20, 20], [4]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("one_u8", [1], [1]),
@@ -87,7 +99,6 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["c3_bool", "three_u8", "color12_u8"], ["color123_u8"]),
         helper.make_node("Where", ["c4_bool", "four_u8", "color123_u8"], ["color1234_u8"]),
         helper.make_node("Where", ["input8_bool", "eight_u8", "color1234_u8"], ["input_color_u8"]),
-        helper.make_node("Pad", ["input_color_u8", "pads_source_hw", "zero_u8", "pad_axes_hw"], ["input_color30_u8"], mode="constant"),
         helper.make_node("Min", ["input_color_u8", "one_u8"], ["nonzero_u8"]),
         helper.make_node("ReduceMax", ["nonzero_u8", "reduce_axis_w"], ["row_present"], keepdims=1),
         helper.make_node("ReduceMax", ["nonzero_u8", "two_i64"], ["col_present"], keepdims=1),
@@ -116,9 +127,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Sub", ["center_sum", "row_grid_i32"], ["rot270_src_c"]),
     ]
 
-    _gather_coords_padded(nodes, "rot90_src_r", "rot90_src_c", "rot90", swap_axes=True)
-    _gather_coords_padded(nodes, "rot180_src_r", "rot180_src_c", "rot180", swap_axes=False)
-    _gather_coords_padded(nodes, "rot270_src_r", "rot270_src_c", "rot270", swap_axes=True)
+    _gather_coords_bounded(nodes, "rot90_src_r", "rot90_src_c", "rot90", swap_axes=True)
+    _gather_coords_bounded(nodes, "rot180_src_r", "rot180_src_c", "rot180", swap_axes=False)
+    _gather_coords_bounded(nodes, "rot270_src_r", "rot270_src_c", "rot270", swap_axes=True)
 
     nodes.extend(
         [
