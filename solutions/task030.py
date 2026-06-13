@@ -38,9 +38,8 @@ def _shift_mask(nodes: list[onnx.NodeProto], source: str, delta: str, prefix: st
             helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_src_r", "zero_i32"], [f"{prefix}_safe_r"]),
             helper.make_node("Mul", [f"{prefix}_safe_r", "size_i32"], [f"{prefix}_safe_r_offset"]),
             helper.make_node("Add", [f"{prefix}_safe_r_offset", "col_grid_i32"], [f"{prefix}_safe_spatial"]),
-            helper.make_node("Cast", [f"{prefix}_safe_spatial"], [f"{prefix}_indices"], to=onnx.TensorProto.INT64),
             helper.make_node("Reshape", [source, "shape_flat100"], [f"{prefix}_source_flat"]),
-            helper.make_node("Gather", [f"{prefix}_source_flat", f"{prefix}_indices"], [f"{prefix}_shifted_raw"], axis=0),
+            helper.make_node("Gather", [f"{prefix}_source_flat", f"{prefix}_safe_spatial"], [f"{prefix}_shifted_raw"], axis=0),
             helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_shifted_raw", "zero_u8"], [f"{prefix}_shifted"]),
         ]
     )
