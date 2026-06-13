@@ -29,12 +29,12 @@ def build_model() -> onnx.ModelProto:
     initializers = [
         _int64_tensor("eight_starts", [0, 8, 0, 0], [4]),
         _int64_tensor("eight_ends", [1, 9, SIZE, SIZE], [4]),
-        _int64_tensor("top_left_color_starts", [0, 0, 0, 0], [4]),
-        _int64_tensor("top_color_ends", [1, 10, 1, SIZE], [4]),
-        _int64_tensor("bottom_color_starts", [0, 0, SIZE - 1, 0], [4]),
-        _int64_tensor("bottom_right_color_ends", [1, 10, SIZE, SIZE], [4]),
-        _int64_tensor("left_color_ends", [1, 10, SIZE, 1], [4]),
-        _int64_tensor("right_color_starts", [0, 0, 0, SIZE - 1], [4]),
+        _int64_tensor("top_left_color_starts", [0, 0], [2]),
+        _int64_tensor("top_color_ends", [1, SIZE], [2]),
+        _int64_tensor("bottom_color_starts", [SIZE - 1, 0], [2]),
+        _int64_tensor("bottom_right_color_ends", [SIZE, SIZE], [2]),
+        _int64_tensor("left_color_ends", [SIZE, 1], [2]),
+        _int64_tensor("right_color_starts", [0, SIZE - 1], [2]),
         _int64_tensor("row1_starts", [1], [1]),
         _int64_tensor("row10_ends", [SIZE], [1]),
         _int64_tensor("col0_starts", [0], [1]),
@@ -80,7 +80,7 @@ def build_model() -> onnx.ModelProto:
     for name, starts, ends in color_slices:
         nodes.extend(
             [
-                helper.make_node("Slice", ["input", starts, ends], [f"{name}_onehot"]),
+                helper.make_node("Slice", ["input", starts, ends, "pad_axes_hw"], [f"{name}_onehot"]),
                 helper.make_node("ArgMax", [f"{name}_onehot"], [f"{name}_i64"], axis=1, keepdims=1),
                 helper.make_node("Cast", [f"{name}_i64"], [f"{name}_u8"], to=onnx.TensorProto.UINT8),
             ]
