@@ -49,8 +49,8 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("c0_starts", [0, 0, 0], [3]),
-        _int64_tensor("c0_ends", [1, SIZE, 1], [3]),
+        _int64_tensor("h10_starts", [0, 9, 0], [3]),
+        _int64_tensor("h10_ends", [1, 10, 1], [3]),
         _int64_tensor("c1_starts", [1, 0, 0], [3]),
         _int64_tensor("c1_ends", [2, SIZE, SIZE], [3]),
         _int64_tensor("c2_starts", [2, 0, 0], [3]),
@@ -65,6 +65,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("shape_vec10", [SIZE], [1]),
         _int64_tensor("pads_output", [0, 0, 0, 5, 30 - SIZE, 30 - SIZE], [6]),
         _u8_tensor("zero_u8", [0], [1]),
+        helper.make_tensor("true_bool", onnx.TensorProto.BOOL, [1, 1, 1, 1], [1]),
         _u8_tensor("two_u8", [2], [1]),
         _u8_tensor("four_u8", [4], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
@@ -72,11 +73,11 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("Slice", ["input", "c0_starts", "c0_ends", "axes_chw"], ["c0_f32"]),
+        helper.make_node("Slice", ["input", "h10_starts", "h10_ends", "axes_chw"], ["h10_f32"]),
         helper.make_node("Slice", ["input", "c1_starts", "c1_ends", "axes_chw"], ["c1_f32"]),
         helper.make_node("Slice", ["input", "c2_starts", "c2_ends", "axes_chw"], ["c2_f32"]),
         helper.make_node("Slice", ["input", "c4_starts", "c4_ends", "axes_chw"], ["c4_f32"]),
-        helper.make_node("Cast", ["c0_f32"], ["c0_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Cast", ["h10_f32"], ["h10_bool"], to=onnx.TensorProto.BOOL),
         helper.make_node("Cast", ["c1_f32"], ["c1_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Cast", ["c2_f32"], ["c2_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Cast", ["c4_f32"], ["c4_u8"], to=onnx.TensorProto.UINT8),
@@ -111,8 +112,23 @@ def build_model() -> onnx.ModelProto:
     nodes.extend(
         [
             helper.make_node("Max", color_terms, ["placed_color"]),
-            helper.make_node("Max", ["c0_u8", "c1_ref_row_score", "c2_row_score", "c4_row_score"], ["row_present_u8"]),
-            helper.make_node("Greater", ["row_present_u8", "zero_u8"], ["valid_rows"]),
+            helper.make_node(
+                "Concat",
+                [
+                    "true_bool",
+                    "true_bool",
+                    "true_bool",
+                    "true_bool",
+                    "true_bool",
+                    "h10_bool",
+                    "h10_bool",
+                    "h10_bool",
+                    "h10_bool",
+                    "h10_bool",
+                ],
+                ["valid_rows"],
+                axis=2,
+            ),
             helper.make_node("Where", ["valid_rows", "placed_color", "invalid_u8"], ["color10"]),
             helper.make_node("Equal", ["colors5_u8", "color10"], ["output5"]),
             helper.make_node("Pad", ["output5", "pads_output", "", "axes_chw"], ["output"], mode="constant"),
