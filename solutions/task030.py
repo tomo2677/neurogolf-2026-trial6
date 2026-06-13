@@ -51,21 +51,21 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("slice_hw_starts", [0, 0], [2]),
-        _int64_tensor("slice_hw_ends", [SIZE, SIZE], [2]),
-        _int64_tensor("slice_hw_axes", [2, 3], [2]),
-        _int64_tensor("axis_channel", [1], [1]),
+        _int64_tensor("c0_starts", [0, 0, 0, 0], [4]),
+        _int64_tensor("c0_ends", [1, 1, SIZE, 1], [4]),
+        _int64_tensor("c1_starts", [0, 1, 0, 0], [4]),
+        _int64_tensor("c1_ends", [1, 2, SIZE, SIZE], [4]),
+        _int64_tensor("c2_starts", [0, 2, 0, 0], [4]),
+        _int64_tensor("c2_ends", [1, 3, SIZE, SIZE], [4]),
+        _int64_tensor("c4_starts", [0, 4, 0, 0], [4]),
+        _int64_tensor("c4_ends", [1, 5, SIZE, SIZE], [4]),
         _int64_tensor("axis_col", [3], [1]),
-        _int64_tensor("one_i64", [1], [1]),
-        _int64_tensor("two_i64", [2], [1]),
-        _int64_tensor("four_i64", [4], [1]),
         _int32_tensor("zero_i32", [0], [1]),
         _int32_tensor("size_i32", [SIZE], [1]),
         _int32_tensor("row_grid_i32", list(range(SIZE)), [1, 1, SIZE, 1]),
         _int32_tensor("col_grid_i32", list(range(SIZE)), [1, 1, 1, SIZE]),
         _int64_tensor("shape_flat100", [SIZE * SIZE], [1]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 5, 30 - SIZE, 30 - SIZE], [8]),
-        _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("two_u8", [2], [1]),
         _u8_tensor("four_u8", [4], [1]),
@@ -74,14 +74,14 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("Slice", ["input", "slice_hw_starts", "slice_hw_ends", "slice_hw_axes"], ["input10"]),
-        helper.make_node("ArgMax", ["input10"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
-        helper.make_node("Equal", ["input_color_i64", "one_i64"], ["c1_bool"]),
-        helper.make_node("Equal", ["input_color_i64", "two_i64"], ["c2_bool"]),
-        helper.make_node("Equal", ["input_color_i64", "four_i64"], ["c4_bool"]),
-        helper.make_node("Cast", ["c1_bool"], ["c1_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Cast", ["c2_bool"], ["c2_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Cast", ["c4_bool"], ["c4_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Slice", ["input", "c0_starts", "c0_ends"], ["c0_f32"]),
+        helper.make_node("Slice", ["input", "c1_starts", "c1_ends"], ["c1_f32"]),
+        helper.make_node("Slice", ["input", "c2_starts", "c2_ends"], ["c2_f32"]),
+        helper.make_node("Slice", ["input", "c4_starts", "c4_ends"], ["c4_f32"]),
+        helper.make_node("Cast", ["c0_f32"], ["c0_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Cast", ["c1_f32"], ["c1_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Cast", ["c2_f32"], ["c2_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Cast", ["c4_f32"], ["c4_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["c1_u8", "axis_col"], ["c1_ref_row_score"], keepdims=1),
         helper.make_node("ArgMax", ["c1_ref_row_score"], ["ref_top"], axis=2, keepdims=1),
     ]
@@ -114,9 +114,9 @@ def build_model() -> onnx.ModelProto:
     nodes.extend(
         [
             helper.make_node("Max", color_terms, ["placed_color"]),
-            helper.make_node("ReduceMax", ["input10", "axis_channel"], ["cell_present_f32"], keepdims=1),
-            helper.make_node("Greater", ["cell_present_f32", "zero_f32"], ["valid_area"]),
-            helper.make_node("Where", ["valid_area", "placed_color", "invalid_u8"], ["color10"]),
+            helper.make_node("Max", ["c0_u8", "c1_ref_row_score", "c2_row_score", "c4_row_score"], ["row_present_u8"]),
+            helper.make_node("Greater", ["row_present_u8", "zero_u8"], ["valid_rows"]),
+            helper.make_node("Where", ["valid_rows", "placed_color", "invalid_u8"], ["color10"]),
             helper.make_node("Equal", ["colors5_u8", "color10"], ["output5"]),
             helper.make_node("Pad", ["output5", "pads_output"], ["output"], mode="constant"),
         ]
