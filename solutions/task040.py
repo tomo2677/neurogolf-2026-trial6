@@ -18,16 +18,9 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
-def _bool_tensor(name: str, values: list[bool], dims: list[int]) -> onnx.TensorProto:
-    return helper.make_tensor(name, onnx.TensorProto.BOOL, dims, values)
-
-
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
-
-    row_top_values = [r < 5 for r in range(SIZE)]
-    col_left_values = [c < 5 for c in range(SIZE)]
 
     initializers = [
         _int64_tensor("top_zero_starts", [0, 0, 0, 2], [4]),
@@ -46,8 +39,6 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("bg_col8", [9] * 8, [1, 1, 1, 8]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10", [9, 0, 1, 2, 3, 4, 5, 6, 7, 8], [1, 10, 1, 1]),
-        _bool_tensor("row_top", row_top_values, [1, 1, SIZE, 1]),
-        _bool_tensor("col_left", col_left_values, [1, 1, 1, SIZE]),
     ]
 
     nodes = [
@@ -70,8 +61,40 @@ def build_model() -> onnx.ModelProto:
 
     nodes.extend(
         [
-            helper.make_node("Where", ["row_top", "top_left_color", "bottom_left_color"], ["row_replacement"]),
-            helper.make_node("Where", ["col_left", "top_left_color", "top_right_color"], ["col_replacement"]),
+            helper.make_node(
+                "Concat",
+                [
+                    "top_left_color",
+                    "top_left_color",
+                    "top_left_color",
+                    "top_left_color",
+                    "top_left_color",
+                    "bottom_left_color",
+                    "bottom_left_color",
+                    "bottom_left_color",
+                    "bottom_left_color",
+                    "bottom_left_color",
+                ],
+                ["row_replacement"],
+                axis=2,
+            ),
+            helper.make_node(
+                "Concat",
+                [
+                    "top_left_color",
+                    "top_left_color",
+                    "top_left_color",
+                    "top_left_color",
+                    "top_left_color",
+                    "top_right_color",
+                    "top_right_color",
+                    "top_right_color",
+                    "top_right_color",
+                    "top_right_color",
+                ],
+                ["col_replacement"],
+                axis=3,
+            ),
             helper.make_node("Where", ["use_rows", "row_replacement", "col_replacement"], ["replacement"]),
             helper.make_node("Concat", ["top_left_color", "bg_row8", "bottom_left_color"], ["row_guides"], axis=2),
             helper.make_node("Concat", ["top_left_color", "bg_col8", "top_right_color"], ["col_guides"], axis=3),
