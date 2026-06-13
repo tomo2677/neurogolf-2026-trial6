@@ -51,13 +51,15 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("pad_offset_i32", [10], [1]),
         _int32_tensor("padded_width_i32", [30], [1]),
         _int64_tensor("shape1", [1], [1]),
-        _int64_tensor("shape_flat900", [900], [1]),
+        _int64_tensor("shape_flat300", [300], [1]),
         _int32_tensor("row_grid_i32", list(range(10)), [1, 1, 10, 1]),
         _int32_tensor("col_grid_i32", list(range(10)), [1, 1, 1, 10]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
+        _int64_tensor("pad_axis_w", [3], [1]),
         _int64_tensor("reduce_axis_w", [3], [1]),
         _int64_tensor("reduce_axis_h", [2], [1]),
-        _int64_tensor("pads_source_hw", [10, 10, 10, 10], [4]),
+        _int64_tensor("pads_source_w", [10, 10], [2]),
+        _int64_tensor("pads_flat900", [300, 300], [2]),
         _int64_tensor("pads_output_hw", [0, 0, 20, 20], [4]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("two_u8", [2], [1]),
@@ -83,8 +85,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["c3_bool", "three_u8", "color12_u8"], ["color123_u8"]),
         helper.make_node("Where", ["c4_bool", "four_u8", "color123_u8"], ["color1234_u8"]),
         helper.make_node("Where", ["input8_bool", "eight_u8", "color1234_u8"], ["input_color_u8"]),
-        helper.make_node("Pad", ["input_color_u8", "pads_source_hw", "zero_u8", "pad_axes_hw"], ["input_color30_u8"], mode="constant"),
-        helper.make_node("Reshape", ["input_color30_u8", "shape_flat900"], ["input_color30_flat"]),
+        helper.make_node("Pad", ["input_color_u8", "pads_source_w", "zero_u8", "pad_axis_w"], ["input_color10x30_u8"], mode="constant"),
+        helper.make_node("Reshape", ["input_color10x30_u8", "shape_flat300"], ["input_color10x30_flat"]),
+        helper.make_node("Pad", ["input_color10x30_flat", "pads_flat900", "zero_u8"], ["input_color30_flat"], mode="constant"),
         helper.make_node("Greater", ["input_color_u8", "zero_u8"], ["nonzero_bool"]),
         helper.make_node("Cast", ["nonzero_bool"], ["nonzero_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["nonzero_u8", "reduce_axis_w"], ["row_present"], keepdims=1),
@@ -126,7 +129,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task020_quarter_turn_completion_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task020_flat_padded_source_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
