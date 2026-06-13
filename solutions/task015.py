@@ -61,7 +61,6 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("six_u8", [6], [1]),
         _u8_tensor("seven_u8", [7], [1]),
         _u8_tensor("eight_u8", [8], [1]),
-        _u8_tensor("outside_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
     ]
 
@@ -88,11 +87,11 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["add4", "four_u8", "zero_u8"], ["add4_color"]),
         helper.make_node("Where", ["add7", "seven_u8", "add4_color"], ["added_color"]),
         helper.make_node("Where", ["nonblack_bool", "color9", "added_color"], ["out9"]),
-        helper.make_node("Pad", ["out9", "pads_output_hw", "outside_u8", "pad_axes_hw"], ["color30"], mode="constant"),
-        helper.make_node("Equal", ["colors10", "color30"], ["output"]),
+        helper.make_node("Equal", ["colors10", "out9"], ["output9"]),
+        helper.make_node("Pad", ["output9", "pads_output_hw", "", "pad_axes_hw"], ["output"], mode="constant"),
     ]
 
-    graph = helper.make_graph(nodes, "task015_single_cell_expansion_conv_f16_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task015_bool_crop_pad_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
