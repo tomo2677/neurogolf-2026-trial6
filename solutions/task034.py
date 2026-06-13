@@ -76,6 +76,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pad_look_up", [1, 0, -1, 0], [4]),
         _int64_tensor("pads_output_hw", [0, 0, 21, 21], [4]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
+        _f32_tensor("zero_f32", [0.0], [1]),
         _f16_tensor("ray_w", _ray_kernel(), [1, 4, KERNEL, KERNEL]),
         _u8_tensor("black_marker10", [1, 0, 1, 0, 0, 0, 0, 0, 0, 0], [1, 10, 1, 1]),
         _bool_tensor("false_bool", [False], [1]),
@@ -86,8 +87,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Slice", ["input", "marker_starts", "marker_ends"], ["marker2_f32"]),
         helper.make_node("Cast", ["marker2_f32"], ["marker2"], to=onnx.TensorProto.BOOL),
         helper.make_node("Slice", ["input", "input0_starts", "input0_ends"], ["input0_9"]),
-        helper.make_node("Cast", ["input0_9"], ["black9"], to=onnx.TensorProto.BOOL),
-        helper.make_node("Not", ["black9"], ["nonzero"]),
+        helper.make_node("Equal", ["input0_9", "zero_f32"], ["nonzero"]),
         helper.make_node("Pad", ["nonzero", "pad_look_right", "false_bool", "pad_axes_hw"], ["right"], mode="constant"),
         helper.make_node("Pad", ["nonzero", "pad_look_left", "false_bool", "pad_axes_hw"], ["left"], mode="constant"),
         helper.make_node("Pad", ["nonzero", "pad_look_down", "false_bool", "pad_axes_hw"], ["down"], mode="constant"),
@@ -109,7 +109,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Pad", ["output9_u8", "pads_output_hw", "", "pad_axes_hw"], ["output"], mode="constant"),
     ]
 
-    graph = helper.make_graph(nodes, "task034_diagonal_marker_direct_onehot", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task034_equal_nonzero_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
