@@ -52,6 +52,8 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 30 - OUT_H, 30 - OUT_W], [8]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _f32_tensor("neg_large_f32", [-10000.0], [1]),
+        _u8_tensor("zero_u8", [0], [1]),
+        _u8_tensor("one_u8", [1], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
     ]
@@ -65,11 +67,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("TopK", ["target_scores9", "k1"], ["target_score", "target_idx0"], axis=0, largest=1, sorted=1),
         helper.make_node("Add", ["target_idx0", "one_i64"], ["target_color_i64"]),
         helper.make_node("Cast", ["target_color_i64"], ["target_color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("ArgMax", ["input"], ["input_color30_i64"], axis=1, keepdims=1, select_last_index=0),
-        helper.make_node("Cast", ["input_color30_i64"], ["input_color30_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Slice", ["input_color30_u8", "crop_hw_start", "crop_hw_end", "crop_hw_axes"], ["input_color_u8"]),
-        helper.make_node("Equal", ["input_color_u8", "target_color_u8"], ["target_mask"]),
-        helper.make_node("Cast", ["target_mask"], ["target_mask_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Gather", ["input", "target_color_i64"], ["target_channel30_f32"], axis=1),
+        helper.make_node("Slice", ["target_channel30_f32", "crop_hw_start", "crop_hw_end", "crop_hw_axes"], ["target_channel_f32"]),
+        helper.make_node("Cast", ["target_channel_f32"], ["target_mask_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["target_mask_u8", "axis_w"], ["row_present"], keepdims=1),
         helper.make_node("ReduceMax", ["target_mask_u8", "axis_h"], ["col_present"], keepdims=1),
         helper.make_node("ArgMax", ["row_present"], ["r_min"], axis=2, keepdims=1),
@@ -89,14 +89,16 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["col_in_crop", "src_c", "zero_i32"], ["safe_c"]),
         helper.make_node("Reshape", ["safe_r", "shape_vec_h"], ["safe_r_vec"]),
         helper.make_node("Reshape", ["safe_c", "shape_vec_w"], ["safe_c_vec"]),
-        helper.make_node("Gather", ["input_color_u8", "safe_r_vec"], ["gathered_rows"], axis=2),
-        helper.make_node("Gather", ["gathered_rows", "safe_c_vec"], ["gathered_color"], axis=3),
-        helper.make_node("Where", ["crop_valid", "gathered_color", "invalid_u8"], ["color_crop"]),
+        helper.make_node("Gather", ["target_mask_u8", "safe_r_vec"], ["gathered_rows"], axis=2),
+        helper.make_node("Gather", ["gathered_rows", "safe_c_vec"], ["gathered_target_u8"], axis=3),
+        helper.make_node("Equal", ["gathered_target_u8", "one_u8"], ["target_crop"]),
+        helper.make_node("Where", ["target_crop", "target_color_u8", "zero_u8"], ["crop_color_or_zero"]),
+        helper.make_node("Where", ["crop_valid", "crop_color_or_zero", "invalid_u8"], ["color_crop"]),
         helper.make_node("Pad", ["color_crop", "pads_output", "invalid_u8"], ["color30"], mode="constant"),
         helper.make_node("Equal", ["colors10", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task014_min_count_bbox_crop_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task014_direct_target_channel_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
