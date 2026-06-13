@@ -26,6 +26,10 @@ def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorP
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
 
 
+def _f16_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT16, dims, values)
+
+
 def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
@@ -66,7 +70,7 @@ def _dedupe_initializers(graph: onnx.GraphProto) -> None:
 
 
 def _cast_f32(nodes: list[onnx.NodeProto], source: str, output: str) -> None:
-    nodes.append(helper.make_node("Cast", [source], [output], to=onnx.TensorProto.FLOAT))
+    nodes.append(helper.make_node("Cast", [source], [output], to=onnx.TensorProto.FLOAT16))
 
 
 def _sum(nodes: list[onnx.NodeProto], source: str, output: str) -> None:
@@ -86,7 +90,7 @@ def _grow_component(nodes: list[onnx.NodeProto], seed: str, nonzero: str, prefix
                     kernel_shape=[3, 3],
                     pads=[1, 1, 1, 1],
                 ),
-                helper.make_node("Greater", [f"{prefix}_dilated_score_{step}", "zero_f32"], [f"{prefix}_dilated_{step}"]),
+                helper.make_node("Greater", [f"{prefix}_dilated_score_{step}", "zero_f16"], [f"{prefix}_dilated_{step}"]),
                 helper.make_node("And", [f"{prefix}_dilated_{step}", nonzero], [f"{prefix}_grown_{step}"]),
             ]
         )
@@ -151,79 +155,37 @@ def _transform_point(nodes: list[onnx.NodeProto], row: str, col: str, prefix: st
         raise ValueError(transform)
 
 
-def _dynamic_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, output: str) -> None:
-    raise NotImplementedError("Use _static_shift for public-rule compliant fixed-shape shifts.")
-
-
-def _static_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, output: str, channels: int) -> None:
-    if channels == 10:
-        flat_shape = "shape_flat_10x900"
-        index_shape = "shape_index_10x900"
-        output_shape = "shape_1x10x30x30"
-    elif channels == 1:
-        flat_shape = "shape_flat900"
-        index_shape = ""
-        output_shape = ""
-    else:
-        raise ValueError(channels)
-
+def _static_shift_color_base(
+    nodes: list[onnx.NodeProto],
+    color_source: str,
+    base_source: str,
+    dr: str,
+    dc: str,
+    color_output: str,
+    base_output: str,
+) -> None:
+    prefix = f"{color_output}_shared"
     nodes.extend(
         [
-            helper.make_node("Sub", ["row_grid_i32", dr], [f"{output}_src_r"]),
-            helper.make_node("Sub", ["col_grid_i32", dc], [f"{output}_src_c"]),
-            helper.make_node("Greater", [f"{output}_src_r", "neg_one_i32"], [f"{output}_r_nonneg"]),
-            helper.make_node("Less", [f"{output}_src_r", "size_i32"], [f"{output}_r_lt_size"]),
-            helper.make_node("Greater", [f"{output}_src_c", "neg_one_i32"], [f"{output}_c_nonneg"]),
-            helper.make_node("Less", [f"{output}_src_c", "size_i32"], [f"{output}_c_lt_size"]),
-            helper.make_node("And", [f"{output}_r_nonneg", f"{output}_r_lt_size"], [f"{output}_r_ok"]),
-            helper.make_node("And", [f"{output}_c_nonneg", f"{output}_c_lt_size"], [f"{output}_c_ok"]),
-            helper.make_node("And", [f"{output}_r_ok", f"{output}_c_ok"], [f"{output}_in_bounds"]),
-            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_r", "zero_i32"], [f"{output}_safe_r"]),
-            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_c", "zero_i32"], [f"{output}_safe_c"]),
-            helper.make_node("Mul", [f"{output}_safe_r", "width_i32"], [f"{output}_safe_r_offset"]),
-            helper.make_node("Add", [f"{output}_safe_r_offset", f"{output}_safe_c"], [f"{output}_safe_spatial"]),
-        ]
-    )
-    if channels == 1:
-        nodes.extend(
-            [
-                helper.make_node("Reshape", [source, flat_shape], [f"{output}_source_flat"]),
-                helper.make_node("Gather", [f"{output}_source_flat", f"{output}_safe_spatial"], [f"{output}_shifted"], axis=0),
-                helper.make_node("Where", [f"{output}_in_bounds", f"{output}_shifted", "zero_f32"], [output]),
-            ]
-        )
-    else:
-        nodes.extend(
-            [
-                helper.make_node("Reshape", [f"{output}_safe_spatial", "shape_index_1x900"], [f"{output}_safe_spatial_flat_i32"]),
-                helper.make_node("Expand", [f"{output}_safe_spatial_flat_i32", index_shape], [f"{output}_indices"]),
-                helper.make_node("Reshape", [source, flat_shape], [f"{output}_source_flat"]),
-                helper.make_node("GatherElements", [f"{output}_source_flat", f"{output}_indices"], [f"{output}_shifted_flat"], axis=2),
-                helper.make_node("Reshape", [f"{output}_shifted_flat", output_shape], [f"{output}_shifted"]),
-                helper.make_node("Where", [f"{output}_in_bounds", f"{output}_shifted", "zero_f32"], [output]),
-            ]
-        )
-
-
-def _static_shift_color(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, output: str) -> None:
-    nodes.extend(
-        [
-            helper.make_node("Sub", ["row_grid_i32", dr], [f"{output}_src_r"]),
-            helper.make_node("Sub", ["col_grid_i32", dc], [f"{output}_src_c"]),
-            helper.make_node("Greater", [f"{output}_src_r", "neg_one_i32"], [f"{output}_r_nonneg"]),
-            helper.make_node("Less", [f"{output}_src_r", "size_i32"], [f"{output}_r_lt_size"]),
-            helper.make_node("Greater", [f"{output}_src_c", "neg_one_i32"], [f"{output}_c_nonneg"]),
-            helper.make_node("Less", [f"{output}_src_c", "size_i32"], [f"{output}_c_lt_size"]),
-            helper.make_node("And", [f"{output}_r_nonneg", f"{output}_r_lt_size"], [f"{output}_r_ok"]),
-            helper.make_node("And", [f"{output}_c_nonneg", f"{output}_c_lt_size"], [f"{output}_c_ok"]),
-            helper.make_node("And", [f"{output}_r_ok", f"{output}_c_ok"], [f"{output}_in_bounds"]),
-            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_r", "zero_i32"], [f"{output}_safe_r"]),
-            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_c", "zero_i32"], [f"{output}_safe_c"]),
-            helper.make_node("Mul", [f"{output}_safe_r", "width_i32"], [f"{output}_safe_r_offset"]),
-            helper.make_node("Add", [f"{output}_safe_r_offset", f"{output}_safe_c"], [f"{output}_safe_spatial"]),
-            helper.make_node("Reshape", [source, "shape_flat900"], [f"{output}_source_flat"]),
-            helper.make_node("Gather", [f"{output}_source_flat", f"{output}_safe_spatial"], [f"{output}_shifted"], axis=0),
-            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_shifted", "zero_u8"], [output]),
+            helper.make_node("Sub", ["row_grid_i32", dr], [f"{prefix}_src_r"]),
+            helper.make_node("Sub", ["col_grid_i32", dc], [f"{prefix}_src_c"]),
+            helper.make_node("Greater", [f"{prefix}_src_r", "neg_one_i32"], [f"{prefix}_r_nonneg"]),
+            helper.make_node("Less", [f"{prefix}_src_r", "size_i32"], [f"{prefix}_r_lt_size"]),
+            helper.make_node("Greater", [f"{prefix}_src_c", "neg_one_i32"], [f"{prefix}_c_nonneg"]),
+            helper.make_node("Less", [f"{prefix}_src_c", "size_i32"], [f"{prefix}_c_lt_size"]),
+            helper.make_node("And", [f"{prefix}_r_nonneg", f"{prefix}_r_lt_size"], [f"{prefix}_r_ok"]),
+            helper.make_node("And", [f"{prefix}_c_nonneg", f"{prefix}_c_lt_size"], [f"{prefix}_c_ok"]),
+            helper.make_node("And", [f"{prefix}_r_ok", f"{prefix}_c_ok"], [f"{prefix}_in_bounds"]),
+            helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_src_r", "zero_i32"], [f"{prefix}_safe_r"]),
+            helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_src_c", "zero_i32"], [f"{prefix}_safe_c"]),
+            helper.make_node("Mul", [f"{prefix}_safe_r", "width_i32"], [f"{prefix}_safe_r_offset"]),
+            helper.make_node("Add", [f"{prefix}_safe_r_offset", f"{prefix}_safe_c"], [f"{prefix}_safe_spatial"]),
+            helper.make_node("Reshape", [color_source, "shape_flat900"], [f"{prefix}_color_flat"]),
+            helper.make_node("Gather", [f"{prefix}_color_flat", f"{prefix}_safe_spatial"], [f"{prefix}_color_shifted"], axis=0),
+            helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_color_shifted", "zero_u8"], [color_output]),
+            helper.make_node("Reshape", [base_source, "shape_flat900"], [f"{prefix}_base_flat"]),
+            helper.make_node("Gather", [f"{prefix}_base_flat", f"{prefix}_safe_spatial"], [f"{prefix}_base_shifted"], axis=0),
+            helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_base_shifted", "zero_f16"], [base_output]),
         ]
     )
 
@@ -288,22 +250,29 @@ def _component_outputs(
                     helper.make_node("Cast", [f"{place}_dc"], [f"{place}_dc_i32"], to=onnx.TensorProto.INT32),
                 ]
             )
-            _static_shift_color(nodes, transformed_color, f"{place}_dr_i32", f"{place}_dc_i32", f"{place}_shifted_color")
-            _static_shift(nodes, transformed_base, f"{place}_dr_i32", f"{place}_dc_i32", f"{place}_shifted_base", 1)
+            _static_shift_color_base(
+                nodes,
+                transformed_color,
+                transformed_base,
+                f"{place}_dr_i32",
+                f"{place}_dc_i32",
+                f"{place}_shifted_color",
+                f"{place}_shifted_base",
+            )
 
             nodes.extend(
                 [
                     helper.make_node("Greater", [f"{place}_shifted_color", "zero_u8"], [f"{place}_shifted_mask_bool"]),
-                    helper.make_node("Cast", [f"{place}_shifted_mask_bool"], [f"{place}_shifted_mask"], to=onnx.TensorProto.FLOAT),
+                    helper.make_node("Cast", [f"{place}_shifted_mask_bool"], [f"{place}_shifted_mask"], to=onnx.TensorProto.FLOAT16),
                     helper.make_node("Mul", [f"{place}_shifted_mask", "valid_cell_f32"], [f"{place}_inside_grid"]),
-                    helper.make_node("Mul", [f"{place}_shifted_base", "input0"], [f"{place}_base_on_zero"]),
-                    helper.make_node("Greater", [f"{place}_shifted_base", "zero_f32"], [f"{place}_base_bool"]),
+                    helper.make_node("Mul", [f"{place}_shifted_base", "input0_f16"], [f"{place}_base_on_zero"]),
+                    helper.make_node("Greater", [f"{place}_shifted_base", "zero_f16"], [f"{place}_base_bool"]),
                     helper.make_node("Not", [f"{place}_base_bool"], [f"{place}_not_base_bool"]),
                     helper.make_node("And", [f"{place}_shifted_mask_bool", f"{place}_not_base_bool"], [f"{place}_marker_mask_bool"]),
                     helper.make_node("Equal", [f"{place}_shifted_color", "input_color_u8"], [f"{place}_marker_color_equal"]),
                     helper.make_node("And", [f"{place}_marker_mask_bool", f"{place}_marker_color_equal"], [f"{place}_marker_matches_bool"]),
-                    helper.make_node("Cast", [f"{place}_marker_matches_bool"], [f"{place}_marker_matches"], to=onnx.TensorProto.FLOAT),
-                    helper.make_node("Cast", [f"{place}_marker_mask_bool"], [f"{place}_marker_mask"], to=onnx.TensorProto.FLOAT),
+                    helper.make_node("Cast", [f"{place}_marker_matches_bool"], [f"{place}_marker_matches"], to=onnx.TensorProto.FLOAT16),
+                    helper.make_node("Cast", [f"{place}_marker_mask_bool"], [f"{place}_marker_mask"], to=onnx.TensorProto.FLOAT16),
                     helper.make_node("Mul", [f"{place}_marker_mask", "source_mask_all_f32"], [f"{place}_marker_source_overlap"]),
                 ]
             )
@@ -324,7 +293,7 @@ def _component_outputs(
                         "Equal", [f"{place}_marker_match_count", f"{prefix}_marker_count"], [f"{place}_marker_ok"]
                     ),
                     helper.make_node(
-                        "Equal", [f"{place}_marker_source_overlap_count", "zero_f32"], [f"{place}_outside_source_ok"]
+                        "Equal", [f"{place}_marker_source_overlap_count", "zero_f16"], [f"{place}_outside_source_ok"]
                     ),
                     helper.make_node("And", [f"{place}_same_count", f"{place}_inside_ok"], [f"{place}_valid_a"]),
                     helper.make_node("And", [f"{place}_base_ok", f"{place}_marker_ok"], [f"{place}_valid_b"]),
@@ -342,7 +311,7 @@ def _component_outputs(
 
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
-    y = helper.make_tensor_value_info("output", onnx.TensorProto.FLOAT, GRID_SHAPE)
+    y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
         _int64_tensor("slice_nonzero_start", [1], [1]),
@@ -371,17 +340,20 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("col_grid_i32", list(range(SIZE)), [1, 1, 1, SIZE]),
         _int64_tensor("color_ids", list(range(1, 10)), [9]),
         _f32_tensor("zero_f32", [0.0], [1]),
+        _f16_tensor("zero_f16", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
+        _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
-        _f32_tensor("cross_kernel", [0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0], [1, 1, 3, 3]),
+        _f16_tensor("cross_kernel", [0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0], [1, 1, 3, 3]),
     ]
 
     nodes: list[onnx.NodeProto] = [
         helper.make_node("ReduceMax", ["input"], ["valid_cell_score"], axes=[1], keepdims=1),
         helper.make_node("Greater", ["valid_cell_score", "zero_f32"], ["valid_cell"]),
-        helper.make_node("Cast", ["valid_cell"], ["valid_cell_f32"], to=onnx.TensorProto.FLOAT),
+        helper.make_node("Cast", ["valid_cell"], ["valid_cell_f32"], to=onnx.TensorProto.FLOAT16),
         helper.make_node("Slice", ["input", "slice_nonzero_start", "slice_nonzero_end", "axis_channel"], ["input_nonzero"]),
         helper.make_node("Slice", ["input", "slice_zero_start", "slice_one_end", "axis_channel"], ["input0"]),
+        helper.make_node("Cast", ["input0"], ["input0_f16"], to=onnx.TensorProto.FLOAT16),
         helper.make_node("ReduceMax", ["input_nonzero"], ["nonzero_score"], axes=[1], keepdims=1),
         helper.make_node("Greater", ["nonzero_score", "zero_f32"], ["nonzero_mask"]),
         helper.make_node("ReduceSum", ["input_nonzero"], ["color_counts"], axes=[0, 2, 3], keepdims=0),
@@ -446,7 +418,7 @@ def build_model() -> onnx.ModelProto:
     candidate_output_floats = []
     for index, candidate_output in enumerate(candidate_outputs):
         float_name = f"candidate_output_f32_{index}"
-        nodes.append(helper.make_node("Cast", [candidate_output], [float_name], to=onnx.TensorProto.FLOAT))
+        nodes.append(helper.make_node("Cast", [candidate_output], [float_name], to=onnx.TensorProto.FLOAT16))
         candidate_output_floats.append(float_name)
     nodes.extend(
         [
@@ -462,10 +434,9 @@ def build_model() -> onnx.ModelProto:
     nodes.insert(0, helper.make_node("Slice", ["input", "crop_hw_start", "crop_hw_end", "crop_hw_axes"], ["input24"]))
     nodes.extend(
         [
-            helper.make_node("Equal", ["colors10_u8", "color24"], ["output24_unmasked_bool"]),
-            helper.make_node("And", ["output24_unmasked_bool", "valid_cell"], ["output24_bool"]),
-            helper.make_node("Cast", ["output24_bool"], ["output24"], to=onnx.TensorProto.FLOAT),
-            helper.make_node("Pad", ["output24", "pads_to_grid"], ["output"], mode="constant"),
+            helper.make_node("Where", ["valid_cell", "color24", "invalid_u8"], ["color24_valid"]),
+            helper.make_node("Pad", ["color24_valid", "pads_to_grid", "invalid_u8"], ["color30"], mode="constant"),
+            helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
         ]
     )
 
