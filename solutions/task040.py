@@ -18,6 +18,10 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
+def _guide_row(left: str, right: str) -> list[str]:
+    return [left] + ["bg_u8"] * 8 + [right]
+
+
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
@@ -35,8 +39,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("bottom_left_ends", [1, 10, SIZE, 1], [4]),
         _int64_tensor("output_pads_hw", [0, 0, 20, 20], [4]),
         _int64_tensor("output_pad_axes", [2, 3], [2]),
-        _u8_tensor("bg_row8", [9] * 8, [1, 1, 8, 1]),
-        _u8_tensor("bg_col8", [9] * 8, [1, 1, 1, 8]),
+        _u8_tensor("bg_u8", [9], [1, 1, 1, 1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10", [9, 0, 1, 2, 3, 4, 5, 6, 7, 8], [1, 10, 1, 1]),
     ]
@@ -96,8 +99,8 @@ def build_model() -> onnx.ModelProto:
                 axis=3,
             ),
             helper.make_node("Where", ["use_rows", "row_replacement", "col_replacement"], ["replacement"]),
-            helper.make_node("Concat", ["top_left_color", "bg_row8", "bottom_left_color"], ["row_guides"], axis=2),
-            helper.make_node("Concat", ["top_left_color", "bg_col8", "top_right_color"], ["col_guides"], axis=3),
+            helper.make_node("Concat", _guide_row("top_left_color", "bottom_left_color"), ["row_guides"], axis=2),
+            helper.make_node("Concat", _guide_row("top_left_color", "top_right_color"), ["col_guides"], axis=3),
             helper.make_node("Where", ["use_rows", "row_guides", "col_guides"], ["guides"]),
             helper.make_node("Where", ["marker", "replacement", "guides"], ["color10"]),
             helper.make_node("Pad", ["color10", "output_pads_hw", "invalid_u8", "output_pad_axes"], ["color30"], mode="constant"),
@@ -105,7 +108,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task040_concat_edge_guides_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task040_bg_scalar_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
