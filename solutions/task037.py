@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import onnx
 from onnx import helper
 
@@ -20,6 +21,10 @@ def _int32_tensor(name: str, values: list[int], dims: list[int] | None = None) -
     return helper.make_tensor(name, onnx.TensorProto.INT32, shape, values)
 
 
+def _f16_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT16, dims, np.asarray(values, dtype=np.float16).ravel())
+
+
 def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
@@ -32,10 +37,10 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("nonzero_starts", [0, 1, 0, 0], [4]),
         _int64_tensor("nonzero_ends", [1, 10, SIZE, SIZE], [4]),
         _int64_tensor("output_pads", [0, 0, 0, 0, 0, 0, 20, 20], [8]),
-        _int32_tensor("row_grid_i32", list(range(SIZE)), [1, 1, SIZE, 1]),
-        _int32_tensor("col_grid_i32", list(range(SIZE)), [1, 1, 1, SIZE]),
-        _int32_tensor("diag_offset_i32", [SIZE - 1], [1]),
-        _int32_tensor("zero_i32", [0], [1]),
+        _f16_tensor("row_grid_i32", [float(v) for v in range(SIZE)], [1, 1, SIZE, 1]),
+        _f16_tensor("col_grid_i32", [float(v) for v in range(SIZE)], [1, 1, 1, SIZE]),
+        _f16_tensor("diag_offset_i32", [float(SIZE - 1)], [1]),
+        _f16_tensor("zero_i32", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
     ]
 
@@ -48,10 +53,10 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ArgMax", ["row_present"], ["r_max_i64"], axis=2, keepdims=1, select_last_index=1),
         helper.make_node("ArgMax", ["col_present"], ["c_min_i64"], axis=3, keepdims=1),
         helper.make_node("ArgMax", ["col_present"], ["c_max_i64"], axis=3, keepdims=1, select_last_index=1),
-        helper.make_node("Cast", ["r_min_i64"], ["r_min"], to=onnx.TensorProto.INT32),
-        helper.make_node("Cast", ["r_max_i64"], ["r_max"], to=onnx.TensorProto.INT32),
-        helper.make_node("Cast", ["c_min_i64"], ["c_min"], to=onnx.TensorProto.INT32),
-        helper.make_node("Cast", ["c_max_i64"], ["c_max"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["r_min_i64"], ["r_min"], to=onnx.TensorProto.FLOAT16),
+        helper.make_node("Cast", ["r_max_i64"], ["r_max"], to=onnx.TensorProto.FLOAT16),
+        helper.make_node("Cast", ["c_min_i64"], ["c_min"], to=onnx.TensorProto.FLOAT16),
+        helper.make_node("Cast", ["c_max_i64"], ["c_max"], to=onnx.TensorProto.FLOAT16),
         helper.make_node("LessOrEqual", ["r_min", "row_grid_i32"], ["row_after_min"]),
         helper.make_node("LessOrEqual", ["row_grid_i32", "r_max"], ["row_before_max"]),
         helper.make_node("LessOrEqual", ["c_min", "col_grid_i32"], ["col_after_min"]),
@@ -81,7 +86,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Pad", ["output10_u8", "output_pads"], ["output"], mode="constant"),
     ]
 
-    graph = helper.make_graph(nodes, "task037_float_presence_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task037_f16_diag_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
