@@ -22,7 +22,6 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp007 | impl_opt | u8-color-add | passes_local | 17.61414892187479 | 1564 | 49 | 0.00864202909383 | promoted | Auto promoted after canonical re-score. |
 | exp008 | impl_opt | idx-background9 | passes_local | 17.616010542021492 | 1562 | 48 | 0.0018616201467 | promoted | Auto promoted after canonical re-score. |
 | exp013 | impl_opt | pooled-row-windows | passes_local | 17.747237581946813 | 1372 | 40 | 0.131227039925 | promoted | Auto promoted after canonical re-score. |
-| exp014 | impl_opt | top-both-color-diff | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp015 | impl_opt | top-both-color-diff-v2 | passes_local | 17.824510286375777 | 1265 | 42 | 0.077272704429 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
