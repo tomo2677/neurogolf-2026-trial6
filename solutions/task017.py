@@ -31,7 +31,6 @@ def build_model() -> onnx.ModelProto:
     initializers = [
         _int64_tensor("axes_nchw", [0, 1, 2, 3], [4]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 9, 9], [8]),
-        _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("shape_111", [1, 1, 1], [3]),
         _int64_tensor("period_slice_end", [1, 1, H, W], [4]),
         _u8_tensor("zero_u8", [0], [1]),

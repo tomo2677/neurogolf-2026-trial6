@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 14.780425150506924 | 24076 | 3359 | 2026-06-13T16:08:12+09:00 | exp019 |
+| passes_local | 14.780461600961647 | 24076 | 3358 | 2026-06-13T16:53:15+09:00 | exp021 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -31,6 +31,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp017 | impl_opt | period-minmax-color-grid-opset13-v2 | passes_local | 14.26758951972832 | 41995 | 3822 | 0.855065715963 | promoted | Auto promoted after canonical re-score. |
 | exp018 | impl_opt | full-argmax-minmax-color-grid | passes_local | 14.76401237516649 | 24076 | 3813 | 0.496422855438 | promoted | Auto promoted after canonical re-score. |
 | exp019 | impl_opt | p7-tile-shared-end | passes_local | 14.780425150506924 | 24076 | 3359 | 0.0164127753404 | promoted | Auto promoted after canonical re-score. |
+| exp021 | impl_opt | drop-unused-one-i64 | passes_local | 14.780461600961647 | 24076 | 3358 | 3.64504547239e-05 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
