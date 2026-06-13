@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.50279277679668 | 1755 | 48 | 2026-06-13T10:36:03+09:00 | exp024 |
+| passes_local | 17.505013766049466 | 1755 | 44 | 2026-06-13T10:52:17+09:00 | exp026 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -34,6 +34,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp022 | rule_redesign | col7-exception-probe | passes_local | 17.453025882483473 | 1838 | 57 | 0.018819164912 | promoted | Auto promoted after canonical re-score. |
 | exp023 | rule_redesign | short-exception-gate | passes_local | 17.45461025038818 | 1836 | 56 | 0.00158436790471 | promoted | Auto promoted after canonical re-score. |
 | exp024 | impl_opt | direct-rot10-slice | passes_local | 17.50279277679668 | 1755 | 48 | 0.0481825264085 | promoted | Auto promoted after canonical re-score. |
+| exp025 | impl_opt | bool-reducemax | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp026 | impl_opt | pad-rot10-axes | passes_local | 17.505013766049466 | 1755 | 44 | 0.00222098925278 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
