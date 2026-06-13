@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.941672693419044 | 3070 | 90 | 2026-06-13T12:31:58+09:00 | exp017 |
+| passes_local | 17.045627727468133 | 2782 | 66 | 2026-06-13T13:37:13+09:00 | exp018 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -26,6 +26,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp015 | impl_opt | opset18-pad-axes-v2 | passes_local | 16.26318946704611 | 6124 | 104 | 0.00272588960579 | promoted | Auto promoted after canonical re-score. |
 | exp016 | rule_redesign | count-ranked-center | passes_local | 16.89711086535913 | 3214 | 90 | 0.633921398313 | promoted | Auto promoted after canonical re-score. |
 | exp017 | impl_opt | direct-f16-center | passes_local | 16.941672693419044 | 3070 | 90 | 0.0445618280599 | promoted | Auto promoted after canonical re-score. |
+| exp018 | impl_opt | weighted-single-conv | passes_local | 17.045627727468133 | 2782 | 66 | 0.103955034049 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
