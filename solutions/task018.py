@@ -182,9 +182,8 @@ def _static_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, ou
     if channels == 1:
         nodes.extend(
             [
-                helper.make_node("Cast", [f"{output}_safe_spatial"], [f"{output}_indices"], to=onnx.TensorProto.INT64),
                 helper.make_node("Reshape", [source, flat_shape], [f"{output}_source_flat"]),
-                helper.make_node("Gather", [f"{output}_source_flat", f"{output}_indices"], [f"{output}_shifted"], axis=0),
+                helper.make_node("Gather", [f"{output}_source_flat", f"{output}_safe_spatial"], [f"{output}_shifted"], axis=0),
                 helper.make_node("Where", [f"{output}_in_bounds", f"{output}_shifted", "zero_f32"], [output]),
             ]
         )
@@ -192,8 +191,7 @@ def _static_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, ou
         nodes.extend(
             [
                 helper.make_node("Reshape", [f"{output}_safe_spatial", "shape_index_1x900"], [f"{output}_safe_spatial_flat_i32"]),
-                helper.make_node("Cast", [f"{output}_safe_spatial_flat_i32"], [f"{output}_safe_spatial_flat"], to=onnx.TensorProto.INT64),
-                helper.make_node("Expand", [f"{output}_safe_spatial_flat", index_shape], [f"{output}_indices"]),
+                helper.make_node("Expand", [f"{output}_safe_spatial_flat_i32", index_shape], [f"{output}_indices"]),
                 helper.make_node("Reshape", [source, flat_shape], [f"{output}_source_flat"]),
                 helper.make_node("GatherElements", [f"{output}_source_flat", f"{output}_indices"], [f"{output}_shifted_flat"], axis=2),
                 helper.make_node("Reshape", [f"{output}_shifted_flat", output_shape], [f"{output}_shifted"]),
