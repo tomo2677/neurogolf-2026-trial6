@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.434206717571485 | 1881 | 50 | 2026-06-13T10:00:48+09:00 | exp020 |
+| passes_local | 17.50279277679668 | 1755 | 48 | 2026-06-13T10:36:03+09:00 | exp024 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -31,6 +31,9 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp017 | impl_opt | inner-overlap10-count | passes_local | 17.23443091890268 | 2310 | 48 | 0.0238854849894 | promoted | Auto promoted after canonical re-score. |
 | exp019 | rule_redesign | bbox-center-choice | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp020 | rule_redesign | bbox-center-choice-axes | passes_local | 17.434206717571485 | 1881 | 50 | 0.199775798669 | promoted | Auto promoted after canonical re-score. |
+| exp022 | rule_redesign | col7-exception-probe | passes_local | 17.453025882483473 | 1838 | 57 | 0.018819164912 | promoted | Auto promoted after canonical re-score. |
+| exp023 | rule_redesign | short-exception-gate | passes_local | 17.45461025038818 | 1836 | 56 | 0.00158436790471 | promoted | Auto promoted after canonical re-score. |
+| exp024 | impl_opt | direct-rot10-slice | passes_local | 17.50279277679668 | 1755 | 48 | 0.0481825264085 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
