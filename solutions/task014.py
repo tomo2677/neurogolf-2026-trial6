@@ -68,13 +68,13 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("row_idx", list(range(25)), [1, 1, 25, 1]),
         _int64_tensor("col_idx", list(range(25)), [1, 1, 1, 25]),
         _int64_tensor("one_i64", [1], [1, 1, 1, 1]),
+        _int64_tensor("five_i64", [5], [1, 1, 1, 1]),
         _int64_tensor("zero_i64", [0], [1, 1, 1, 1]),
         _int64_tensor("zero_pad", [0], [1]),
         _int64_tensor("shape1", [1], [1]),
         _int64_tensor("slice_hw_starts", [0, 0], [2]),
         _int64_tensor("slice_hw_ends", [25, 25], [2]),
         _int64_tensor("slice_hw_axes", [2, 3], [2]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 5, 5], [8]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("outside_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
@@ -150,6 +150,10 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Reshape", ["neg_col_start", "shape1"], ["neg_col_start_1"]),
             helper.make_node("Reshape", ["target_row_start", "shape1"], ["target_row_start_1"]),
             helper.make_node("Reshape", ["target_col_start", "shape1"], ["target_col_start_1"]),
+            helper.make_node("Add", ["target_row_start", "five_i64"], ["target_row_end_pad"]),
+            helper.make_node("Add", ["target_col_start", "five_i64"], ["target_col_end_pad"]),
+            helper.make_node("Reshape", ["target_row_end_pad", "shape1"], ["target_row_end_pad_1"]),
+            helper.make_node("Reshape", ["target_col_end_pad", "shape1"], ["target_col_end_pad_1"]),
             helper.make_node(
                 "Concat",
                 [
@@ -159,22 +163,20 @@ def build_model() -> onnx.ModelProto:
                     "neg_col_start_1",
                     "zero_pad",
                     "zero_pad",
-                    "target_row_start_1",
-                    "target_col_start_1",
+                    "target_row_end_pad_1",
+                    "target_col_end_pad_1",
                 ],
                 ["target_pads"],
                 axis=0,
             ),
             helper.make_node("Where", ["target_mask", "input_color_u8", "outside_u8"], ["target_color_u8"]),
-            helper.make_node("Pad", ["target_color_u8", "target_pads", "outside_u8"], ["shifted_color_u8"], mode="constant"),
-            helper.make_node("Pad", ["shifted_color_u8", "pads_output", "outside_u8"], ["shifted_color30_u8"], mode="constant"),
+            helper.make_node("Pad", ["target_color_u8", "target_pads", "outside_u8"], ["shifted_color30_u8"], mode="constant"),
             helper.make_node("Equal", ["colors10", "shifted_color30_u8"], ["output"]),
         ]
     )
 
     value_infos = [
         helper.make_tensor_value_info("input_color_u8", onnx.TensorProto.UINT8, [1, 1, 25, 25]),
-        helper.make_tensor_value_info("shifted_color_u8", onnx.TensorProto.UINT8, [1, 1, 25, 25]),
         helper.make_tensor_value_info("shifted_color30_u8", onnx.TensorProto.UINT8, [1, 1, 30, 30]),
     ]
     graph = helper.make_graph(nodes, "task014_unique_block_crop_graph", [x], [y], initializers, value_info=value_infos)
