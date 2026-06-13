@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 11.54865810819162 | 692820 | 1954 | 2026-06-13T16:17:52+09:00 | exp030 |
+| passes_local | 11.669689555162744 | 613620 | 1954 | 2026-06-13T17:22:22+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -36,6 +36,9 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp028 | impl_opt | bool-base-u8-candidate-max-v2 | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp029 | impl_opt | bool-base-u8-candidate-max-v3 | passes_local | 11.498195212579247 | 728780 | 1954 | 0.175746302735 | promoted | Auto promoted after canonical re-score. |
 | exp030 | impl_opt | color-counts-before-slice | passes_local | 11.54865810819162 | 692820 | 1954 | 0.0504628956124 | promoted | Auto promoted after canonical re-score. |
+| exp031 | impl_opt | grow-steps-15-full30 | passes_local | 11.62956790036902 | 638820 | 1954 | 0.0809097921774 | promoted | Auto promoted after canonical re-score. |
+| exp032 | impl_opt | grow-steps-8-full30 | passes_local | 11.669689555162744 | 613620 | 1954 | 0.0401216547937 | promoted | Auto promoted after canonical re-score. |
+| exp033 | impl_opt | grow-steps-4-full30 | fails_local | 0.0 | 599220 | 1954 | -11.6696895552 | fails_local | Candidate did not pass local validation. |
 
 ## Archived Summary
 - None yet.
