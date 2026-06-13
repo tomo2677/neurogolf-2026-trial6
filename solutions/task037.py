@@ -42,9 +42,8 @@ def build_model() -> onnx.ModelProto:
     nodes = [
         helper.make_node("Slice", ["input", "nonzero_starts", "nonzero_ends"], ["input9"]),
         helper.make_node("Cast", ["input9"], ["input9_bool"], to=onnx.TensorProto.BOOL),
-        helper.make_node("Cast", ["input9_bool"], ["input9_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("ReduceMax", ["input9_u8"], ["row_present"], axes=[3], keepdims=1),
-        helper.make_node("ReduceMax", ["input9_u8"], ["col_present"], axes=[2], keepdims=1),
+        helper.make_node("ReduceMax", ["input9"], ["row_present"], axes=[3], keepdims=1),
+        helper.make_node("ReduceMax", ["input9"], ["col_present"], axes=[2], keepdims=1),
         helper.make_node("ArgMax", ["row_present"], ["r_min_i64"], axis=2, keepdims=1),
         helper.make_node("ArgMax", ["row_present"], ["r_max_i64"], axis=2, keepdims=1, select_last_index=1),
         helper.make_node("ArgMax", ["col_present"], ["c_min_i64"], axis=3, keepdims=1),
@@ -70,8 +69,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["main_grid", "main_const"], ["main_diag"]),
         helper.make_node("Equal", ["anti_grid", "anti_const"], ["anti_diag"]),
         helper.make_node("Or", ["main_diag", "anti_diag"], ["diag_any"]),
-        helper.make_node("ReduceMax", ["input9_u8"], ["present_u8"], axes=[2, 3], keepdims=1),
-        helper.make_node("Greater", ["present_u8", "zero_u8"], ["present"]),
+        helper.make_node("ReduceMax", ["input9"], ["present_f32"], axes=[2, 3], keepdims=1),
+        helper.make_node("Cast", ["present_f32"], ["present"], to=onnx.TensorProto.BOOL),
         helper.make_node("And", ["diag_any", "bbox"], ["line_box"]),
         helper.make_node("And", ["line_box", "present"], ["line_bool"]),
         helper.make_node("Cast", ["line_bool"], ["line9_u8"], to=onnx.TensorProto.UINT8),
@@ -82,7 +81,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Pad", ["output10_u8", "output_pads"], ["output"], mode="constant"),
     ]
 
-    graph = helper.make_graph(nodes, "task037_diag_bbox_lines_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task037_float_presence_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
