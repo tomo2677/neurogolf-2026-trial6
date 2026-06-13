@@ -54,6 +54,8 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("slice_hw_starts", [0, 0], [2]),
         _int64_tensor("slice_hw_ends", [SIZE, SIZE], [2]),
         _int64_tensor("slice_hw_axes", [2, 3], [2]),
+        _int64_tensor("axis_channel", [1], [1]),
+        _int64_tensor("axis_col", [3], [1]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("two_i64", [2], [1]),
         _int64_tensor("four_i64", [4], [1]),
@@ -62,7 +64,7 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("row_grid_i32", list(range(SIZE)), [1, 1, SIZE, 1]),
         _int32_tensor("col_grid_i32", list(range(SIZE)), [1, 1, 1, SIZE]),
         _int64_tensor("shape_flat100", [SIZE * SIZE], [1]),
-        _int64_tensor("pads_color10_to30", [0, 0, 0, 0, 0, 0, 30 - SIZE, 30 - SIZE], [8]),
+        _int64_tensor("pads_color10_to30_hw", [0, 0, 30 - SIZE, 30 - SIZE], [4]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("two_u8", [2], [1]),
@@ -80,7 +82,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Cast", ["c1_bool"], ["c1_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Cast", ["c2_bool"], ["c2_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Cast", ["c4_bool"], ["c4_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("ReduceMax", ["c1_u8"], ["c1_ref_row_score"], axes=[3], keepdims=1),
+        helper.make_node("ReduceMax", ["c1_u8", "axis_col"], ["c1_ref_row_score"], keepdims=1),
         helper.make_node("ArgMax", ["c1_ref_row_score"], ["ref_top"], axis=2, keepdims=1),
     ]
 
@@ -88,7 +90,7 @@ def build_model() -> onnx.ModelProto:
     for color_name, mask_name, color_value in (("c2", "c2_u8", "two_u8"), ("c4", "c4_u8", "four_u8")):
         nodes.extend(
             [
-                helper.make_node("ReduceMax", [mask_name], [f"{color_name}_row_score"], axes=[3], keepdims=1),
+                helper.make_node("ReduceMax", [mask_name, "axis_col"], [f"{color_name}_row_score"], keepdims=1),
                 helper.make_node("ArgMax", [f"{color_name}_row_score"], [f"{color_name}_top"], axis=2, keepdims=1),
                 helper.make_node("Sub", [f"{color_name}_top", "ref_top"], [f"{color_name}_delta"]),
             ]
@@ -112,15 +114,15 @@ def build_model() -> onnx.ModelProto:
     nodes.extend(
         [
             helper.make_node("Max", color_terms, ["placed_color"]),
-            helper.make_node("ReduceMax", ["input10"], ["cell_present_f32"], axes=[1], keepdims=1),
+            helper.make_node("ReduceMax", ["input10", "axis_channel"], ["cell_present_f32"], keepdims=1),
             helper.make_node("Greater", ["cell_present_f32", "zero_f32"], ["valid_area"]),
             helper.make_node("Where", ["valid_area", "placed_color", "invalid_u8"], ["color10"]),
-            helper.make_node("Pad", ["color10", "pads_color10_to30", "invalid_u8"], ["color30"], mode="constant"),
+            helper.make_node("Pad", ["color10", "pads_color10_to30_hw", "invalid_u8", "slice_hw_axes"], ["color30"], mode="constant"),
             helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
         ]
     )
 
-    graph = helper.make_graph(nodes, "task030_window10_vertical_align_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
+    graph = helper.make_graph(nodes, "task030_opset18_pad_axes_graph", [x], [y], initializers)
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
