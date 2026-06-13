@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.89175586026846 | 1191 | 31 | 2026-06-13T10:16:41+09:00 | exp019 |
+| passes_local | 17.895034551730156 | 1191 | 27 | 2026-06-13T10:18:49+09:00 | exp020 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -26,6 +26,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp017 | impl_opt | actual-color-diff | passes_local | 17.850083163867893 | 1223 | 51 | 0.0255728774921 | promoted | Auto promoted after canonical re-score. |
 | exp018 | impl_opt | sub-diff-edges | passes_local | 17.89093786431283 | 1191 | 32 | 0.0408547004449 | promoted | Auto promoted after canonical re-score. |
 | exp019 | impl_opt | remove-zero-u8 | passes_local | 17.89175586026846 | 1191 | 31 | 0.000817995955632 | promoted | Auto promoted after canonical re-score. |
+| exp020 | impl_opt | concat-full-rows | passes_local | 17.895034551730156 | 1191 | 27 | 0.00327869146169 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
