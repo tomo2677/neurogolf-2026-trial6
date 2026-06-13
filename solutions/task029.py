@@ -26,6 +26,10 @@ def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorP
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
 
 
+def _f16_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT16, dims, values)
+
+
 def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
@@ -119,7 +123,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("crop_hw_end", [SIZE, SIZE], [2]),
         _int64_tensor("crop_hw_axes", [2, 3], [2]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, GRID_SIZE - OUT, GRID_SIZE - OUT], [8]),
-        _f32_tensor("zero_f32", [0.0], [1]),
+        _f16_tensor("zero_f16", [0.0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
@@ -130,7 +134,6 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
     ]
-    nodes.append(helper.make_node("Cast", ["zero_f32"], ["zero_f16"], to=onnx.TensorProto.FLOAT16))
     scores: list[str] = []
     r_mins: list[str] = []
     r_maxes: list[str] = []
