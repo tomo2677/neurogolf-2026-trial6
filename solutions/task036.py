@@ -51,7 +51,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pads_shift_right", [0, 0, 0, -1, 0, 0, 0, 1], [8]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
-        helper.make_tensor("false_bool", onnx.TensorProto.BOOL, [1], [False]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
 
@@ -94,7 +93,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["crop_target_bool", "target_color_u8", "zero_u8"], ["crop_color"]),
         helper.make_node("Where", ["crop_valid", "crop_color", "invalid_u8"], ["color5"]),
         helper.make_node("Equal", ["colors10_u8", "color5"], ["output5"]),
-        helper.make_node("Pad", ["output5", "pads_output", "false_bool"], ["output"], mode="constant"),
+        helper.make_node("Pad", ["output5", "pads_output"], ["output"], mode="constant"),
     ]
 
     value_infos = [
@@ -104,7 +103,7 @@ def build_model() -> onnx.ModelProto:
 
     graph = helper.make_graph(
         nodes,
-        "task036_bool_crop_pad_graph",
+        "task036_default_false_pad_graph",
         [x],
         [y],
         initializers,
