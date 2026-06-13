@@ -103,8 +103,7 @@ def build_model() -> onnx.ModelProto:
         prefix = shifted.removesuffix("_shifted")
         nodes.extend(
             [
-                helper.make_node("Greater", [shifted, "zero_u8"], [f"{prefix}_placed_bool"]),
-                helper.make_node("Where", [f"{prefix}_placed_bool", color_value, "zero_u8"], [f"{prefix}_color"]),
+                helper.make_node("Mul", [shifted, color_value], [f"{prefix}_color"]),
             ]
         )
         color_terms.append(f"{prefix}_color")
