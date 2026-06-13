@@ -28,7 +28,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("shape_row10", [1, 1, 1, 10], [4]),
         _int64_tensor("pads_hw", [0, 0, 20, 20], [4]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
-        _u8_tensor("zero_u8", [0], [1]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero8_u8", [0] * 8, [1, 1, 1, 8]),
         _u8_tensor("invalid_u8", [255], [1]),
@@ -71,7 +70,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task028_sub_diff_edges_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task028_sub_diff_edges_no_zero_u8_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
