@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 14.188032137681693 | 49562 | 49 | 2026-06-13T09:12:11+09:00 | exp019 |
+| passes_local | 14.192071649546953 | 49362 | 49 | 2026-06-13T09:30:13+09:00 | exp020 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -32,6 +32,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp017 | impl_opt | reuse-shape1 | passes_local | 14.180521760598719 | 49887 | 98 | 2.00058016837e-05 | promoted | Auto promoted after canonical re-score. |
 | exp018 | impl_opt | gather-1d-crop | passes_local | 14.183206164630677 | 49762 | 89 | 0.00268440403196 | promoted | Auto promoted after canonical re-score. |
 | exp019 | impl_opt | broadcast-crop-grids | passes_local | 14.188032137681693 | 49562 | 49 | 0.00482597305102 | promoted | Auto promoted after canonical re-score. |
+| exp020 | impl_opt | int32-crop-gather | passes_local | 14.192071649546953 | 49362 | 49 | 0.00403951186526 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
