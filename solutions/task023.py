@@ -183,7 +183,7 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("eight_u8", [8], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 30 - HEIGHT, 30 - WIDTH], [8]),
+        _int64_tensor("pads_output", [0, 0, 30 - HEIGHT, 30 - WIDTH], [4]),
         _int64_tensor("black_starts", [0, 0, 0, 0], [4]),
         _int64_tensor("black_ends", [1, 1, HEIGHT, WIDTH], [4]),
         _int64_tensor("gray_starts", [0, 5, 0, 0], [4]),
@@ -263,7 +263,7 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Where", ["input0_bool", "zero_u8", "invalid_u8"], ["color_base"]),
             helper.make_node("Where", [bar_acc, "two_u8", "color_base"], ["color_bar"]),
             helper.make_node("Where", [square_acc, "eight_u8", "color_bar"], ["color11"]),
-            helper.make_node("Pad", ["color11", "pads_output", "invalid_u8"], ["color30"], mode="constant"),
+            helper.make_node("Pad", ["color11", "pads_output", "invalid_u8", "axes_hw"], ["color30"], mode="constant"),
             helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
         ]
     )
