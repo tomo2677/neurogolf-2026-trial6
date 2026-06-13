@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.099996391040406 | 7248 | 84 | 2026-06-13T12:58:00+09:00 | exp023 |
+| passes_local | 16.113590833150717 | 7148 | 85 | 2026-06-13T13:42:49+09:00 | exp026 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -32,6 +32,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp021 | impl_opt | slice-chw-axes | passes_local | 16.023485027684888 | 7828 | 87 | 0.000884005866748 | promoted | Auto promoted after canonical re-score. |
 | exp022 | impl_opt | axis-gather-rotations | passes_local | 16.099860011906202 | 7248 | 85 | 0.0763749842213 | promoted | Auto promoted after canonical re-score. |
 | exp023 | impl_opt | reuse-axis-two | passes_local | 16.099996391040406 | 7248 | 84 | 0.000136379134204 | promoted | Auto promoted after canonical re-score. |
+| exp025 | impl_opt | direct-presence-u8 | fails_local | 0.0 | 7048 | 84 | -16.099996391 | fails_local | Candidate did not pass local validation. |
+| exp026 | impl_opt | min-presence-u8 | passes_local | 16.113590833150717 | 7148 | 85 | 0.0135944421103 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
