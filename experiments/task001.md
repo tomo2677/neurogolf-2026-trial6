@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.975350969546362 | 1095 | 29 | 2026-06-13T06:10:27+09:00 | exp037 |
+| passes_local | 17.976241045261556 | 1095 | 28 | 2026-06-13T11:10:28+09:00 | exp048 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -14,9 +14,6 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp010 | impl_opt | reshape-attr-opset4 | score_failed |  |  |  |  | score_failed | Candidate did not pass local validation. |
-| exp011 | impl_opt | bool-mask | passes_local | 16.118302593530696 | 7195 | 4 | 0.0211662657269 | promoted | Auto promoted after canonical re-score. |
-| exp012 | impl_opt | bool-output9 | passes_local | 16.451889705949043 | 5153 | 4 | 0.333587112418 | promoted | Auto promoted after canonical re-score. |
 | exp013 | impl_opt | uint8-output-pad | passes_local | 17.079916800946766 | 2723 | 29 | 0.628027094998 | promoted | Auto promoted after canonical re-score. |
 | exp014 | impl_opt | split-color-selector | passes_local | 17.082463646056368 | 2724 | 21 | 0.0025468451096 | promoted | Auto promoted after canonical re-score. |
 | exp015 | impl_opt | bool-padded-output | build_failed |  |  |  |  | build_failed | Candidate did not build. |
@@ -41,6 +38,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp035 | impl_opt | flatten-spatial-mask | passes_local | 17.973573191300364 | 1095 | 31 | 0.00354610300675 | promoted | Auto promoted after canonical re-score. |
 | exp036 | impl_opt | pad18-axes | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp037 | impl_opt | maxpool-pad18-axes | passes_local | 17.975350969546362 | 1095 | 29 | 0.001777778246 | promoted | Auto promoted after canonical re-score. |
+| exp048 | impl_opt | cast-zero-mask | passes_local | 17.976241045261556 | 1095 | 28 | 0.000890075715194 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - Reached `17.970027088293612` by replacing the previous color-grid output with a direct `UINT8` one-hot top-left grid: build the 9x9 stamp mask from the zero channel, derive the active color vector with `ReduceMax(input) -> Cast(UINT8) -> Sub(black10)` using the local/generated invariant that every input has both black and one active nonzero color, and use `Where(spatial_mask, color_onehot, black10)` before final padding. exp033 moved to opset14 so `Sub(UINT8)` is supported; this adds `Unsqueeze` axes inputs but removes `ArgMax`, `Equal(colors10, color_id)`, and the `colors10` initializer.
