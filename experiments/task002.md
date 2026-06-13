@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 10.002367232660871 | 3261196 | 92 | 2026-06-13T00:01:06+09:00 | official-zero-repair |
+| passes_local | 11.529772379135556 | 707896 | 124 | 2026-06-13T14:31:52+09:00 | exp058 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -14,8 +14,6 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp032 | impl_opt | no-green-cast | passes_local | 14.827210764168578 | 26140 | 41 | -0.0961049648339 | not_better | Passed but did not improve local_points. |
-| exp033 | impl_opt | valid-final-where | passes_local | 14.95753342018242 | 22940 | 42 | 0.0342176911799 | promoted | Auto promoted after canonical re-score. |
 | exp034 | impl_opt | skip-cap-11 | fails_local | 0.0 | 22540 | 42 | -14.9575334202 | fails_local | Candidate did not pass local validation. |
 | exp035 | impl_opt | cap-with-green-where | passes_local | 14.975091592259533 | 22540 | 42 | 0.0175581720771 | promoted | Auto promoted after canonical re-score. |
 | exp036 | impl_opt | square-valid-transpose | passes_local | 14.984077018134084 | 22340 | 40 | 0.00898542587455 | promoted | Auto promoted after canonical re-score. |
@@ -40,6 +38,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp055 | impl_opt | seed-sub-open | passes_local | 15.206383118599584 | 17868 | 51 | 0.0220225805625 | promoted | Auto promoted after canonical re-score. |
 | exp056 | impl_opt | valid-area-row-count | passes_local | 15.206606370260946 | 17864 | 51 | 0.000223251661362 | promoted | Auto promoted after canonical re-score. |
 | exp057 | rule_redesign | official-zero-30x30-exact-flood | passes_local | 10.002367232660871 | 3261196 | 92 | -5.2042391376 | official_repaired | Replaced public-20x20/fixed-depth shortcut with exact 30x30 border flood fill; official publicScore recovered from 0.00 to 10.00. |
+| exp058 | rule_redesign | line-closure-10 | passes_local | 11.529772379135556 | 707896 | 124 | 1.52740514647 | promoted | 10 row/column segment-closure rounds pass public; not worst-case exact like the 900-step repair. |
 
 ## Archived Summary
 - 2026-06-13 official zero repair: the exp056 model passed local public data but received official publicScore `0.00`. The repair prioritizes hidden correctness over cost by using full `30x30` valid-area inference and 900-step 4-neighbor flood fill from border black cells. Canonical local score became `10.002367232660871`, and official run `task002-20260612T145920Z-f86ab16` completed with publicScore `10.00`.

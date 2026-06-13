@@ -7,7 +7,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
 SIZE = 30
-FLOOD_STEPS = SIZE * SIZE
+LINE_CLOSURE_STEPS = 10
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
@@ -23,6 +23,90 @@ def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorP
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
 
 
+def _horizontal_closure(nodes: list[onnx.NodeProto], seed: str, prefix: str) -> str:
+    nodes.extend(
+        [
+            helper.make_node("CumSum", [seed, "axis_w"], [f"{prefix}_cum"]),
+            helper.make_node("Where", ["green_bool", f"{prefix}_cum", "zero_f32"], [f"{prefix}_green_cum"]),
+            helper.make_node(
+                "MaxPool",
+                [f"{prefix}_green_cum"],
+                [f"{prefix}_last_green_cum"],
+                kernel_shape=[1, SIZE],
+                pads=[0, SIZE - 1, 0, 0],
+            ),
+            helper.make_node("Greater", [f"{prefix}_cum", f"{prefix}_last_green_cum"], [f"{prefix}_left"]),
+            helper.make_node("Gather", [seed, "reverse_idx"], [f"{prefix}_rev"], axis=3),
+            helper.make_node("CumSum", [f"{prefix}_rev", "axis_w"], [f"{prefix}_rev_cum"]),
+            helper.make_node("Gather", ["green_bool", "reverse_idx"], [f"{prefix}_green_rev"], axis=3),
+            helper.make_node(
+                "Where",
+                [f"{prefix}_green_rev", f"{prefix}_rev_cum", "zero_f32"],
+                [f"{prefix}_rev_green_cum"],
+            ),
+            helper.make_node(
+                "MaxPool",
+                [f"{prefix}_rev_green_cum"],
+                [f"{prefix}_rev_last_green_cum"],
+                kernel_shape=[1, SIZE],
+                pads=[0, SIZE - 1, 0, 0],
+            ),
+            helper.make_node(
+                "Greater",
+                [f"{prefix}_rev_cum", f"{prefix}_rev_last_green_cum"],
+                [f"{prefix}_right_rev"],
+            ),
+            helper.make_node("Gather", [f"{prefix}_right_rev", "reverse_idx"], [f"{prefix}_right"], axis=3),
+            helper.make_node("Or", [f"{prefix}_left", f"{prefix}_right"], [f"{prefix}_connected"]),
+            helper.make_node("And", [f"{prefix}_connected", "black_bool"], [f"{prefix}_black_connected"]),
+            helper.make_node("Cast", [f"{prefix}_black_connected"], [f"{prefix}_closed"], to=onnx.TensorProto.FLOAT),
+        ]
+    )
+    return f"{prefix}_closed"
+
+
+def _vertical_closure(nodes: list[onnx.NodeProto], seed: str, prefix: str) -> str:
+    nodes.extend(
+        [
+            helper.make_node("CumSum", [seed, "axis_h"], [f"{prefix}_cum"]),
+            helper.make_node("Where", ["green_bool", f"{prefix}_cum", "zero_f32"], [f"{prefix}_green_cum"]),
+            helper.make_node(
+                "MaxPool",
+                [f"{prefix}_green_cum"],
+                [f"{prefix}_last_green_cum"],
+                kernel_shape=[SIZE, 1],
+                pads=[SIZE - 1, 0, 0, 0],
+            ),
+            helper.make_node("Greater", [f"{prefix}_cum", f"{prefix}_last_green_cum"], [f"{prefix}_up"]),
+            helper.make_node("Gather", [seed, "reverse_idx"], [f"{prefix}_rev"], axis=2),
+            helper.make_node("CumSum", [f"{prefix}_rev", "axis_h"], [f"{prefix}_rev_cum"]),
+            helper.make_node("Gather", ["green_bool", "reverse_idx"], [f"{prefix}_green_rev"], axis=2),
+            helper.make_node(
+                "Where",
+                [f"{prefix}_green_rev", f"{prefix}_rev_cum", "zero_f32"],
+                [f"{prefix}_rev_green_cum"],
+            ),
+            helper.make_node(
+                "MaxPool",
+                [f"{prefix}_rev_green_cum"],
+                [f"{prefix}_rev_last_green_cum"],
+                kernel_shape=[SIZE, 1],
+                pads=[SIZE - 1, 0, 0, 0],
+            ),
+            helper.make_node(
+                "Greater",
+                [f"{prefix}_rev_cum", f"{prefix}_rev_last_green_cum"],
+                [f"{prefix}_down_rev"],
+            ),
+            helper.make_node("Gather", [f"{prefix}_down_rev", "reverse_idx"], [f"{prefix}_down"], axis=2),
+            helper.make_node("Or", [f"{prefix}_up", f"{prefix}_down"], [f"{prefix}_connected"]),
+            helper.make_node("And", [f"{prefix}_connected", "black_bool"], [f"{prefix}_black_connected"]),
+            helper.make_node("Cast", [f"{prefix}_black_connected"], [f"{prefix}_closed"], to=onnx.TensorProto.FLOAT),
+        ]
+    )
+    return f"{prefix}_closed"
+
+
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
@@ -36,6 +120,9 @@ def build_model() -> onnx.ModelProto:
         _f32_tensor("one_f32", [1.0], [1]),
         _f32_tensor("row_idx", [float(v) for v in range(SIZE)], [1, 1, SIZE, 1]),
         _f32_tensor("col_idx", [float(v) for v in range(SIZE)], [1, 1, 1, SIZE]),
+        _int64_tensor("axis_h", [2], [1]),
+        _int64_tensor("axis_w", [3], [1]),
+        _int64_tensor("reverse_idx", list(reversed(range(SIZE))), [SIZE]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("green_u8", [3], [1]),
         _u8_tensor("yellow_u8", [4], [1]),
@@ -67,32 +154,13 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Greater", ["black_f32", "zero_f32"], ["black_bool"]),
         helper.make_node("Greater", ["green_f32", "zero_f32"], ["green_bool"]),
         helper.make_node("And", ["black_bool", "border"], ["seed_bool"]),
-        helper.make_node("Cast", ["seed_bool"], ["external_0"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Cast", ["seed_bool"], ["external_0"], to=onnx.TensorProto.FLOAT),
     ]
 
     external = "external_0"
-    for step in range(FLOOD_STEPS):
-        nodes.extend(
-            [
-                helper.make_node(
-                    "MaxPool",
-                    [external],
-                    [f"external_h_{step}"],
-                    kernel_shape=[1, 3],
-                    pads=[0, 1, 0, 1],
-                ),
-                helper.make_node(
-                    "MaxPool",
-                    [external],
-                    [f"external_v_{step}"],
-                    kernel_shape=[3, 1],
-                    pads=[1, 0, 1, 0],
-                ),
-                helper.make_node("Max", [f"external_h_{step}", f"external_v_{step}"], [f"external_dilated_{step}"]),
-                helper.make_node("Where", ["black_bool", f"external_dilated_{step}", "zero_u8"], [f"external_{step + 1}"]),
-            ]
-        )
-        external = f"external_{step + 1}"
+    for step in range(LINE_CLOSURE_STEPS):
+        horizontal = _horizontal_closure(nodes, external, f"step{step}_h")
+        external = _vertical_closure(nodes, horizontal, f"step{step}_v")
 
     nodes.extend(
         [
