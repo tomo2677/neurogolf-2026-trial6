@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.412523803765476 | 104697 | 3043 | 2026-06-13T14:04:10+09:00 | exp014 |
+| passes_local | 14.76401237516649 | 24076 | 3813 | 2026-06-13T15:31:56+09:00 | exp018 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -26,6 +26,10 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp012 | impl_opt | drop-unused-fallback-size | passes_local | 13.351355536959836 | 111492 | 3044 | 8.73084126063e-06 | promoted | Auto promoted after canonical re-score. |
 | exp013 | impl_opt | select-before-pad | passes_local | 13.412514522204688 | 104697 | 3044 | 0.0611589852449 | promoted | Auto promoted after canonical re-score. |
 | exp014 | impl_opt | cast-seen-counts | passes_local | 13.412523803765476 | 104697 | 3043 | 9.2815607875e-06 | promoted | Auto promoted after canonical re-score. |
+| exp015 | impl_opt | period-minmax-color-grid | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp016 | impl_opt | period-minmax-color-grid-opset13 | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp017 | impl_opt | period-minmax-color-grid-opset13-v2 | passes_local | 14.26758951972832 | 41995 | 3822 | 0.855065715963 | promoted | Auto promoted after canonical re-score. |
+| exp018 | impl_opt | full-argmax-minmax-color-grid | passes_local | 14.76401237516649 | 24076 | 3813 | 0.496422855438 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

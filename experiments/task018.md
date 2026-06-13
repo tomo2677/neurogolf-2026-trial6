@@ -3,13 +3,14 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 11.669484889100698 | 614988 | 712 | 2026-06-13T14:52:38+09:00 | exp025 |
+| passes_local | 11.004833100441234 | 1195752 | 1054 | 2026-06-13T15:32:27+09:00 | zero-repair-size30 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
 
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
+| zero-repair-size30 | rule_redesign | Official zero likely came from the `SIZE=24` internal crop and 8-step component growth shortcut; restore full 30x30 crop and 30-step growth before resubmit. | official_complete |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
@@ -29,6 +30,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp018 | rule_redesign | size24-internal-crop | passes_local | 9.74129999340989 | 4233460 | 719 | 0.434715759146 | promoted | Auto promoted after canonical re-score. |
 | exp024 | impl_opt | color-grid-candidates | passes_local | 11.130734480039619 | 1054516 | 710 | 1.38943448663 | promoted | Auto promoted after canonical re-score. |
 | exp025 | impl_opt | f16-shared-shift-bool-output | passes_local | 11.669484889100698 | 614988 | 712 | 0.538750409061 | promoted | Auto promoted after canonical re-score. |
+| zero001 | rule_redesign | zero-repair-size30 | passes_local | 11.004833100441234 | 1195752 | 1054 | -0.664651788659 | official_repaired | Official zero resolved: full 30x30 crop and 30-step growth scored 11.00 public. |
 
 ## Archived Summary
 - None yet.

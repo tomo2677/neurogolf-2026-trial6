@@ -6,9 +6,9 @@ from onnx import helper
 from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
-SIZE = 24
+SIZE = 30
 GRID_SIZE = 30
-GROW_STEPS = 8
+GROW_STEPS = 30
 TRANSFORMS = ("vflip", "transpose", "trans_hflip", "trans_vflip")
 
 
