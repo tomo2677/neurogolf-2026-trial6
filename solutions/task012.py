@@ -58,9 +58,6 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("slice_12", [SIZE], [1]),
         _int32_tensor("axes3", [1, 2, 3], [3]),
         _int64_tensor("reduce_present_axes", [0, 2, 3], [3]),
-        _int64_tensor("reduce_all_axes", [0, 1, 2, 3], [4]),
-        _int64_tensor("pad_axis_row", [2], [1]),
-        _int64_tensor("pad_axis_col", [3], [1]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
         _int64_tensor("pads_output_hw", [0, 0, 18, 18], [4]),
         _f16_tensor("zero_f16", [0.0], [1]),
@@ -69,78 +66,43 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
         _u8_tensor("outside_u8", [255], [1]),
-        _int64_tensor("pads_shift_up", [1, -1], [2]),
-        _int64_tensor("pads_shift_down", [-1, 1], [2]),
-        _int64_tensor("pads_shift_left", [1, -1], [2]),
-        _int64_tensor("pads_shift_right", [-1, 1], [2]),
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("ReduceMax", ["input", "reduce_present_axes"], ["present_scores10"], keepdims=0),
-        helper.make_node("Slice", ["present_scores10", "present_start", "present_end"], ["present_scores"]),
-        helper.make_node("TopK", ["present_scores", "k2"], ["top_scores", "top_indices"], axis=0, largest=1, sorted=0),
+        helper.make_node("ReduceSum", ["input", "reduce_present_axes"], ["counts10"], keepdims=0),
+        helper.make_node("Slice", ["counts10", "present_start", "present_end"], ["present_scores"]),
+        helper.make_node("TopK", ["present_scores", "k2"], ["top_scores", "top_indices"], axis=0, largest=1, sorted=1),
         helper.make_node("Split", ["top_indices"], ["top_idx0", "top_idx1"], axis=0, num_outputs=2),
+        helper.make_node("Gather", ["input_channel_ids", "top_idx0"], ["arm_channel_id"], axis=0),
+        helper.make_node("Gather", ["input_channel_ids", "top_idx1"], ["center_channel_id"], axis=0),
+        helper.make_node("Add", ["center_channel_id", "slice_one"], ["center_channel_end"]),
+        helper.make_node("Concat", ["center_channel_id", "slice_zero", "slice_zero"], ["center_start"], axis=0),
+        helper.make_node("Concat", ["center_channel_end", "slice_12", "slice_12"], ["center_end"], axis=0),
+        helper.make_node("Slice", ["input", "center_start", "center_end", "axes3"], ["center_f32"]),
+        helper.make_node("Cast", ["center_f32"], ["center_mask"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Cast", ["arm_channel_id"], ["arm_color"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Cast", ["center_channel_id"], ["center_color"], to=onnx.TensorProto.UINT8),
     ]
-
-    for slot in range(2):
-        nodes.extend(
-            [
-                helper.make_node("Gather", ["input_channel_ids", f"top_idx{slot}"], [f"channel_id_{slot}"], axis=0),
-                helper.make_node("Add", [f"channel_id_{slot}", "slice_one"], [f"channel_end_{slot}"]),
-                helper.make_node("Concat", [f"channel_id_{slot}", "slice_zero", "slice_zero"], [f"selected_start_{slot}"], axis=0),
-                helper.make_node("Concat", [f"channel_end_{slot}", "slice_12", "slice_12"], [f"selected_end_{slot}"], axis=0),
-                helper.make_node("Slice", ["input", f"selected_start_{slot}", f"selected_end_{slot}", "axes3"], [f"selected_{slot}_f32"]),
-                helper.make_node("Cast", [f"selected_{slot}_f32"], [f"selected_{slot}_bool"], to=onnx.TensorProto.BOOL),
-                helper.make_node("Cast", [f"channel_id_{slot}"], [f"color_id_{slot}"], to=onnx.TensorProto.UINT8),
-                helper.make_node("Where", [f"selected_{slot}_bool", f"color_id_{slot}", "zero_u8"], [f"selected_color_{slot}"]),
-            ]
-        )
 
     nodes.extend(
         [
-            helper.make_node("Or", ["selected_0_bool", "selected_1_bool"], ["nonzero_bool"]),
-            helper.make_node("Max", ["selected_color_0", "selected_color_1"], ["color12"]),
-            helper.make_node("Pad", ["nonzero_bool", "pads_shift_up", "", "pad_axis_row"], ["has_up"], mode="constant"),
-            helper.make_node("Pad", ["nonzero_bool", "pads_shift_down", "", "pad_axis_row"], ["has_down"], mode="constant"),
-            helper.make_node("Pad", ["nonzero_bool", "pads_shift_left", "", "pad_axis_col"], ["has_left"], mode="constant"),
-            helper.make_node("Pad", ["nonzero_bool", "pads_shift_right", "", "pad_axis_col"], ["has_right"], mode="constant"),
-            helper.make_node("And", ["nonzero_bool", "has_up"], ["center_ud0"]),
-            helper.make_node("And", ["center_ud0", "has_down"], ["center_ud"]),
-            helper.make_node("And", ["has_left", "has_right"], ["center_lr"]),
-            helper.make_node("And", ["center_ud", "center_lr"], ["center_mask"]),
             helper.make_node("Cast", ["center_mask"], ["center_mask_f16"], to=INTERNAL_TYPE),
             helper.make_node("Conv", ["center_mask_f16", "center_kernel"], ["center_fill_score"], kernel_shape=[5, 5], pads=[2, 2, 2, 2]),
             helper.make_node("Conv", ["center_mask_f16", "arm_kernel"], ["arm_fill_score"], kernel_shape=[5, 5], pads=[2, 2, 2, 2]),
             helper.make_node("Greater", ["center_fill_score", "zero_f16"], ["center_fill"]),
             helper.make_node("Greater", ["arm_fill_score", "zero_f16"], ["arm_fill"]),
-            helper.make_node("Where", ["center_mask", "color12", "zero_u8"], ["center_value"]),
-            helper.make_node("Pad", ["color12", "pads_shift_up", "zero_u8", "pad_axis_row"], ["up_color"], mode="constant"),
-            helper.make_node("Where", ["center_mask", "up_color", "zero_u8"], ["arm_value"]),
-            helper.make_node("ReduceMax", ["center_value", "reduce_all_axes"], ["center_color"], keepdims=1),
-            helper.make_node("ReduceMax", ["arm_value", "reduce_all_axes"], ["arm_color"], keepdims=1),
             helper.make_node("Where", ["arm_fill", "arm_color", "zero_u8"], ["arm_out"]),
             helper.make_node("Where", ["center_fill", "center_color", "arm_out"], ["color12_out"]),
             helper.make_node("Pad", ["color12_out", "pads_output_hw", "outside_u8", "pad_axes_hw"], ["color30"], mode="constant"),
             helper.make_node("Equal", ["colors10", "color30"], ["output"]),
         ]
     )
-    value_infos = []
-    for slot in range(2):
-        value_infos.extend(
-            [
-                helper.make_tensor_value_info(f"selected_{slot}_f32", onnx.TensorProto.FLOAT, [1, 1, SIZE, SIZE]),
-                helper.make_tensor_value_info(f"selected_{slot}_bool", onnx.TensorProto.BOOL, [1, 1, SIZE, SIZE]),
-                helper.make_tensor_value_info(f"selected_color_{slot}", onnx.TensorProto.UINT8, [1, 1, SIZE, SIZE]),
-            ]
-        )
-    value_infos.extend(
-        [
-            helper.make_tensor_value_info("nonzero_bool", onnx.TensorProto.BOOL, [1, 1, SIZE, SIZE]),
-            helper.make_tensor_value_info("color12", onnx.TensorProto.UINT8, [1, 1, SIZE, SIZE]),
-        ]
-    )
+    value_infos = [
+        helper.make_tensor_value_info("center_f32", onnx.TensorProto.FLOAT, [1, 1, SIZE, SIZE]),
+        helper.make_tensor_value_info("center_mask", onnx.TensorProto.BOOL, [1, 1, SIZE, SIZE]),
+    ]
 
-    graph = helper.make_graph(nodes, "task012_opset18_pad_axes_graph", [x], [y], initializers, value_info=value_infos)
+    graph = helper.make_graph(nodes, "task012_count_ranked_center_graph", [x], [y], initializers, value_info=value_infos)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
