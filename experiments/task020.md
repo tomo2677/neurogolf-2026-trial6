@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.099860011906202 | 7248 | 85 | 2026-06-13T12:54:21+09:00 | exp022 |
+| passes_local | 16.099996391040406 | 7248 | 84 | 2026-06-13T12:58:00+09:00 | exp023 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -31,6 +31,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp020 | impl_opt | flat-pad-source | passes_local | 16.02260102181814 | 7828 | 94 | 0.0370481569703 | promoted | Auto promoted after canonical re-score. |
 | exp021 | impl_opt | slice-chw-axes | passes_local | 16.023485027684888 | 7828 | 87 | 0.000884005866748 | promoted | Auto promoted after canonical re-score. |
 | exp022 | impl_opt | axis-gather-rotations | passes_local | 16.099860011906202 | 7248 | 85 | 0.0763749842213 | promoted | Auto promoted after canonical re-score. |
+| exp023 | impl_opt | reuse-axis-two | passes_local | 16.099996391040406 | 7248 | 84 | 0.000136379134204 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
