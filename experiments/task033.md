@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.384208927964167 | 1868 | 162 | 2026-06-13T07:51:23+09:00 | exp007 |
+| passes_local | 17.421854527580535 | 1868 | 87 | 2026-06-13T10:59:58+09:00 | exp012 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -21,6 +21,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp005 | impl_opt | block-fill-concat | passes_local | 17.377825405182378 | 1877 | 166 | 0.237624585744 | promoted | Auto promoted after canonical re-score. |
 | exp006 | impl_opt | drop-fill00 | passes_local | 17.382240423391494 | 1868 | 166 | 0.00441501820912 | promoted | Auto promoted after canonical re-score. |
 | exp007 | impl_opt | reuse-bg22-start | passes_local | 17.384208927964167 | 1868 | 162 | 0.00196850457267 | promoted | Auto promoted after canonical re-score. |
+| exp011 | impl_opt | repeat-false-fillers | passes_local | 17.414211178267966 | 1868 | 102 | 0.0300022503038 | promoted | Auto promoted after canonical re-score. |
+| exp012 | impl_opt | slice-axes | passes_local | 17.421854527580535 | 1868 | 87 | 0.00764334931257 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
