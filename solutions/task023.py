@@ -393,7 +393,7 @@ def build_model() -> onnx.ModelProto:
 
     nodes.append(helper.make_node("Cast", [remaining], ["remaining_final_f16"], to=INTERNAL_TYPE))
     remaining_s_active = _active_tiles_conv_f16(nodes, "remaining_final_f16", "remaining_s", "s")
-    remaining_s_cover = _cover_from_tiles_direct(nodes, initializers, remaining_s_active, SQUARE, "remaining_s")
+    remaining_s_cover = _cover_bool_conv(nodes, remaining_s_active, "remaining_s", "s")
     nodes.extend(
         [
             helper.make_node("Not", [remaining_s_cover], ["not_remaining_square_cover"]),
