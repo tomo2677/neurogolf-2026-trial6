@@ -62,8 +62,8 @@ def _shift(
     dc: int,
 ) -> None:
     key = f"{output}_shift"
-    initializers.append(_int64_tensor(f"{key}_pads", [0, 0, dr, dc, 0, 0, -dr, -dc], [8]))
-    nodes.append(helper.make_node("Pad", [source, f"{key}_pads"], [output], mode="constant"))
+    initializers.append(_int64_tensor(f"{key}_pads", [dr, dc, -dr, -dc], [4]))
+    nodes.append(helper.make_node("Pad", [source, f"{key}_pads", "", "slice_hw_axes"], [output], mode="constant"))
 
 
 def build_model() -> onnx.ModelProto:
@@ -75,7 +75,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("slice_hw_ends", [WINDOW, WINDOW], [2]),
         _int64_tensor("slice_hw_axes", [2, 3], [2]),
         _int64_tensor("five_i64", [5], [1]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 27, 27], [8]),
+        _int64_tensor("pads_output", [0, 0, 27, 27], [4]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("five_u8", [5], [1, 1, 1, 1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
@@ -99,7 +99,7 @@ def build_model() -> onnx.ModelProto:
             nodes.extend(
                 [
                     helper.make_node("Where", [f"{prefix}_neighbor_bool", "input_color_u8", "zero_u8"], [f"{prefix}_color_grid"]),
-                    helper.make_node("ReduceMax", [f"{prefix}_color_grid"], [f"{prefix}_color"], axes=[2, 3], keepdims=1),
+                    helper.make_node("ReduceMax", [f"{prefix}_color_grid", "slice_hw_axes"], [f"{prefix}_color"], keepdims=1),
                 ]
             )
             slots.append(f"{prefix}_color")
@@ -111,12 +111,12 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Concat", slots[6:9], ["row2"], axis=3),
             helper.make_node("Concat", ["row0", "row1", "row2"], ["color3"], axis=2),
             helper.make_node("Equal", ["colors10_u8", "color3"], ["output3"]),
-            helper.make_node("Pad", ["output3", "pads_output"], ["output"], mode="constant"),
+            helper.make_node("Pad", ["output3", "pads_output", "", "slice_hw_axes"], ["output"], mode="constant"),
         ]
     )
 
     graph = helper.make_graph(nodes, "task022_window11_gray_overlay_graph", [x], [y], initializers)
     _dedupe_initializers(graph)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
