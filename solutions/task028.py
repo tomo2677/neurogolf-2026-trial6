@@ -19,12 +19,23 @@ def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorP
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
 
 
-def _repeat10(name: str) -> list[str]:
-    return [name] * 10
+def _edge_col(top_name: str, bottom_name: str) -> list[str]:
+    return [top_name] * 5 + [bottom_name] * 5
 
 
-def _edge_row(color_name: str) -> list[str]:
-    return [color_name] + ["zero_u8"] * 8 + [color_name]
+def _inner_col(top_name: str, bottom_name: str) -> list[str]:
+    return [
+        top_name,
+        "zero_u8",
+        top_name,
+        "zero_u8",
+        "zero_u8",
+        "zero_u8",
+        "zero_u8",
+        bottom_name,
+        "zero_u8",
+        bottom_name,
+    ]
 
 
 def build_model() -> onnx.ModelProto:
@@ -49,26 +60,24 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Sub", ["both_present_u8", "top_present_u8"], ["bottom_diff"]),
         helper.make_node("ArgMax", ["bottom_diff"], ["bottom_idx"], axis=1, keepdims=1),
         helper.make_node("Cast", ["bottom_idx"], ["bottom_color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Concat", _repeat10("top_color_u8"), ["top_full"], axis=3),
-        helper.make_node("Concat", _edge_row("top_color_u8"), ["top_edge"], axis=3),
-        helper.make_node("Concat", _repeat10("bottom_color_u8"), ["bottom_full"], axis=3),
-        helper.make_node("Concat", _edge_row("bottom_color_u8"), ["bottom_edge"], axis=3),
+        helper.make_node("Concat", _edge_col("top_color_u8", "bottom_color_u8"), ["edge_col"], axis=2),
+        helper.make_node("Concat", _inner_col("top_color_u8", "bottom_color_u8"), ["inner_col"], axis=2),
         helper.make_node(
             "Concat",
             [
-                "top_full",
-                "top_edge",
-                "top_full",
-                "top_edge",
-                "top_edge",
-                "bottom_edge",
-                "bottom_edge",
-                "bottom_full",
-                "bottom_edge",
-                "bottom_full",
+                "edge_col",
+                "inner_col",
+                "inner_col",
+                "inner_col",
+                "inner_col",
+                "inner_col",
+                "inner_col",
+                "inner_col",
+                "inner_col",
+                "edge_col",
             ],
             ["color10"],
-            axis=2,
+            axis=3,
         ),
         helper.make_node("Pad", ["color10", "pads_hw", "invalid_u8", "pad_axes_hw"], ["color30"], mode="constant"),
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
