@@ -52,22 +52,25 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("eight_u8", [8], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
-        _bool_tensor("false_row", [False] * SIZE, [1, 1, 1, SIZE]),
-        _bool_tensor("false_col", [False] * SIZE, [1, 1, SIZE, 1]),
+        _bool_tensor("false_cell", [False], [1, 1, 1, 1]),
         _bool_tensor("right_col5", [c == 5 for c in range(SIZE)], [1, 1, 1, SIZE]),
     ]
 
     nodes = [
         helper.make_node("Slice", ["input", "eight_starts", "eight_ends"], ["is_eight_f32"]),
         helper.make_node("Cast", ["is_eight_f32"], ["is_eight"], to=onnx.TensorProto.BOOL),
-        helper.make_node("Slice", ["is_eight", "row1_starts", "row10_ends", "axis_row"], ["below_core"]),
-        helper.make_node("Concat", ["below_core", "false_row"], ["below"], axis=2),
+        helper.make_node("ReduceMax", ["is_eight_f32", "axis_col"], ["row_any_f32"], keepdims=1),
+        helper.make_node("Cast", ["row_any_f32"], ["row_any"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Slice", ["row_any", "row1_starts", "row10_ends", "axis_row"], ["below_core"]),
+        helper.make_node("Concat", ["below_core", "false_cell"], ["below"], axis=2),
         helper.make_node("Not", ["below"], ["not_below"]),
-        helper.make_node("And", ["is_eight", "not_below"], ["bottom_edge"]),
-        helper.make_node("Slice", ["is_eight", "col0_starts", "col9_ends", "axis_col"], ["left_core"]),
-        helper.make_node("Concat", ["false_col", "left_core"], ["left_neighbor"], axis=3),
+        helper.make_node("And", ["row_any", "not_below"], ["bottom_edge"]),
+        helper.make_node("ReduceMax", ["is_eight_f32", "axis_row"], ["col_any_f32"], keepdims=1),
+        helper.make_node("Cast", ["col_any_f32"], ["col_any"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Slice", ["col_any", "col0_starts", "col9_ends", "axis_col"], ["left_core"]),
+        helper.make_node("Concat", ["false_cell", "left_core"], ["left_neighbor"], axis=3),
         helper.make_node("Not", ["left_neighbor"], ["not_left"]),
-        helper.make_node("And", ["is_eight", "not_left"], ["left_edge"]),
+        helper.make_node("And", ["col_any", "not_left"], ["left_edge"]),
         helper.make_node("Where", ["is_eight", "eight_u8", "zero_u8"], ["base0"]),
     ]
 
@@ -110,7 +113,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task035_edge_only_color_grid", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task035_rowcol_edge_masks", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model

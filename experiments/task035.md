@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.338360204218734 | 5670 | 107 | 2026-06-13T08:47:40+09:00 | exp008 |
+| passes_local | 16.452083635940923 | 5068 | 88 | 2026-06-13T10:58:20+09:00 | exp009 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -22,6 +22,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp006 | impl_opt | reuse-color-bounds | passes_local | 16.240174404685703 | 6240 | 133 | 0.00125450855405 | promoted | Auto promoted after canonical re-score. |
 | exp007 | impl_opt | pad18-axes | passes_local | 16.243632440197025 | 6240 | 111 | 0.00345803551132 | promoted | Auto promoted after canonical re-score. |
 | exp008 | impl_opt | broadcast-edge-colors | passes_local | 16.338360204218734 | 5670 | 107 | 0.0947277640217 | promoted | Auto promoted after canonical re-score. |
+| exp009 | impl_opt | rowcol-edge-masks | passes_local | 16.452083635940923 | 5068 | 88 | 0.113723431722 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
