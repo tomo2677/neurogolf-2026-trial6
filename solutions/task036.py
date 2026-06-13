@@ -42,12 +42,14 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("shape_vec5", [OUT], [1]),
         _int64_tensor("pair_count_ends", [10], [1]),
         _int64_tensor("pair_sum_axes", [2, 3], [2]),
+        _int64_tensor("axis_h", [2], [1]),
+        _int64_tensor("axis_w", [3], [1]),
         _int32_tensor("row_grid_i32", list(range(OUT)), [1, 1, OUT, 1]),
         _int32_tensor("col_grid_i32", list(range(OUT)), [1, 1, 1, OUT]),
         _int32_tensor("zero_i32", [0], [1]),
         _int64_tensor("one_i64", [1], [1]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, SIZE - OUT, SIZE - OUT], [8]),
-        _int64_tensor("pads_shift_right", [0, 0, 0, -1, 0, 0, 0, 1], [8]),
+        _int64_tensor("pads_output", [0, 0, SIZE - OUT, SIZE - OUT], [4]),
+        _int64_tensor("pads_shift_right", [0, -1, 0, 1], [4]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
@@ -55,7 +57,7 @@ def build_model() -> onnx.ModelProto:
 
     nodes = [
         helper.make_node("Cast", ["input"], ["input_bool"], to=onnx.TensorProto.BOOL),
-        helper.make_node("Pad", ["input_bool", "pads_shift_right"], ["right_bool"], mode="constant"),
+        helper.make_node("Pad", ["input_bool", "pads_shift_right", "", "pair_sum_axes"], ["right_bool"], mode="constant"),
         helper.make_node("And", ["input_bool", "right_bool"], ["right_pair_bool"]),
         helper.make_node("Cast", ["right_pair_bool"], ["right_pair_f16"], to=onnx.TensorProto.FLOAT16),
         helper.make_node("ReduceSum", ["right_pair_f16", "pair_sum_axes"], ["pair_counts10"], keepdims=0),
@@ -67,8 +69,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Add", ["target_channel_start", "one_i64"], ["target_channel_end"]),
         helper.make_node("Slice", ["input_bool", "target_channel_start", "target_channel_end", "one_i64"], ["target_mask_bool"]),
         helper.make_node("Cast", ["target_mask_bool"], ["target_mask_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("ReduceMax", ["target_mask_u8"], ["row_present"], axes=[3], keepdims=1),
-        helper.make_node("ReduceMax", ["target_mask_u8"], ["col_present"], axes=[2], keepdims=1),
+        helper.make_node("ReduceMax", ["target_mask_u8", "axis_w"], ["row_present"], keepdims=1),
+        helper.make_node("ReduceMax", ["target_mask_u8", "axis_h"], ["col_present"], keepdims=1),
         helper.make_node("ArgMax", ["row_present"], ["r_min"], axis=2, keepdims=1),
         helper.make_node("ArgMax", ["row_present"], ["r_max"], axis=2, keepdims=1, select_last_index=1),
         helper.make_node("ArgMax", ["col_present"], ["c_min"], axis=3, keepdims=1),
@@ -92,7 +94,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["crop_target_bool", "target_color_u8", "zero_u8"], ["crop_color"]),
         helper.make_node("Where", ["crop_valid", "crop_color", "invalid_u8"], ["color5"]),
         helper.make_node("Equal", ["colors10_u8", "color5"], ["output5"]),
-        helper.make_node("Pad", ["output5", "pads_output"], ["output"], mode="constant"),
+        helper.make_node("Pad", ["output5", "pads_output", "", "pair_sum_axes"], ["output"], mode="constant"),
     ]
 
     value_infos = [
@@ -108,6 +110,6 @@ def build_model() -> onnx.ModelProto:
         initializers,
         value_info=value_infos,
     )
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model

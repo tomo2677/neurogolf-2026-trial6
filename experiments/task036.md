@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 14.228047345072321 | 47617 | 48 | 2026-06-13T12:50:15+09:00 | exp026 |
+| passes_local | 14.22817323152291 | 47617 | 42 | 2026-06-13T13:04:49+09:00 | exp027 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -38,6 +38,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp023 | impl_opt | default-false-pad | passes_local | 14.205826744305112 | 48687 | 49 | 2.0518502561e-05 | promoted | Auto promoted after canonical re-score. |
 | exp025 | impl_opt | u8-pair-sum | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp026 | impl_opt | axis-gather-crop | passes_local | 14.228047345072321 | 47617 | 48 | 0.0222206007672 | promoted | Auto promoted after canonical re-score. |
+| exp027 | impl_opt | pad-axes-opset18 | passes_local | 14.22817323152291 | 47617 | 42 | 0.000125886450588 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
