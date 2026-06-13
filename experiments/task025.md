@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.672524981698361 | 83012 | 61 | 2026-06-13T17:29:20+09:00 | exp017 |
+| passes_local | 14.174816350931167 | 50223 | 48 | 2026-06-13T19:49:00+09:00 | exp019 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -29,6 +29,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp015 | rule_redesign | canonical-row-orient | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp016 | rule_redesign | canonical-row-orient-v2 | passes_local | 13.630217687257748 | 86612 | 51 | 0.332920181127 | promoted | Auto promoted after canonical re-score. |
 | exp017 | impl_opt | conv-color-map | passes_local | 13.672524981698361 | 83012 | 61 | 0.0423072944406 | promoted | Auto promoted after canonical re-score. |
+| exp019 | rule_redesign | color-pool-extreme-u8 | passes_local | 14.174816350931167 | 50223 | 48 | 0.502291369233 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
