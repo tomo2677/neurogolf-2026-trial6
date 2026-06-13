@@ -27,14 +27,15 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("marker_starts", [0, 3, 0, 0], [4]),
-        _int64_tensor("marker_ends", [1, 4, SIZE, SIZE], [4]),
-        _int64_tensor("top_left_starts", [0, 1, 0, 0], [4]),
-        _int64_tensor("top_left_ends", [1, 10, 1, 1], [4]),
-        _int64_tensor("top_right_starts", [0, 1, 0, SIZE - 1], [4]),
-        _int64_tensor("top_right_ends", [1, 10, 1, SIZE], [4]),
-        _int64_tensor("bottom_left_starts", [0, 1, SIZE - 1, 0], [4]),
-        _int64_tensor("bottom_left_ends", [1, 10, SIZE, 1], [4]),
+        _int64_tensor("marker_starts", [3, 0, 0], [3]),
+        _int64_tensor("marker_ends", [4, SIZE, SIZE], [3]),
+        _int64_tensor("top_left_starts", [1, 0, 0], [3]),
+        _int64_tensor("top_left_ends", [10, 1, 1], [3]),
+        _int64_tensor("top_right_starts", [1, 0, SIZE - 1], [3]),
+        _int64_tensor("top_right_ends", [10, 1, SIZE], [3]),
+        _int64_tensor("bottom_left_starts", [1, SIZE - 1, 0], [3]),
+        _int64_tensor("bottom_left_ends", [10, SIZE, 1], [3]),
+        _int64_tensor("axes_chw", [1, 2, 3], [3]),
         _int64_tensor("output_pads_hw", [0, 0, 20, 20], [4]),
         _int64_tensor("output_pad_axes", [2, 3], [2]),
         _u8_tensor("bg_u8", [9], [1, 1, 1, 1]),
@@ -43,14 +44,14 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes = [
-        helper.make_node("Slice", ["input", "marker_starts", "marker_ends"], ["marker_f32"]),
+        helper.make_node("Slice", ["input", "marker_starts", "marker_ends", "axes_chw"], ["marker_f32"]),
         helper.make_node("Cast", ["marker_f32"], ["marker"], to=onnx.TensorProto.BOOL),
     ]
 
     for name in ("top_left", "top_right", "bottom_left"):
         nodes.extend(
             [
-                helper.make_node("Slice", ["input", f"{name}_starts", f"{name}_ends"], [f"{name}_onehot"]),
+                helper.make_node("Slice", ["input", f"{name}_starts", f"{name}_ends", "axes_chw"], [f"{name}_onehot"]),
                 helper.make_node("ArgMax", [f"{name}_onehot"], [f"{name}_i64"], axis=1, keepdims=1),
                 helper.make_node("Cast", [f"{name}_i64"], [f"{name}_color"], to=onnx.TensorProto.UINT8),
             ]
