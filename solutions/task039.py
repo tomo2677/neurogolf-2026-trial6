@@ -26,7 +26,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("axes4", [0, 1, 2, 3], [4]),
         _int64_tensor("shape_scalar", [1], [1]),
         _int64_tensor("zero_i64", [0], [1]),
-        _int64_tensor("ten_i64", [10], [1]),
         _int64_tensor("slice_sizes", [1, 10, 3, 3], [4]),
         _int64_tensor("output_pads", [0, 0, 0, 0, 0, 0, 27, 27], [8]),
     ]
