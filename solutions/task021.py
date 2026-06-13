@@ -55,17 +55,19 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Not", ["col_prev_bool"], ["col_prev_not"]),
         helper.make_node("And", ["row_non_sep_bool", "row_prev_not"], ["row_start_bool"]),
         helper.make_node("And", ["col_non_sep_bool", "col_prev_not"], ["col_start_bool"]),
-        helper.make_node("Cast", ["row_start_bool"], ["row_start_f32"], to=onnx.TensorProto.FLOAT),
-        helper.make_node("Cast", ["col_start_bool"], ["col_start_f32"], to=onnx.TensorProto.FLOAT),
-        helper.make_node("ReduceSum", ["row_start_f32", "axes_all"], ["out_h"], keepdims=1),
-        helper.make_node("ReduceSum", ["col_start_f32", "axes_all"], ["out_w"], keepdims=1),
+        helper.make_node("Cast", ["row_start_bool"], ["row_start_f16"], to=onnx.TensorProto.FLOAT16),
+        helper.make_node("Cast", ["col_start_bool"], ["col_start_f16"], to=onnx.TensorProto.FLOAT16),
+        helper.make_node("ReduceSum", ["row_start_f16", "axes_all"], ["out_h_f16"], keepdims=1),
+        helper.make_node("ReduceSum", ["col_start_f16", "axes_all"], ["out_w_f16"], keepdims=1),
+        helper.make_node("Cast", ["out_h_f16"], ["out_h"], to=onnx.TensorProto.FLOAT),
+        helper.make_node("Cast", ["out_w_f16"], ["out_w"], to=onnx.TensorProto.FLOAT),
         helper.make_node("Less", ["row_idx", "out_h"], ["row_in"]),
         helper.make_node("Less", ["col_idx", "out_w"], ["col_in"]),
         helper.make_node("And", ["bg_channel_bool", "row_in"], ["bg_rows"]),
         helper.make_node("And", ["bg_rows", "col_in"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task021_opset18_bool_prev_pad_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task021_f16_start_sum_cast_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
