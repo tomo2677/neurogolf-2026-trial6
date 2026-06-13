@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.393183543615244 | 109698 | 146 | 2026-06-13T14:21:52+09:00 | exp014 |
+| passes_local | 13.501102468014414 | 98466 | 141 | 2026-06-13T14:33:25+09:00 | exp016 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -28,6 +28,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp012 | impl_opt | axis-gather-inner-crop | passes_local | 13.311634938024577 | 119038 | 139 | 0.0661252358294 | promoted | Auto promoted after canonical re-score. |
 | exp013 | impl_opt | direct-zero-f16 | passes_local | 13.311651719926974 | 119036 | 139 | 1.67819023975e-05 | promoted | Auto promoted after canonical re-score. |
 | exp014 | rule_redesign | top5-frame-colors | passes_local | 13.393183543615244 | 109698 | 146 | 0.0815318236883 | promoted | Auto promoted after canonical re-score. |
+| exp015 | impl_opt | f16-color-counts | passes_local | 13.501051762960632 | 98466 | 146 | 0.107868219345 | promoted | Auto promoted after canonical re-score. |
+| exp016 | impl_opt | remove-unused-split | passes_local | 13.501102468014414 | 98466 | 141 | 5.07050537824e-05 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
