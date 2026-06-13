@@ -27,8 +27,7 @@ def _gather_coords_padded(nodes: list[onnx.NodeProto], src_r: str, src_c: str, o
             helper.make_node("Add", [src_c, "pad_offset_i32"], [f"{output}_pad_c"]),
             helper.make_node("Mul", [f"{output}_pad_r", "padded_width_i32"], [f"{output}_r_offset"]),
             helper.make_node("Add", [f"{output}_r_offset", f"{output}_pad_c"], [f"{output}_spatial"]),
-            helper.make_node("Cast", [f"{output}_spatial"], [f"{output}_indices"], to=onnx.TensorProto.INT64),
-            helper.make_node("Gather", ["input_color30_flat", f"{output}_indices"], [output], axis=0),
+            helper.make_node("Gather", ["input_color30_flat", f"{output}_spatial"], [output], axis=0),
         ]
     )
 
