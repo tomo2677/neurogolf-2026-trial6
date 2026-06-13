@@ -58,7 +58,7 @@ def _dedupe_initializers(graph: onnx.GraphProto) -> None:
     graph.initializer.extend(unique)
 
 
-def _shift_u8(
+def _shift_bool(
     nodes: list[onnx.NodeProto],
     initializers: list[onnx.TensorProto],
     source: str,
@@ -80,6 +80,9 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
+        _int64_tensor("sum_axes_all", [0, 1, 2, 3], [4]),
+        _int64_tensor("sum_axis_h", [2], [1]),
+        _int64_tensor("sum_axis_w", [3], [1]),
     ]
     for color in COLORS:
         initializers.append(_u8_tensor(f"color{color}_u8", [color], [1]))
@@ -93,8 +96,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Greater", ["row_present_f32", "zero_f32"], ["row_valid"]),
         helper.make_node("Greater", ["col_present_f32", "zero_f32"], ["col_valid"]),
         helper.make_node("And", ["row_valid", "col_valid"], ["valid_area"]),
-        helper.make_node("ReduceSum", ["row_present_f32"], ["height_count"], axes=[0, 1, 2, 3], keepdims=1),
-        helper.make_node("ReduceSum", ["col_present_f32"], ["width_count"], axes=[0, 1, 2, 3], keepdims=1),
+        helper.make_node("ReduceSum", ["row_present_f32", "sum_axes_all"], ["height_count"], keepdims=1),
+        helper.make_node("ReduceSum", ["col_present_f32", "sum_axes_all"], ["width_count"], keepdims=1),
         helper.make_node("Cast", ["height_count"], ["height_count_f16"], to=onnx.TensorProto.FLOAT16),
         helper.make_node("Cast", ["width_count"], ["width_count_f16"], to=onnx.TensorProto.FLOAT16),
         helper.make_node("Where", ["valid_area", "zero_u8", "invalid_u8"], ["color_grid_0"]),
@@ -107,8 +110,8 @@ def build_model() -> onnx.ModelProto:
             [
                 helper.make_node("Equal", ["input_color_u8", f"color{color}_u8"], [f"{prefix}_mask_bool"]),
                 helper.make_node("Cast", [f"{prefix}_mask_bool"], [f"{prefix}_mask_f16"], to=onnx.TensorProto.FLOAT16),
-                helper.make_node("ReduceSum", [f"{prefix}_mask_f16"], [f"{prefix}_row_count"], axes=[3], keepdims=1),
-                helper.make_node("ReduceSum", [f"{prefix}_mask_f16"], [f"{prefix}_col_count"], axes=[2], keepdims=1),
+                helper.make_node("ReduceSum", [f"{prefix}_mask_f16", "sum_axis_w"], [f"{prefix}_row_count"], keepdims=1),
+                helper.make_node("ReduceSum", [f"{prefix}_mask_f16", "sum_axis_h"], [f"{prefix}_col_count"], keepdims=1),
                 helper.make_node("Equal", [f"{prefix}_row_count", "width_count_f16"], [f"{prefix}_row_line_raw"]),
                 helper.make_node("Equal", [f"{prefix}_col_count", "height_count_f16"], [f"{prefix}_col_line_raw"]),
                 helper.make_node("And", [f"{prefix}_row_line_raw", "row_valid"], [f"{prefix}_row_line"]),
@@ -155,25 +158,18 @@ def build_model() -> onnx.ModelProto:
                 helper.make_node("And", [f"{prefix}_down_seen_bool", f"{prefix}_row_line_area_bool"], [f"{prefix}_below_line_bool"]),
                 helper.make_node("And", [f"{prefix}_left_seen_bool", f"{prefix}_col_line_area_bool"], [f"{prefix}_left_line_bool"]),
                 helper.make_node("And", [f"{prefix}_right_seen_bool", f"{prefix}_col_line_area_bool"], [f"{prefix}_right_line_bool"]),
-                helper.make_node("Cast", [f"{prefix}_line_cover_bool"], [f"{prefix}_line_cover_u8"], to=onnx.TensorProto.UINT8),
-                helper.make_node("Cast", [f"{prefix}_above_line_bool"], [f"{prefix}_above_line_u8"], to=onnx.TensorProto.UINT8),
-                helper.make_node("Cast", [f"{prefix}_below_line_bool"], [f"{prefix}_below_line_u8"], to=onnx.TensorProto.UINT8),
-                helper.make_node("Cast", [f"{prefix}_left_line_bool"], [f"{prefix}_left_line_u8"], to=onnx.TensorProto.UINT8),
-                helper.make_node("Cast", [f"{prefix}_right_line_bool"], [f"{prefix}_right_line_u8"], to=onnx.TensorProto.UINT8),
             ]
         )
-        above_proj = _shift_u8(nodes, initializers, f"{prefix}_above_line_u8", f"{prefix}_above_proj", -1, 0)
-        below_proj = _shift_u8(nodes, initializers, f"{prefix}_below_line_u8", f"{prefix}_below_proj", 1, 0)
-        left_proj = _shift_u8(nodes, initializers, f"{prefix}_left_line_u8", f"{prefix}_left_proj", 0, -1)
-        right_proj = _shift_u8(nodes, initializers, f"{prefix}_right_line_u8", f"{prefix}_right_proj", 0, 1)
+        above_proj = _shift_bool(nodes, initializers, f"{prefix}_above_line_bool", f"{prefix}_above_proj", -1, 0)
+        below_proj = _shift_bool(nodes, initializers, f"{prefix}_below_line_bool", f"{prefix}_below_proj", 1, 0)
+        left_proj = _shift_bool(nodes, initializers, f"{prefix}_left_line_bool", f"{prefix}_left_proj", 0, -1)
+        right_proj = _shift_bool(nodes, initializers, f"{prefix}_right_line_bool", f"{prefix}_right_proj", 0, 1)
         nodes.extend(
             [
-                helper.make_node(
-                    "Max",
-                    [f"{prefix}_line_cover_u8", above_proj, below_proj, left_proj, right_proj],
-                    [f"{prefix}_cover_raw_u8"],
-                ),
-                helper.make_node("Greater", [f"{prefix}_cover_raw_u8", "zero_u8"], [f"{prefix}_cover_raw_bool"]),
+                helper.make_node("Or", [f"{prefix}_line_cover_bool", above_proj], [f"{prefix}_cover_or0"]),
+                helper.make_node("Or", [f"{prefix}_cover_or0", below_proj], [f"{prefix}_cover_or1"]),
+                helper.make_node("Or", [f"{prefix}_cover_or1", left_proj], [f"{prefix}_cover_or2"]),
+                helper.make_node("Or", [f"{prefix}_cover_or2", right_proj], [f"{prefix}_cover_raw_bool"]),
                 helper.make_node("And", [f"{prefix}_cover_raw_bool", "valid_area"], [f"{prefix}_cover_bool"]),
                 helper.make_node("Where", [f"{prefix}_cover_bool", f"color{color}_u8", current], [f"color_grid_{color}"]),
             ]
@@ -188,6 +184,6 @@ def build_model() -> onnx.ModelProto:
 
     graph = helper.make_graph(nodes, "task025_line_projection_u8_graph", [x], [y], initializers)
     _dedupe_initializers(graph)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
