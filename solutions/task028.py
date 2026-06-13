@@ -20,26 +20,26 @@ def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorP
 
 
 def _edge_col(top_name: str, bottom_name: str) -> list[str]:
-    return [top_name] * 5 + [bottom_name] * 5 + ["invalid_u8"] * 20
+    return [top_name] * 5 + [bottom_name] * 5 + ["invalid_onehot"] * 20
 
 
 def _inner_col(top_name: str, bottom_name: str) -> list[str]:
     return [
         top_name,
-        "zero_u8",
+        "zero_onehot",
         top_name,
-        "zero_u8",
-        "zero_u8",
-        "zero_u8",
-        "zero_u8",
+        "zero_onehot",
+        "zero_onehot",
+        "zero_onehot",
+        "zero_onehot",
         bottom_name,
-        "zero_u8",
+        "zero_onehot",
         bottom_name,
-    ] + ["invalid_u8"] * 20
+    ] + ["invalid_onehot"] * 20
 
 
 def _invalid_col() -> list[str]:
-    return ["invalid_u8"] * 30
+    return ["invalid_onehot"] * 30
 
 
 def build_model() -> onnx.ModelProto:
@@ -48,7 +48,6 @@ def build_model() -> onnx.ModelProto:
 
     initializers = [
         _u8_tensor("zero_u8", [0], [1, 1, 1, 1]),
-        _u8_tensor("invalid_u8", [255], [1, 1, 1, 1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
 
@@ -61,8 +60,12 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Cast", ["bottom_present_bool"], ["bottom_diff"], to=onnx.TensorProto.UINT8),
         helper.make_node("ArgMax", ["bottom_diff"], ["bottom_idx"], axis=1, keepdims=1),
         helper.make_node("Cast", ["bottom_idx"], ["bottom_color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Concat", _edge_col("top_color_u8", "bottom_color_u8"), ["edge_col"], axis=2),
-        helper.make_node("Concat", _inner_col("top_color_u8", "bottom_color_u8"), ["inner_col"], axis=2),
+        helper.make_node("Equal", ["colors10_u8", "top_color_u8"], ["top_onehot"]),
+        helper.make_node("Equal", ["colors10_u8", "bottom_color_u8"], ["bottom_onehot"]),
+        helper.make_node("Equal", ["colors10_u8", "zero_u8"], ["zero_onehot"]),
+        helper.make_node("Less", ["colors10_u8", "zero_u8"], ["invalid_onehot"]),
+        helper.make_node("Concat", _edge_col("top_onehot", "bottom_onehot"), ["edge_col"], axis=2),
+        helper.make_node("Concat", _inner_col("top_onehot", "bottom_onehot"), ["inner_col"], axis=2),
         helper.make_node("Concat", _invalid_col(), ["invalid_col"], axis=2),
         helper.make_node(
             "Concat",
@@ -79,13 +82,12 @@ def build_model() -> onnx.ModelProto:
                 "edge_col",
             ]
             + ["invalid_col"] * 20,
-            ["color30"],
+            ["output"],
             axis=3,
         ),
-        helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task028_direct_color30_columns_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task028_direct_bool_columns_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
