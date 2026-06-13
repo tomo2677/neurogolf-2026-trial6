@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import onnx
 from onnx import helper
 
@@ -23,14 +24,17 @@ def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorP
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
 
 
-def _horizontal_closure(nodes: list[onnx.NodeProto], seed: str, prefix: str) -> str:
+def _f16_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT16, dims, np.asarray(values, dtype=np.float16).ravel())
+
+
+def _horizontal_closure(nodes: list[onnx.NodeProto], seed: str, prefix: str, final: bool = False) -> str:
     nodes.extend(
         [
-            helper.make_node("Cast", ["zero_f32"], [f"{prefix}_zero_f16"], to=onnx.TensorProto.FLOAT16),
             helper.make_node("Cast", [seed], [f"{prefix}_seed_f32"], to=onnx.TensorProto.FLOAT),
             helper.make_node("CumSum", [f"{prefix}_seed_f32", "axis_w"], [f"{prefix}_cum_f32"]),
             helper.make_node("Cast", [f"{prefix}_cum_f32"], [f"{prefix}_cum"], to=onnx.TensorProto.FLOAT16),
-            helper.make_node("Where", ["green_bool", f"{prefix}_cum", f"{prefix}_zero_f16"], [f"{prefix}_green_cum"]),
+            helper.make_node("Where", ["green_bool", f"{prefix}_cum", "zero_f16"], [f"{prefix}_green_cum"]),
             helper.make_node(
                 "MaxPool",
                 [f"{prefix}_green_cum"],
@@ -44,7 +48,7 @@ def _horizontal_closure(nodes: list[onnx.NodeProto], seed: str, prefix: str) -> 
             helper.make_node("Cast", [f"{prefix}_rev_cum"], [f"{prefix}_rev_cum_f16"], to=onnx.TensorProto.FLOAT16),
             helper.make_node(
                 "Where",
-                ["green_rev_h", f"{prefix}_rev_cum_f16", f"{prefix}_zero_f16"],
+                ["green_rev_h", f"{prefix}_rev_cum_f16", "zero_f16"],
                 [f"{prefix}_rev_green_cum"],
             ),
             helper.make_node(
@@ -62,20 +66,21 @@ def _horizontal_closure(nodes: list[onnx.NodeProto], seed: str, prefix: str) -> 
             helper.make_node("Gather", [f"{prefix}_right_rev", "reverse_idx"], [f"{prefix}_right"], axis=3),
             helper.make_node("Or", [f"{prefix}_left", f"{prefix}_right"], [f"{prefix}_connected"]),
             helper.make_node("And", [f"{prefix}_connected", "black_bool"], [f"{prefix}_black_connected"]),
-            helper.make_node("Cast", [f"{prefix}_black_connected"], [f"{prefix}_closed"], to=onnx.TensorProto.FLOAT16),
         ]
     )
+    if final:
+        return f"{prefix}_black_connected"
+    nodes.append(helper.make_node("Cast", [f"{prefix}_black_connected"], [f"{prefix}_closed"], to=onnx.TensorProto.FLOAT16))
     return f"{prefix}_closed"
 
 
 def _vertical_closure(nodes: list[onnx.NodeProto], seed: str, prefix: str, final: bool = False) -> str:
     nodes.extend(
         [
-            helper.make_node("Cast", ["zero_f32"], [f"{prefix}_zero_f16"], to=onnx.TensorProto.FLOAT16),
             helper.make_node("Cast", [seed], [f"{prefix}_seed_f32"], to=onnx.TensorProto.FLOAT),
             helper.make_node("CumSum", [f"{prefix}_seed_f32", "axis_h"], [f"{prefix}_cum_f32"]),
             helper.make_node("Cast", [f"{prefix}_cum_f32"], [f"{prefix}_cum"], to=onnx.TensorProto.FLOAT16),
-            helper.make_node("Where", ["green_bool", f"{prefix}_cum", f"{prefix}_zero_f16"], [f"{prefix}_green_cum"]),
+            helper.make_node("Where", ["green_bool", f"{prefix}_cum", "zero_f16"], [f"{prefix}_green_cum"]),
             helper.make_node(
                 "MaxPool",
                 [f"{prefix}_green_cum"],
@@ -89,7 +94,7 @@ def _vertical_closure(nodes: list[onnx.NodeProto], seed: str, prefix: str, final
             helper.make_node("Cast", [f"{prefix}_rev_cum"], [f"{prefix}_rev_cum_f16"], to=onnx.TensorProto.FLOAT16),
             helper.make_node(
                 "Where",
-                ["green_rev_v", f"{prefix}_rev_cum_f16", f"{prefix}_zero_f16"],
+                ["green_rev_v", f"{prefix}_rev_cum_f16", "zero_f16"],
                 [f"{prefix}_rev_green_cum"],
             ),
             helper.make_node(
@@ -125,6 +130,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("green_starts", [0, 3, 0, 0], [4]),
         _int64_tensor("green_ends", [1, 4, SIZE, SIZE], [4]),
         _f32_tensor("zero_f32", [0.0], [1]),
+        _f16_tensor("zero_f16", [0.0], [1]),
         _f32_tensor("one_f32", [1.0], [1]),
         _f32_tensor("row_idx", [float(v) for v in range(SIZE)], [1, 1, SIZE, 1]),
         _f32_tensor("col_idx", [float(v) for v in range(SIZE)], [1, 1, 1, SIZE]),
@@ -172,9 +178,7 @@ def build_model() -> onnx.ModelProto:
         horizontal = _horizontal_closure(nodes, external, f"step{step}_h")
         external = _vertical_closure(nodes, horizontal, f"step{step}_v")
 
-    external = _horizontal_closure(nodes, external, "step2_h")
-    nodes.append(helper.make_node("Cast", [external], ["external_final"], to=onnx.TensorProto.BOOL))
-    external = "external_final"
+    external = _horizontal_closure(nodes, external, "step2_h", final=True)
 
     nodes.extend(
         [
@@ -185,7 +189,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task002_exact_30x30_flood_fill_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task002_final_h_bool_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
