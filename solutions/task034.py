@@ -66,16 +66,17 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.UINT8, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("marker_starts", [0, 2, 0, 0], [4]),
-        _int64_tensor("marker_ends", [1, 3, SIZE, SIZE], [4]),
-        _int64_tensor("input0_starts", [0, 0, 0, 0], [4]),
-        _int64_tensor("input0_ends", [1, 1, SIZE, SIZE], [4]),
+        _int64_tensor("marker_starts", [2, 0, 0], [3]),
+        _int64_tensor("marker_ends", [3, SIZE, SIZE], [3]),
+        _int64_tensor("input0_starts", [0, 0, 0], [3]),
+        _int64_tensor("input0_ends", [1, SIZE, SIZE], [3]),
         _int64_tensor("pad_look_right", [0, -1, 0, 1], [4]),
         _int64_tensor("pad_look_left", [0, 1, 0, -1], [4]),
         _int64_tensor("pad_look_down", [-1, 0, 1, 0], [4]),
         _int64_tensor("pad_look_up", [1, 0, -1, 0], [4]),
         _int64_tensor("pads_output_hw", [0, 0, 21, 21], [4]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
+        _int64_tensor("axes_chw", [1, 2, 3], [3]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _f16_tensor("ray_w", _ray_kernel(), [1, 4, KERNEL, KERNEL]),
         _u8_tensor("black_marker10", [1, 0, 1, 0, 0, 0, 0, 0, 0, 0], [1, 10, 1, 1]),
@@ -83,9 +84,9 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes = [
-        helper.make_node("Slice", ["input", "marker_starts", "marker_ends"], ["marker2_f32"]),
+        helper.make_node("Slice", ["input", "marker_starts", "marker_ends", "axes_chw"], ["marker2_f32"]),
         helper.make_node("Cast", ["marker2_f32"], ["marker2"], to=onnx.TensorProto.BOOL),
-        helper.make_node("Slice", ["input", "input0_starts", "input0_ends"], ["input0_9"]),
+        helper.make_node("Slice", ["input", "input0_starts", "input0_ends", "axes_chw"], ["input0_9"]),
         helper.make_node("Equal", ["input0_9", "zero_f32"], ["nonzero"]),
         helper.make_node("Pad", ["nonzero", "pad_look_right", "", "pad_axes_hw"], ["right"], mode="constant"),
         helper.make_node("Pad", ["nonzero", "pad_look_left", "", "pad_axes_hw"], ["left"], mode="constant"),
