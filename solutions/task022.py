@@ -78,7 +78,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 27, 27], [8]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("five_u8", [5], [1, 1, 1, 1]),
-        _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
 
@@ -111,8 +110,8 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Concat", slots[3:6], ["row1"], axis=3),
             helper.make_node("Concat", slots[6:9], ["row2"], axis=3),
             helper.make_node("Concat", ["row0", "row1", "row2"], ["color3"], axis=2),
-            helper.make_node("Pad", ["color3", "pads_output", "invalid_u8"], ["color30"], mode="constant"),
-            helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
+            helper.make_node("Equal", ["colors10_u8", "color3"], ["output3"]),
+            helper.make_node("Pad", ["output3", "pads_output"], ["output"], mode="constant"),
         ]
     )
 
