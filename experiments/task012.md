@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.045978912721964 | 2782 | 65 | 2026-06-13T13:38:18+09:00 | exp019 |
+| passes_local | 17.230621390486014 | 2302 | 65 | 2026-06-13T17:01:52+09:00 | exp021 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -28,6 +28,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp017 | impl_opt | direct-f16-center | passes_local | 16.941672693419044 | 3070 | 90 | 0.0445618280599 | promoted | Auto promoted after canonical re-score. |
 | exp018 | impl_opt | weighted-single-conv | passes_local | 17.045627727468133 | 2782 | 66 | 0.103955034049 | promoted | Auto promoted after canonical re-score. |
 | exp019 | impl_opt | cast-arm-fill | passes_local | 17.045978912721964 | 2782 | 65 | 0.00035118525383 | promoted | Auto promoted after canonical re-score. |
+| exp021 | rule_redesign | center8-conv-pad4 | passes_local | 17.230621390486014 | 2302 | 65 | 0.184642477764 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

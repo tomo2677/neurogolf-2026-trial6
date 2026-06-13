@@ -62,9 +62,9 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("present_end", [10]),
         _int64_tensor("k2", [2]),
         _int32_tensor("input_channel_ids", list(range(1, 10)), [9]),
-        _int32_tensor("slice_zero", [0], [1]),
         _int32_tensor("slice_one", [1], [1]),
-        _int32_tensor("slice_12", [SIZE], [1]),
+        _int32_tensor("slice_two", [2], [1]),
+        _int32_tensor("slice_ten", [10], [1]),
         _int32_tensor("axes3", [1, 2, 3], [3]),
         _int64_tensor("reduce_present_axes", [0, 2, 3], [3]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
@@ -84,8 +84,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Gather", ["input_channel_ids", "top_idx0"], ["arm_channel_id"], axis=0),
         helper.make_node("Gather", ["input_channel_ids", "top_idx1"], ["center_channel_id"], axis=0),
         helper.make_node("Add", ["center_channel_id", "slice_one"], ["center_channel_end"]),
-        helper.make_node("Concat", ["center_channel_id", "slice_zero", "slice_zero"], ["center_start"], axis=0),
-        helper.make_node("Concat", ["center_channel_end", "slice_12", "slice_12"], ["center_end"], axis=0),
+        helper.make_node("Concat", ["center_channel_id", "slice_two", "slice_two"], ["center_start"], axis=0),
+        helper.make_node("Concat", ["center_channel_end", "slice_ten", "slice_ten"], ["center_end"], axis=0),
         helper.make_node("Slice", ["input", "center_start", "center_end", "axes3"], ["center_f32"]),
         helper.make_node("Cast", ["arm_channel_id"], ["arm_color"], to=onnx.TensorProto.UINT8),
         helper.make_node("Cast", ["center_channel_id"], ["center_color"], to=onnx.TensorProto.UINT8),
@@ -94,7 +94,7 @@ def build_model() -> onnx.ModelProto:
     nodes.extend(
         [
             helper.make_node("Cast", ["center_f32"], ["center_mask_f16"], to=INTERNAL_TYPE),
-            helper.make_node("Conv", ["center_mask_f16", "fill_kernel"], ["fill_score"], kernel_shape=[5, 5], pads=[2, 2, 2, 2]),
+            helper.make_node("Conv", ["center_mask_f16", "fill_kernel"], ["fill_score"], kernel_shape=[5, 5], pads=[4, 4, 4, 4]),
             helper.make_node("Greater", ["fill_score", "one_f16"], ["center_fill"]),
             helper.make_node("Cast", ["fill_score"], ["arm_fill"], to=onnx.TensorProto.BOOL),
             helper.make_node("Where", ["arm_fill", "arm_color", "zero_u8"], ["arm_out"]),
@@ -104,7 +104,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
     value_infos = [
-        helper.make_tensor_value_info("center_f32", onnx.TensorProto.FLOAT, [1, 1, SIZE, SIZE]),
+        helper.make_tensor_value_info("center_f32", onnx.TensorProto.FLOAT, [1, 1, 8, 8]),
     ]
 
     graph = helper.make_graph(nodes, "task012_direct_f16_center_graph", [x], [y], initializers, value_info=value_infos)
