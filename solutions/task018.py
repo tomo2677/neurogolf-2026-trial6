@@ -26,6 +26,10 @@ def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorP
     return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
 
 
+def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
+
+
 def _initializer_key(tensor: onnx.TensorProto) -> tuple:
     return (
         tensor.data_type,
@@ -201,6 +205,29 @@ def _static_shift(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, ou
         )
 
 
+def _static_shift_color(nodes: list[onnx.NodeProto], source: str, dr: str, dc: str, output: str) -> None:
+    nodes.extend(
+        [
+            helper.make_node("Sub", ["row_grid_i32", dr], [f"{output}_src_r"]),
+            helper.make_node("Sub", ["col_grid_i32", dc], [f"{output}_src_c"]),
+            helper.make_node("Greater", [f"{output}_src_r", "neg_one_i32"], [f"{output}_r_nonneg"]),
+            helper.make_node("Less", [f"{output}_src_r", "size_i32"], [f"{output}_r_lt_size"]),
+            helper.make_node("Greater", [f"{output}_src_c", "neg_one_i32"], [f"{output}_c_nonneg"]),
+            helper.make_node("Less", [f"{output}_src_c", "size_i32"], [f"{output}_c_lt_size"]),
+            helper.make_node("And", [f"{output}_r_nonneg", f"{output}_r_lt_size"], [f"{output}_r_ok"]),
+            helper.make_node("And", [f"{output}_c_nonneg", f"{output}_c_lt_size"], [f"{output}_c_ok"]),
+            helper.make_node("And", [f"{output}_r_ok", f"{output}_c_ok"], [f"{output}_in_bounds"]),
+            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_r", "zero_i32"], [f"{output}_safe_r"]),
+            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_src_c", "zero_i32"], [f"{output}_safe_c"]),
+            helper.make_node("Mul", [f"{output}_safe_r", "width_i32"], [f"{output}_safe_r_offset"]),
+            helper.make_node("Add", [f"{output}_safe_r_offset", f"{output}_safe_c"], [f"{output}_safe_spatial"]),
+            helper.make_node("Reshape", [source, "shape_flat900"], [f"{output}_source_flat"]),
+            helper.make_node("Gather", [f"{output}_source_flat", f"{output}_safe_spatial"], [f"{output}_shifted"], axis=0),
+            helper.make_node("Where", [f"{output}_in_bounds", f"{output}_shifted", "zero_u8"], [output]),
+        ]
+    )
+
+
 def _flat_position(nodes: list[onnx.NodeProto], flat_index: str, prefix: str) -> tuple[str, str]:
     nodes.extend(
         [
@@ -225,7 +252,7 @@ def _component_outputs(
             helper.make_node("Not", ["base_mask"], [f"{prefix}_not_base"]),
             helper.make_node("And", [comp_mask, f"{prefix}_not_base"], [f"{prefix}_marker_bool"]),
             helper.make_node("And", [comp_mask, "anchor_color_mask"], [f"{prefix}_anchor_bool"]),
-            helper.make_node("Where", [comp_mask, "input", "zero_f32"], [f"{prefix}_onehot"]),
+            helper.make_node("Where", [comp_mask, "input_color_u8", "zero_u8"], [f"{prefix}_color"]),
         ]
     )
     _cast_f32(nodes, comp_mask, f"{prefix}_mask_f32")
@@ -245,7 +272,7 @@ def _component_outputs(
     source_row, source_col = _flat_position(nodes, f"{prefix}_anchor_index", f"{prefix}_source_anchor")
 
     for transform in TRANSFORMS:
-        transformed_onehot = _transform_tensor(nodes, f"{prefix}_onehot", f"{prefix}_{transform}_onehot", transform)
+        transformed_color = _transform_tensor(nodes, f"{prefix}_color", f"{prefix}_{transform}_color", transform)
         transformed_base = _transform_tensor(nodes, f"{prefix}_base_f32", f"{prefix}_{transform}_base", transform)
         transformed_row, transformed_col = _transform_point(
             nodes, source_row, source_col, f"{prefix}_{transform}_source_anchor", transform
@@ -261,24 +288,22 @@ def _component_outputs(
                     helper.make_node("Cast", [f"{place}_dc"], [f"{place}_dc_i32"], to=onnx.TensorProto.INT32),
                 ]
             )
-            _static_shift(nodes, transformed_onehot, f"{place}_dr_i32", f"{place}_dc_i32", f"{place}_shifted_onehot", 10)
+            _static_shift_color(nodes, transformed_color, f"{place}_dr_i32", f"{place}_dc_i32", f"{place}_shifted_color")
             _static_shift(nodes, transformed_base, f"{place}_dr_i32", f"{place}_dc_i32", f"{place}_shifted_base", 1)
 
             nodes.extend(
                 [
-                    helper.make_node(
-                        "ReduceMax", [f"{place}_shifted_onehot"], [f"{place}_shifted_mask"], axes=[1], keepdims=1
-                    ),
+                    helper.make_node("Greater", [f"{place}_shifted_color", "zero_u8"], [f"{place}_shifted_mask_bool"]),
+                    helper.make_node("Cast", [f"{place}_shifted_mask_bool"], [f"{place}_shifted_mask"], to=onnx.TensorProto.FLOAT),
                     helper.make_node("Mul", [f"{place}_shifted_mask", "valid_cell_f32"], [f"{place}_inside_grid"]),
                     helper.make_node("Mul", [f"{place}_shifted_base", "input0"], [f"{place}_base_on_zero"]),
                     helper.make_node("Greater", [f"{place}_shifted_base", "zero_f32"], [f"{place}_base_bool"]),
-                    helper.make_node(
-                        "Where", [f"{place}_base_bool", "zero_f32", f"{place}_shifted_onehot"], [f"{place}_markers"]
-                    ),
-                    helper.make_node("Mul", [f"{place}_markers", "input"], [f"{place}_marker_matches"]),
-                    helper.make_node(
-                        "ReduceMax", [f"{place}_markers"], [f"{place}_marker_mask"], axes=[1], keepdims=1
-                    ),
+                    helper.make_node("Not", [f"{place}_base_bool"], [f"{place}_not_base_bool"]),
+                    helper.make_node("And", [f"{place}_shifted_mask_bool", f"{place}_not_base_bool"], [f"{place}_marker_mask_bool"]),
+                    helper.make_node("Equal", [f"{place}_shifted_color", "input_color_u8"], [f"{place}_marker_color_equal"]),
+                    helper.make_node("And", [f"{place}_marker_mask_bool", f"{place}_marker_color_equal"], [f"{place}_marker_matches_bool"]),
+                    helper.make_node("Cast", [f"{place}_marker_matches_bool"], [f"{place}_marker_matches"], to=onnx.TensorProto.FLOAT),
+                    helper.make_node("Cast", [f"{place}_marker_mask_bool"], [f"{place}_marker_mask"], to=onnx.TensorProto.FLOAT),
                     helper.make_node("Mul", [f"{place}_marker_mask", "source_mask_all_f32"], [f"{place}_marker_source_overlap"]),
                 ]
             )
@@ -307,7 +332,7 @@ def _component_outputs(
                     helper.make_node(
                         "And", [f"{place}_valid_c", f"{place}_outside_source_ok"], [f"{place}_valid"]
                     ),
-                    helper.make_node("Where", [f"{place}_valid", f"{place}_shifted_onehot", "zero_f32"], [f"{place}_output"]),
+                    helper.make_node("Where", [f"{place}_valid", f"{place}_shifted_color", "zero_u8"], [f"{place}_output"]),
                 ]
             )
             outputs.append(f"{place}_output")
@@ -316,7 +341,8 @@ def _component_outputs(
 
 
 def build_model() -> onnx.ModelProto:
-    x, y = make_io_value_infos()
+    x, _ = make_io_value_infos()
+    y = helper.make_tensor_value_info("output", onnx.TensorProto.FLOAT, GRID_SHAPE)
 
     initializers = [
         _int64_tensor("slice_nonzero_start", [1], [1]),
@@ -338,19 +364,15 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pads_to_grid", [0, 0, 0, 0, 0, 0, GRID_SIZE - SIZE, GRID_SIZE - SIZE], [8]),
         _int64_tensor("shape1111", [1, 1, 1, 1], [4]),
         _int64_tensor("shape_flat900", [SIZE * SIZE], [1]),
-        _int64_tensor("shape_index_1x900", [1, 1, SIZE * SIZE], [3]),
-        _int64_tensor("shape_index_10x900", [1, 10, SIZE * SIZE], [3]),
-        _int64_tensor("shape_flat_1x900", [1, 1, SIZE * SIZE], [3]),
-        _int64_tensor("shape_flat_10x900", [1, 10, SIZE * SIZE], [3]),
         _int64_tensor("shape_1x1x30x30", [1, 1, SIZE, SIZE], [4]),
-        _int64_tensor("shape_1x10x30x30", [1, 10, SIZE, SIZE], [4]),
         _int64_tensor("reverse_idx", list(reversed(range(SIZE))), [SIZE]),
         _int64_tensor("flat_index", list(range(SIZE * SIZE)), [SIZE * SIZE]),
         _int32_tensor("row_grid_i32", list(range(SIZE)), [1, 1, SIZE, 1]),
         _int32_tensor("col_grid_i32", list(range(SIZE)), [1, 1, 1, SIZE]),
         _int64_tensor("color_ids", list(range(1, 10)), [9]),
         _f32_tensor("zero_f32", [0.0], [1]),
-        _f32_tensor("black_pixel", [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [1, 10, 1, 1]),
+        _u8_tensor("zero_u8", [0], [1]),
+        _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
         _f32_tensor("cross_kernel", [0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0], [1, 1, 3, 3]),
     ]
 
@@ -366,6 +388,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ArgMax", ["color_counts"], ["base_idx"], axis=0, keepdims=1),
         helper.make_node("Add", ["base_idx", "one_i64"], ["base_color"]),
         helper.make_node("ArgMax", ["input"], ["color_grid"], axis=1, keepdims=1),
+        helper.make_node("Cast", ["color_grid"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Reshape", ["base_color", "shape1111"], ["base_color1111"]),
         helper.make_node("Equal", ["color_grid", "base_color1111"], ["base_mask"]),
         helper.make_node("Greater", ["color_counts", "zero_f32"], ["color_present"]),
@@ -420,15 +443,15 @@ def build_model() -> onnx.ModelProto:
     candidate_outputs.extend(
         _component_outputs(nodes, "comp2_mask", [target0_row, target1_row], [target0_col, target1_col], "comp2")
     )
+    candidate_output_floats = []
+    for index, candidate_output in enumerate(candidate_outputs):
+        float_name = f"candidate_output_f32_{index}"
+        nodes.append(helper.make_node("Cast", [candidate_output], [float_name], to=onnx.TensorProto.FLOAT))
+        candidate_output_floats.append(float_name)
     nodes.extend(
         [
-            helper.make_node("Max", candidate_outputs, ["placed_nonzero"]),
-            helper.make_node("ReduceMax", ["placed_nonzero"], ["placed_mask"], axes=[1], keepdims=1),
-            helper.make_node("Greater", ["placed_mask", "zero_f32"], ["placed_bool"]),
-            helper.make_node("Not", ["placed_bool"], ["not_placed_bool"]),
-            helper.make_node("And", ["valid_cell", "not_placed_bool"], ["blank_bool"]),
-            helper.make_node("Where", ["blank_bool", "black_pixel", "zero_f32"], ["blank_output"]),
-            helper.make_node("Max", ["placed_nonzero", "blank_output"], ["output24"]),
+            helper.make_node("Max", candidate_output_floats, ["color24_f32"]),
+            helper.make_node("Cast", ["color24_f32"], ["color24"], to=onnx.TensorProto.UINT8),
         ]
     )
 
@@ -437,7 +460,14 @@ def build_model() -> onnx.ModelProto:
             if input_name == "input":
                 node.input[index] = "input24"
     nodes.insert(0, helper.make_node("Slice", ["input", "crop_hw_start", "crop_hw_end", "crop_hw_axes"], ["input24"]))
-    nodes.append(helper.make_node("Pad", ["output24", "pads_to_grid"], ["output"], mode="constant"))
+    nodes.extend(
+        [
+            helper.make_node("Equal", ["colors10_u8", "color24"], ["output24_unmasked_bool"]),
+            helper.make_node("And", ["output24_unmasked_bool", "valid_cell"], ["output24_bool"]),
+            helper.make_node("Cast", ["output24_bool"], ["output24"], to=onnx.TensorProto.FLOAT),
+            helper.make_node("Pad", ["output24", "pads_to_grid"], ["output"], mode="constant"),
+        ]
+    )
 
     graph = helper.make_graph(nodes, "task018_template_copy_graph", [x], [y], initializers)
     _dedupe_initializers(graph)
