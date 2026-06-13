@@ -10,6 +10,10 @@ def _int64_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorP
     return helper.make_tensor(name, onnx.TensorProto.INT64, dims, values)
 
 
+def _int32_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.INT32, dims, values)
+
+
 def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
@@ -43,12 +47,14 @@ def build_model() -> onnx.ModelProto:
     initializers = [
         _int64_tensor("input0_start", [0, 0, 0, 0], [4]),
         _int64_tensor("input0_end", [1, 1, 30, 30], [4]),
-        _int64_tensor("row_idx", list(range(30)), [1, 1, 30, 1]),
-        _int64_tensor("col_idx", list(range(30)), [1, 1, 1, 30]),
-        _int64_tensor("two_i64", [2], [1]),
+        _int32_tensor("row_idx", list(range(30)), [1, 1, 30, 1]),
+        _int32_tensor("col_idx", list(range(30)), [1, 1, 1, 30]),
         _int64_tensor("ten_i64", [10], [1]),
         _int64_tensor("zero_i64", [0], [1]),
         _int64_tensor("one_i64", [1], [1]),
+        _int32_tensor("two_i32", [2], [1]),
+        _int32_tensor("zero_i32", [0], [1]),
+        _int32_tensor("one_i32", [1], [1]),
         _int64_tensor("col_gather_shape", [1, 1, 30, 1], [4]),
         _int64_tensor("row_gather_shape", [1, 1, 1, 30], [4]),
         _f32_tensor("zero_f32", [0.0], [1]),
@@ -62,8 +68,10 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ReduceMax", ["input"], ["col_present"], axes=[1, 2], keepdims=1),
         helper.make_node("ArgMax", ["row_present"], ["last_row"], axis=2, keepdims=1, select_last_index=1),
         helper.make_node("ArgMax", ["col_present"], ["last_col"], axis=3, keepdims=1, select_last_index=1),
-        helper.make_node("LessOrEqual", ["row_idx", "last_row"], ["row_valid"]),
-        helper.make_node("LessOrEqual", ["col_idx", "last_col"], ["col_valid"]),
+        helper.make_node("Cast", ["last_row"], ["last_row_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["last_col"], ["last_col_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("LessOrEqual", ["row_idx", "last_row_i32"], ["row_valid"]),
+        helper.make_node("LessOrEqual", ["col_idx", "last_col_i32"], ["col_valid"]),
         helper.make_node("And", ["row_valid", "col_valid"], ["valid_area"]),
         helper.make_node("LessOrEqual", ["last_row", "last_col"], ["wide_bool"]),
         helper.make_node("Slice", ["input", "input0_start", "input0_end"], ["input0"]),
@@ -88,6 +96,10 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Expand", ["r1", "row_gather_shape"], ["r1_gather_idx"]),
         helper.make_node("GatherElements", ["nonblack_u8", "r1_gather_idx"], ["r1_point_cols"], axis=2),
         helper.make_node("ArgMax", ["r1_point_cols"], ["r1_col"], axis=3, keepdims=1, select_last_index=0),
+        helper.make_node("Cast", ["c0"], ["c0_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["c1"], ["c1_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["r0"], ["r0_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["r1"], ["r1_i32"], to=onnx.TensorProto.INT32),
     ]
     _color_at_coord(nodes, "c0_row", "c0", "c0_color")
     _color_at_coord(nodes, "c1_row", "c1", "c1_color")
@@ -96,32 +108,32 @@ def build_model() -> onnx.ModelProto:
 
     nodes.extend(
         [
-            helper.make_node("Sub", ["c1", "c0"], ["dc"]),
-            helper.make_node("Equal", ["dc", "zero_i64"], ["dc_is_zero"]),
-            helper.make_node("Where", ["dc_is_zero", "one_i64", "dc"], ["dc_safe"]),
-            helper.make_node("Sub", ["col_idx", "c0"], ["col_from_start"]),
-            helper.make_node("LessOrEqual", ["c0", "col_idx"], ["col_after_start"]),
-            helper.make_node("LessOrEqual", ["col_idx", "last_col"], ["col_in_bounds"]),
+            helper.make_node("Sub", ["c1_i32", "c0_i32"], ["dc"]),
+            helper.make_node("Equal", ["dc", "zero_i32"], ["dc_is_zero"]),
+            helper.make_node("Where", ["dc_is_zero", "one_i32", "dc"], ["dc_safe"]),
+            helper.make_node("Sub", ["col_idx", "c0_i32"], ["col_from_start"]),
+            helper.make_node("LessOrEqual", ["c0_i32", "col_idx"], ["col_after_start"]),
+            helper.make_node("LessOrEqual", ["col_idx", "last_col_i32"], ["col_in_bounds"]),
             helper.make_node("Mod", ["col_from_start", "dc_safe"], ["col_mod"]),
-            helper.make_node("Equal", ["col_mod", "zero_i64"], ["col_on_period"]),
+            helper.make_node("Equal", ["col_mod", "zero_i32"], ["col_on_period"]),
             helper.make_node("Div", ["col_from_start", "dc_safe"], ["col_step"]),
-            helper.make_node("Mod", ["col_step", "two_i64"], ["col_parity"]),
-            helper.make_node("Equal", ["col_parity", "zero_i64"], ["col_even"]),
+            helper.make_node("Mod", ["col_step", "two_i32"], ["col_parity"]),
+            helper.make_node("Equal", ["col_parity", "zero_i32"], ["col_even"]),
             helper.make_node("And", ["col_after_start", "col_in_bounds"], ["col_valid_period_area"]),
             helper.make_node("And", ["col_valid_period_area", "col_on_period"], ["target_cols"]),
             helper.make_node("Where", ["col_even", "c0_color", "c1_color"], ["h_color_line"]),
             helper.make_node("Where", ["target_cols", "h_color_line", "zero_u8"], ["h_color_grid"]),
-            helper.make_node("Sub", ["r1", "r0"], ["dr"]),
-            helper.make_node("Equal", ["dr", "zero_i64"], ["dr_is_zero"]),
-            helper.make_node("Where", ["dr_is_zero", "one_i64", "dr"], ["dr_safe"]),
-            helper.make_node("Sub", ["row_idx", "r0"], ["row_from_start"]),
-            helper.make_node("LessOrEqual", ["r0", "row_idx"], ["row_after_start"]),
-            helper.make_node("LessOrEqual", ["row_idx", "last_row"], ["row_in_bounds"]),
+            helper.make_node("Sub", ["r1_i32", "r0_i32"], ["dr"]),
+            helper.make_node("Equal", ["dr", "zero_i32"], ["dr_is_zero"]),
+            helper.make_node("Where", ["dr_is_zero", "one_i32", "dr"], ["dr_safe"]),
+            helper.make_node("Sub", ["row_idx", "r0_i32"], ["row_from_start"]),
+            helper.make_node("LessOrEqual", ["r0_i32", "row_idx"], ["row_after_start"]),
+            helper.make_node("LessOrEqual", ["row_idx", "last_row_i32"], ["row_in_bounds"]),
             helper.make_node("Mod", ["row_from_start", "dr_safe"], ["row_mod"]),
-            helper.make_node("Equal", ["row_mod", "zero_i64"], ["row_on_period"]),
+            helper.make_node("Equal", ["row_mod", "zero_i32"], ["row_on_period"]),
             helper.make_node("Div", ["row_from_start", "dr_safe"], ["row_step"]),
-            helper.make_node("Mod", ["row_step", "two_i64"], ["row_parity"]),
-            helper.make_node("Equal", ["row_parity", "zero_i64"], ["row_even"]),
+            helper.make_node("Mod", ["row_step", "two_i32"], ["row_parity"]),
+            helper.make_node("Equal", ["row_parity", "zero_i32"], ["row_even"]),
             helper.make_node("And", ["row_after_start", "row_in_bounds"], ["row_valid_period_area"]),
             helper.make_node("And", ["row_valid_period_area", "row_on_period"], ["target_rows"]),
             helper.make_node("Where", ["row_even", "r0_color", "r1_color"], ["v_color_line"]),
@@ -152,7 +164,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task013_periodic_lines_graph", [x], [y], initializers, value_info=value_infos)
+    graph = helper.make_graph(nodes, "task013_int32_periodic_lines_graph", [x], [y], initializers, value_info=value_infos)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model

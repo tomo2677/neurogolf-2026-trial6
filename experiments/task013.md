@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 15.475433000349923 | 13599 | 93 | 2026-06-13T08:54:24+09:00 | exp008 |
+| passes_local | 15.547341097323567 | 12647 | 95 | 2026-06-13T12:04:12+09:00 | exp010 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -22,6 +22,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp006 | impl_opt | dynamic-slice-colors-shapes | passes_local | 15.47499488424215 | 13599 | 99 | 0.0371182540766 | promoted | Auto promoted after canonical re-score. |
 | exp007 | impl_opt | reuse-shape1 | passes_local | 15.475067890265178 | 13599 | 98 | 7.30060230278e-05 | promoted | Auto promoted after canonical re-score. |
 | exp008 | impl_opt | no-axes-slices | passes_local | 15.475433000349923 | 13599 | 93 | 0.000365110084745 | promoted | Auto promoted after canonical re-score. |
+| exp009 | impl_opt | int32-period-math | passes_local | 15.547262619787722 | 12647 | 96 | 0.0718296194378 | promoted | Auto promoted after canonical re-score. |
+| exp010 | impl_opt | remove-unused-two-i64 | passes_local | 15.547341097323567 | 12647 | 95 | 7.84775358458e-05 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
