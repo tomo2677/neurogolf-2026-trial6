@@ -51,11 +51,12 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
+        _f32_tensor("color_conv_w", [float(i) for i in range(10)], [1, 10, 1, 1]),
     ]
 
     nodes = [
-        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1),
-        helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Conv", ["input", "color_conv_w"], ["input_color_f32"]),
+        helper.make_node("Cast", ["input_color_f32"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Pad", ["input_color_u8", "pads_shift_right", "", "pair_sum_axes"], ["right_color"], mode="constant"),
         helper.make_node("Equal", ["input_color_u8", "right_color"], ["same_right"]),
         helper.make_node("Where", ["same_right", "input_color_u8", "zero_u8"], ["h_pair_color"]),
@@ -114,7 +115,7 @@ def build_model() -> onnx.ModelProto:
 
     graph = helper.make_graph(
         nodes,
-        "task036_default_false_pad_graph",
+        "task036_conv_color_map_graph",
         [x],
         [y],
         initializers,
