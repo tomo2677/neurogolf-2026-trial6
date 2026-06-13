@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 14.903745632808379 | 24179 | 73 | 2026-06-13T08:59:48+09:00 | exp010 |
+| passes_local | 14.905024695553674 | 24147 | 74 | 2026-06-13T13:22:48+09:00 | exp011 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -22,6 +22,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp007 | impl_opt | window25-color-grid | passes_local | 14.879306488816416 | 24772 | 80 | 0.180159771204 | promoted | Auto promoted after canonical re-score. |
 | exp009 | impl_opt | argmax-u8-input | passes_local | 14.570246639210003 | 33772 | 80 | -0.309059849606 | not_better | Passed but did not improve local_points. |
 | exp010 | impl_opt | combine-dynamic-output-pad | passes_local | 14.903745632808379 | 24179 | 73 | 0.024439143992 | promoted | Auto promoted after canonical re-score. |
+| exp011 | impl_opt | pad-axes-dynamic-target | passes_local | 14.905024695553674 | 24147 | 74 | 0.0012790627453 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

@@ -40,7 +40,7 @@ def _color_id(nodes: list[onnx.NodeProto], mask: str, output: str) -> None:
         [
             helper.make_node("And", [mask, "nonblack_bool"], [f"{output}_nonblack_bool"]),
             helper.make_node("Where", [f"{output}_nonblack_bool", "input_color_u8", "zero_u8"], [f"{output}_color_grid"]),
-            helper.make_node("ReduceMax", [f"{output}_color_grid"], [output], axes=[2, 3], keepdims=1),
+            helper.make_node("ReduceMax", [f"{output}_color_grid", "slice_hw_axes"], [output], keepdims=1),
         ]
     )
 
@@ -70,11 +70,12 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("one_i64", [1], [1, 1, 1, 1]),
         _int64_tensor("five_i64", [5], [1, 1, 1, 1]),
         _int64_tensor("zero_i64", [0], [1, 1, 1, 1]),
-        _int64_tensor("zero_pad", [0], [1]),
         _int64_tensor("shape1", [1], [1]),
         _int64_tensor("slice_hw_starts", [0, 0], [2]),
         _int64_tensor("slice_hw_ends", [25, 25], [2]),
         _int64_tensor("slice_hw_axes", [2, 3], [2]),
+        _int64_tensor("axis_h", [2], [1]),
+        _int64_tensor("axis_w", [3], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("outside_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
@@ -86,8 +87,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Slice", ["input_color30_u8", "slice_hw_starts", "slice_hw_ends", "slice_hw_axes"], ["input_color_u8"]),
         helper.make_node("Cast", ["input_color_u8"], ["nonblack_bool"], to=onnx.TensorProto.BOOL),
         helper.make_node("Cast", ["nonblack_bool"], ["nonblack_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("ReduceMax", ["nonblack_u8"], ["row_has"], axes=[3], keepdims=1),
-        helper.make_node("ReduceMax", ["nonblack_u8"], ["col_has"], axes=[2], keepdims=1),
+        helper.make_node("ReduceMax", ["nonblack_u8", "axis_w"], ["row_has"], keepdims=1),
+        helper.make_node("ReduceMax", ["nonblack_u8", "axis_h"], ["col_has"], keepdims=1),
         helper.make_node("Equal", ["row_has", "zero_u8"], ["row_zero"]),
         helper.make_node("Equal", ["col_has", "zero_u8"], ["col_zero"]),
         helper.make_node("Cast", ["row_zero"], ["row_zero_u8"], to=onnx.TensorProto.UINT8),
@@ -157,12 +158,8 @@ def build_model() -> onnx.ModelProto:
             helper.make_node(
                 "Concat",
                 [
-                    "zero_pad",
-                    "zero_pad",
                     "neg_row_start_1",
                     "neg_col_start_1",
-                    "zero_pad",
-                    "zero_pad",
                     "target_row_end_pad_1",
                     "target_col_end_pad_1",
                 ],
@@ -170,7 +167,12 @@ def build_model() -> onnx.ModelProto:
                 axis=0,
             ),
             helper.make_node("Where", ["target_mask", "input_color_u8", "outside_u8"], ["target_color_u8"]),
-            helper.make_node("Pad", ["target_color_u8", "target_pads", "outside_u8"], ["shifted_color30_u8"], mode="constant"),
+            helper.make_node(
+                "Pad",
+                ["target_color_u8", "target_pads", "outside_u8", "slice_hw_axes"],
+                ["shifted_color30_u8"],
+                mode="constant",
+            ),
             helper.make_node("Equal", ["colors10", "shifted_color30_u8"], ["output"]),
         ]
     )
@@ -180,6 +182,6 @@ def build_model() -> onnx.ModelProto:
         helper.make_tensor_value_info("shifted_color30_u8", onnx.TensorProto.UINT8, [1, 1, 30, 30]),
     ]
     graph = helper.make_graph(nodes, "task014_unique_block_crop_graph", [x], [y], initializers, value_info=value_infos)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
