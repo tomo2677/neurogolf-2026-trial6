@@ -22,10 +22,6 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
-def _bool_tensor(name: str, values: list[bool], dims: list[int]) -> onnx.TensorProto:
-    return helper.make_tensor(name, onnx.TensorProto.BOOL, dims, values)
-
-
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
@@ -34,16 +30,17 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("axes3", [1, 2, 3]),
         _int64_tensor("pads_output_chw", [0, 0, 0, 3, 19, 19]),
         _int64_tensor("pad_axes_chw", [1, 2, 3]),
+        _int64_tensor("pads_pattern4_hw", [0, 0, 1, 1], [4]),
+        _int64_tensor("pad_axes_hw", [2, 3], [2]),
         _int64_tensor("channel8_starts", [8, 0, 0], [3]),
         _int64_tensor("channel8_ends", [9, 11, 11], [3]),
         _int32_tensor("slice_channel_start", [0], [1]),
         _int32_tensor("slice_channel_end", [7], [1]),
         _int32_tensor("three_i32", [3], [1]),
         _int32_tensor("four_i32", [4], [1]),
-        _int64_tensor("expand_index11", [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2], [11]),
+        _int64_tensor("expand_index11", [0, 0, 0, 3, 1, 1, 1, 3, 2, 2, 2], [11]),
         _u8_tensor("colors7", list(range(7)), [1, 7, 1, 1]),
         _u8_tensor("five_u8", [5], [1]),
-        _bool_tensor("sep_mask", [r in (3, 7) or c in (3, 7) for r in range(11) for c in range(11)], [1, 1, 11, 11]),
     ]
     nodes: list[onnx.NodeProto] = [
         helper.make_node("Slice", ["input", "channel8_starts", "channel8_ends", "pad_axes_chw"], ["blue11"]),
@@ -63,9 +60,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Slice", ["input", "selected_start", "selected_end", "axes3"], ["selected_onehot"]),
         helper.make_node("ArgMax", ["selected_onehot"], ["pattern_i64"], axis=1, keepdims=1),
         helper.make_node("Cast", ["pattern_i64"], ["pattern"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Gather", ["pattern", "expand_index11"], ["expanded11x3"], axis=2),
-        helper.make_node("Gather", ["expanded11x3", "expand_index11"], ["expanded11"], axis=3),
-        helper.make_node("Where", ["sep_mask", "five_u8", "expanded11"], ["color11"]),
+        helper.make_node("Pad", ["pattern", "pads_pattern4_hw", "five_u8", "pad_axes_hw"], ["pattern4"], mode="constant"),
+        helper.make_node("Gather", ["pattern4", "expand_index11"], ["expanded11x4"], axis=2),
+        helper.make_node("Gather", ["expanded11x4", "expand_index11"], ["color11"], axis=3),
         helper.make_node("Equal", ["colors7", "color11"], ["output7"]),
         helper.make_node("Pad", ["output7", "pads_output_chw", "", "pad_axes_chw"], ["output"], mode="constant"),
     ]
@@ -74,8 +71,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_tensor_value_info("selected_onehot", onnx.TensorProto.FLOAT, [1, 7, 3, 3]),
         helper.make_tensor_value_info("pattern_i64", onnx.TensorProto.INT64, [1, 1, 3, 3]),
         helper.make_tensor_value_info("pattern", onnx.TensorProto.UINT8, [1, 1, 3, 3]),
-        helper.make_tensor_value_info("expanded11x3", onnx.TensorProto.UINT8, [1, 1, 11, 3]),
-        helper.make_tensor_value_info("expanded11", onnx.TensorProto.UINT8, [1, 1, 11, 11]),
+        helper.make_tensor_value_info("pattern4", onnx.TensorProto.UINT8, [1, 1, 4, 4]),
+        helper.make_tensor_value_info("expanded11x4", onnx.TensorProto.UINT8, [1, 1, 11, 4]),
         helper.make_tensor_value_info("color11", onnx.TensorProto.UINT8, [1, 1, 11, 11]),
         helper.make_tensor_value_info("output7", onnx.TensorProto.BOOL, [1, 7, 11, 11]),
     ]

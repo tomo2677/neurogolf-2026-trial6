@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.296992317520765 | 2053 | 162 | 2026-06-13T13:50:23+09:00 | exp018 |
+| passes_local | 17.39610203147812 | 1959 | 47 | 2026-06-13T16:40:25+09:00 | exp019 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -31,6 +31,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp016 | impl_opt | bool7-pad | passes_local | 17.29158933274263 | 2062 | 165 | 0.023958555027 | promoted | Auto promoted after canonical re-score. |
 | exp017 | impl_opt | channel8-slice-axes | passes_local | 17.29248780539966 | 2062 | 163 | 0.000898472657028 | promoted | Auto promoted after canonical re-score. |
 | exp018 | impl_opt | argmin-has8-u8 | passes_local | 17.296992317520765 | 2053 | 162 | 0.00450451212111 | promoted | Auto promoted after canonical re-score. |
+| exp019 | impl_opt | pad5-gather-separators | passes_local | 17.39610203147812 | 1959 | 47 | 0.0991097139574 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
