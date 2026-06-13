@@ -6,7 +6,8 @@ from onnx import helper
 from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
-SIZE = 30
+SIZE = 25
+GRID_SIZE = 30
 OUT = 23
 COLORS = list(range(1, 10))
 
@@ -115,7 +116,10 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("col_grid_i32", list(range(SIZE)), [1, 1, 1, SIZE]),
         _int32_tensor("crop_row_grid_i32", list(range(OUT)), [1, 1, OUT, 1]),
         _int32_tensor("crop_col_grid_i32", list(range(OUT)), [1, 1, 1, OUT]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, SIZE - OUT, SIZE - OUT], [8]),
+        _int64_tensor("crop_hw_start", [0, 0], [2]),
+        _int64_tensor("crop_hw_end", [SIZE, SIZE], [2]),
+        _int64_tensor("crop_hw_axes", [2, 3], [2]),
+        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, GRID_SIZE - OUT, GRID_SIZE - OUT], [8]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
@@ -175,6 +179,12 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
         ]
     )
+
+    for node in nodes:
+        for index, input_name in enumerate(node.input):
+            if input_name == "input":
+                node.input[index] = "input25"
+    nodes.insert(0, helper.make_node("Slice", ["input", "crop_hw_start", "crop_hw_end", "crop_hw_axes"], ["input25"]))
 
     graph = helper.make_graph(nodes, "task029_frame_inner_crop_color_grid_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
