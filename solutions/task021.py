@@ -25,8 +25,7 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
 def _shift_row(nodes: list[onnx.NodeProto], source: str, output: str) -> None:
     nodes.extend(
         [
-            helper.make_node("Slice", [source, "prev_starts", "row_prev_ends"], ["row_prev_crop"]),
-            helper.make_node("Pad", ["row_prev_crop", "row_prev_pads"], [output], mode="constant"),
+            helper.make_node("Pad", [source, "row_prev_pads"], [output], mode="constant"),
         ]
     )
 
@@ -34,8 +33,7 @@ def _shift_row(nodes: list[onnx.NodeProto], source: str, output: str) -> None:
 def _shift_col(nodes: list[onnx.NodeProto], source: str, output: str) -> None:
     nodes.extend(
         [
-            helper.make_node("Slice", [source, "prev_starts", "col_prev_ends"], ["col_prev_crop"]),
-            helper.make_node("Pad", ["col_prev_crop", "col_prev_pads"], [output], mode="constant"),
+            helper.make_node("Pad", [source, "col_prev_pads"], [output], mode="constant"),
         ]
     )
 
@@ -49,11 +47,8 @@ def build_model() -> onnx.ModelProto:
         _f32_tensor("row_idx", [float(v) for v in range(SIZE)], [1, 1, SIZE, 1]),
         _f32_tensor("col_idx", [float(v) for v in range(SIZE)], [1, 1, 1, SIZE]),
         _int64_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
-        _int64_tensor("prev_starts", [0, 0, 0, 0], [4]),
-        _int64_tensor("row_prev_ends", [1, 1, SIZE - 1, 1], [4]),
-        _int64_tensor("row_prev_pads", [0, 0, 1, 0, 0, 0, 0, 0], [8]),
-        _int64_tensor("col_prev_ends", [1, 1, 1, SIZE - 1], [4]),
-        _int64_tensor("col_prev_pads", [0, 0, 0, 1, 0, 0, 0, 0], [8]),
+        _int64_tensor("row_prev_pads", [0, 0, 1, 0, 0, 0, -1, 0], [8]),
+        _int64_tensor("col_prev_pads", [0, 0, 0, 1, 0, 0, 0, -1], [8]),
         _u8_tensor("zero_u8", [0], [1]),
     ]
 
