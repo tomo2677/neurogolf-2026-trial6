@@ -28,10 +28,8 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("axis_channel", [1], [1]),
         _int64_tensor("pads_hw", [0, 0, 20, 20], [4]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
-        _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero8_u8", [0] * 8, [1, 1, 1, 8]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
@@ -42,11 +40,10 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("MaxPool", ["input"], ["both_present"], kernel_shape=[10, 30], strides=[30, 30]),
         helper.make_node("ArgMax", ["top_present"], ["top_idx"], axis=1, keepdims=1, select_last_index=1),
         helper.make_node("Cast", ["top_idx"], ["top_color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Sub", ["both_present", "top_present"], ["bottom_diff"]),
-        helper.make_node("ReduceMax", ["bottom_diff", "axis_channel"], ["bottom_any"], keepdims=1),
-        helper.make_node("Greater", ["bottom_any", "zero_f32"], ["has_bottom"]),
-        helper.make_node("ArgMax", ["bottom_diff"], ["bottom_idx_candidate"], axis=1, keepdims=1),
-        helper.make_node("Where", ["has_bottom", "bottom_idx_candidate", "top_idx"], ["bottom_idx"]),
+        helper.make_node("Cast", ["top_present"], ["top_present_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Cast", ["both_present"], ["both_present_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Sub", ["both_present_u8", "top_present_u8"], ["bottom_diff"]),
+        helper.make_node("ArgMax", ["bottom_diff"], ["bottom_idx"], axis=1, keepdims=1),
         helper.make_node("Cast", ["bottom_idx"], ["bottom_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Concat", _repeat10("top_color_u8"), ["top_full"], axis=3),
         helper.make_node("Concat", ["top_color_u8", "zero8_u8", "top_color_u8"], ["top_edge"], axis=3),
