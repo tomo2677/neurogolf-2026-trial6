@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.596199495938855 | 4361 | 103 | 2026-06-13T10:36:48+09:00 | exp015 |
+| passes_local | 16.719542313417442 | 3869 | 77 | 2026-06-13T10:38:32+09:00 | exp016 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -26,6 +26,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp013 | impl_opt | broadcast-tile-grids | passes_local | 16.15595210105751 | 6844 | 89 | 0.236297676418 | promoted | Auto promoted after canonical re-score. |
 | exp014 | impl_opt | int32-tile-gather | passes_local | 16.337668042917525 | 5692 | 89 | 0.18171594186 | promoted | Auto promoted after canonical re-score. |
 | exp015 | rule_redesign | single-color-zero-mask | passes_local | 16.596199495938855 | 4361 | 103 | 0.258531453021 | promoted | Auto promoted after canonical re-score. |
+| exp016 | impl_opt | single-color-axis-gather | passes_local | 16.719542313417442 | 3869 | 77 | 0.123342817479 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

@@ -49,10 +49,6 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("col_idx6", list(range(INPUT_SIZE)), [1, 1, 1, INPUT_SIZE]),
         _int32_tensor("one_i32", [1], [1]),
         _int32_tensor("two_i32", [2], [1]),
-        _int32_tensor("input_width_i32", [INPUT_SIZE], [1]),
-        _int64_tensor("shape_flat36", [INPUT_SIZE * INPUT_SIZE], [1]),
-        _int32_tensor("row_grid_i32", list(range(OUT_SIZE)), [1, 1, OUT_SIZE, 1]),
-        _int32_tensor("col_grid_i32", list(range(OUT_SIZE)), [1, 1, 1, OUT_SIZE]),
         _f16_tensor("zero_f16", [0.0], [1]),
         _f16_tensor("diag_kernel", [1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0], [1, 1, 3, 3]),
         _u8_tensor("zero_u8", [0], [1]),
@@ -86,12 +82,12 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Not", ["bg_bool6"], ["not_bg6"]),
         helper.make_node("And", ["valid_in6", "not_bg6"], ["nonzero6"]),
         helper.make_node("Where", ["nonzero6", "fg_color_u8", "zero_u8"], ["input_color_u8"]),
-        helper.make_node("Mod", ["row_grid_i32", "height_i32"], ["tile_src_r"], fmod=0),
-        helper.make_node("Mod", ["col_grid_i32", "width_dyn_i32"], ["tile_src_c"], fmod=0),
-        helper.make_node("Mul", ["tile_src_r", "input_width_i32"], ["tile_src_r_offset"]),
-        helper.make_node("Add", ["tile_src_r_offset", "tile_src_c"], ["tile_src_spatial"]),
-        helper.make_node("Reshape", ["input_color_u8", "shape_flat36"], ["input_color_flat"]),
-        helper.make_node("Gather", ["input_color_flat", "tile_src_spatial"], ["tiled_raw"], axis=0),
+        helper.make_node("Mod", ["row_idx", "height_i32"], ["tile_src_r"], fmod=0),
+        helper.make_node("Mod", ["col_idx", "width_dyn_i32"], ["tile_src_c"], fmod=0),
+        helper.make_node("Squeeze", ["tile_src_r"], ["tile_src_r_vec"], axes=[0, 1, 3]),
+        helper.make_node("Squeeze", ["tile_src_c"], ["tile_src_c_vec"], axes=[0, 1, 2]),
+        helper.make_node("Gather", ["input_color_u8", "tile_src_r_vec"], ["tiled_rows"], axis=2),
+        helper.make_node("Gather", ["tiled_rows", "tile_src_c_vec"], ["tiled_raw"], axis=3),
         helper.make_node("Where", ["valid_out", "tiled_raw", "zero_u8"], ["tiled_color"]),
         helper.make_node("Greater", ["tiled_color", "zero_u8"], ["colored"]),
         helper.make_node("Cast", ["colored"], ["colored_f16"], to=onnx.TensorProto.FLOAT16),
@@ -112,7 +108,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task019_single_color_zero_mask_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
+    graph = helper.make_graph(nodes, "task019_single_color_axis_gather_graph", [x], [y], initializers)
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
