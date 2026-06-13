@@ -176,7 +176,6 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _f16_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("one_u8", [1], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("two_u8", [2], [1]),
@@ -196,8 +195,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Slice", ["input", "gray_starts", "gray_ends"], ["gray_f32"]),
         helper.make_node("Cast", ["input0_f32"], ["input0"], to=INTERNAL_TYPE),
         helper.make_node("Cast", ["gray_f32"], ["gray"], to=INTERNAL_TYPE),
-        helper.make_node("Greater", ["input0", "zero_f32"], ["input0_bool"]),
-        helper.make_node("Greater", ["gray", "zero_f32"], ["gray_bool"]),
+        helper.make_node("Cast", ["input0"], ["input0_bool"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Cast", ["gray"], ["gray_bool"], to=onnx.TensorProto.BOOL),
         helper.make_node("And", ["input0_bool", "gray_bool"], ["zero_grid"]),
     ]
 
