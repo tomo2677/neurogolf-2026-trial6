@@ -50,7 +50,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("starts8", [8, 0, 0]),
         _int64_tensor("ends8", [9, SIZE, SIZE]),
         _int64_tensor("axes3", [1, 2, 3]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 1, 21, 21]),
+        _int64_tensor("pads_output", [0, 0, 0, 1, 21, 21]),
         _f16_tensor("cardinal_kernel", cardinal_kernel, [1, 1, 3, 3]),
         _f16_tensor("diagonal_kernel", diagonal_kernel, [1, 1, 3, 3]),
         _u8_tensor("zero_u8", [0], [1]),
@@ -87,7 +87,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["add7", "seven_u8", "add4_color"], ["added_color"]),
         helper.make_node("Where", ["nonblack_bool", "color9", "added_color"], ["out9"]),
         helper.make_node("Equal", ["colors9", "out9"], ["output9"]),
-        helper.make_node("Pad", ["output9", "pads_output"], ["output"], mode="constant"),
+        helper.make_node("Pad", ["output9", "pads_output", "", "axes3"], ["output"], mode="constant"),
     ]
 
     graph = helper.make_graph(nodes, "task015_full_pads_colors9_graph", [x], [y], initializers)
