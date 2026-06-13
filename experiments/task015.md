@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.717011307257398 | 3888 | 68 | 2026-06-13T11:33:37+09:00 | exp016 |
+| passes_local | 16.737441026989345 | 3807 | 69 | 2026-06-13T11:35:33+09:00 | exp018 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -24,6 +24,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp009 | impl_opt | where-color-grid | passes_local | 16.694268855124136 | 3978 | 69 | 0.11252529868 | promoted | Auto promoted after canonical re-score. |
 | exp015 | impl_opt | bool-crop-pad | passes_local | 16.716758558614575 | 3888 | 69 | 0.0224897034904 | promoted | Auto promoted after canonical re-score. |
 | exp016 | impl_opt | remove-unused-outside | passes_local | 16.717011307257398 | 3888 | 68 | 0.000252748642822 | promoted | Auto promoted after canonical re-score. |
+| exp017 | impl_opt | colors9-bool-pad | passes_local | 16.737183062329073 | 3807 | 70 | 0.0201717550717 | promoted | Auto promoted after canonical re-score. |
+| exp018 | impl_opt | full-pads-colors9 | passes_local | 16.737441026989345 | 3807 | 69 | 0.000257964660271 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

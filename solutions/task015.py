@@ -50,8 +50,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("starts8", [8, 0, 0]),
         _int64_tensor("ends8", [9, SIZE, SIZE]),
         _int64_tensor("axes3", [1, 2, 3]),
-        _int64_tensor("pads_output_hw", [0, 0, 21, 21]),
-        _int64_tensor("pad_axes_hw", [2, 3]),
+        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 1, 21, 21]),
         _f16_tensor("cardinal_kernel", cardinal_kernel, [1, 1, 3, 3]),
         _f16_tensor("diagonal_kernel", diagonal_kernel, [1, 1, 3, 3]),
         _u8_tensor("zero_u8", [0], [1]),
@@ -61,7 +60,7 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("six_u8", [6], [1]),
         _u8_tensor("seven_u8", [7], [1]),
         _u8_tensor("eight_u8", [8], [1]),
-        _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
+        _u8_tensor("colors9", list(range(9)), [1, 9, 1, 1]),
     ]
 
     nodes: list[onnx.NodeProto] = [
@@ -87,11 +86,11 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["add4", "four_u8", "zero_u8"], ["add4_color"]),
         helper.make_node("Where", ["add7", "seven_u8", "add4_color"], ["added_color"]),
         helper.make_node("Where", ["nonblack_bool", "color9", "added_color"], ["out9"]),
-        helper.make_node("Equal", ["colors10", "out9"], ["output9"]),
-        helper.make_node("Pad", ["output9", "pads_output_hw", "", "pad_axes_hw"], ["output"], mode="constant"),
+        helper.make_node("Equal", ["colors9", "out9"], ["output9"]),
+        helper.make_node("Pad", ["output9", "pads_output"], ["output"], mode="constant"),
     ]
 
-    graph = helper.make_graph(nodes, "task015_bool_crop_pad_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task015_full_pads_colors9_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
