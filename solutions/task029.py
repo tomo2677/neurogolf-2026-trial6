@@ -9,7 +9,6 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 SIZE = 25
 GRID_SIZE = 30
 OUT = 23
-TOP_COLORS = 5
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
@@ -34,49 +33,6 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
-def _add_frame_candidate(nodes: list[onnx.NodeProto], prefix: str, color_u8: str, color_count_f32: str) -> tuple[str, str, str, str, str]:
-    nodes.extend(
-        [
-            helper.make_node("Equal", ["input_color_u8", color_u8], [f"{prefix}_mask"]),
-            helper.make_node("Cast", [f"{prefix}_mask"], [f"{prefix}_mask_f16"], to=onnx.TensorProto.FLOAT16),
-            helper.make_node("ReduceMax", [f"{prefix}_mask_f16"], [f"{prefix}_row_score"], axes=[3], keepdims=1),
-            helper.make_node("ReduceMax", [f"{prefix}_mask_f16"], [f"{prefix}_col_score"], axes=[2], keepdims=1),
-            helper.make_node("ArgMax", [f"{prefix}_row_score"], [f"{prefix}_r_min"], axis=2, keepdims=1),
-            helper.make_node("ArgMax", [f"{prefix}_row_score"], [f"{prefix}_r_max"], axis=2, keepdims=1, select_last_index=1),
-            helper.make_node("ArgMax", [f"{prefix}_col_score"], [f"{prefix}_c_min"], axis=3, keepdims=1),
-            helper.make_node("ArgMax", [f"{prefix}_col_score"], [f"{prefix}_c_max"], axis=3, keepdims=1, select_last_index=1),
-            helper.make_node("Cast", [f"{prefix}_r_min"], [f"{prefix}_r_min_i32"], to=onnx.TensorProto.INT32),
-            helper.make_node("Cast", [f"{prefix}_r_max"], [f"{prefix}_r_max_i32"], to=onnx.TensorProto.INT32),
-            helper.make_node("Cast", [f"{prefix}_c_min"], [f"{prefix}_c_min_i32"], to=onnx.TensorProto.INT32),
-            helper.make_node("Cast", [f"{prefix}_c_max"], [f"{prefix}_c_max_i32"], to=onnx.TensorProto.INT32),
-            helper.make_node("Sub", [f"{prefix}_r_max_i32", f"{prefix}_r_min_i32"], [f"{prefix}_height_delta"]),
-            helper.make_node("Sub", [f"{prefix}_c_max_i32", f"{prefix}_c_min_i32"], [f"{prefix}_width_delta"]),
-            helper.make_node("Greater", [f"{prefix}_height_delta", "one_i32"], [f"{prefix}_height_ok"]),
-            helper.make_node("Greater", [f"{prefix}_width_delta", "one_i32"], [f"{prefix}_width_ok"]),
-            helper.make_node("Add", [f"{prefix}_height_delta", f"{prefix}_width_delta"], [f"{prefix}_perimeter_half_i32"]),
-            helper.make_node("Add", [f"{prefix}_perimeter_half_i32", f"{prefix}_perimeter_half_i32"], [f"{prefix}_perimeter_i32"]),
-            helper.make_node("Cast", [f"{prefix}_perimeter_i32"], [f"{prefix}_perimeter_f32"], to=onnx.TensorProto.FLOAT),
-            helper.make_node("Equal", [color_count_f32, f"{prefix}_perimeter_f32"], [f"{prefix}_perimeter_ok"]),
-            helper.make_node("And", [f"{prefix}_height_ok", f"{prefix}_width_ok"], [f"{prefix}_size_ok"]),
-            helper.make_node("And", [f"{prefix}_size_ok", f"{prefix}_perimeter_ok"], [f"{prefix}_valid"]),
-            helper.make_node("Sub", ["score_base", color_count_f32], [f"{prefix}_valid_score_raw"]),
-            helper.make_node("Where", [f"{prefix}_valid", f"{prefix}_valid_score_raw", "zero_f32"], [f"{prefix}_score_4d"]),
-            helper.make_node("Reshape", [f"{prefix}_score_4d", "one_i64"], [f"{prefix}_score"]),
-            helper.make_node("Reshape", [f"{prefix}_r_min_i32", "one_i64"], [f"{prefix}_r_min_1"]),
-            helper.make_node("Reshape", [f"{prefix}_r_max_i32", "one_i64"], [f"{prefix}_r_max_1"]),
-            helper.make_node("Reshape", [f"{prefix}_c_min_i32", "one_i64"], [f"{prefix}_c_min_1"]),
-            helper.make_node("Reshape", [f"{prefix}_c_max_i32", "one_i64"], [f"{prefix}_c_max_1"]),
-        ]
-    )
-    return (
-        f"{prefix}_score",
-        f"{prefix}_r_min_1",
-        f"{prefix}_r_max_1",
-        f"{prefix}_c_min_1",
-        f"{prefix}_c_max_1",
-    )
-
-
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
@@ -85,9 +41,12 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("one_i32", [1], [1]),
         _int32_tensor("zero_i32", [0], [1]),
         _int64_tensor("one_i64", [1], [1]),
-        _int64_tensor("k_top_colors", [TOP_COLORS], [1]),
+        _int64_tensor("shape9", [9], [1]),
+        _int64_tensor("shape_1x9x1x1", [1, 9, 1, 1], [4]),
         _int64_tensor("shape1111", [1, 1, 1, 1], [4]),
         _int64_tensor("shape_vec23", [OUT], [1]),
+        _int64_tensor("count_starts", [1], [1]),
+        _int64_tensor("count_ends", [10], [1]),
         _int32_tensor("crop_row_grid_i32", list(range(OUT)), [1, 1, OUT, 1]),
         _int32_tensor("crop_col_grid_i32", list(range(OUT)), [1, 1, 1, OUT]),
         _int64_tensor("crop_hw_start", [0, 0], [2]),
@@ -103,60 +62,41 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes: list[onnx.NodeProto] = [
+        helper.make_node("ReduceSum", ["input"], ["counts10"], axes=[0, 2, 3], keepdims=0),
+        helper.make_node("Slice", ["counts10", "count_starts", "count_ends"], ["color_counts9"]),
         helper.make_node("Conv", ["input", "color_conv_w"], ["input_color30_f32"]),
         helper.make_node("Cast", ["input_color30_f32"], ["input_color30_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Slice", ["input_color30_u8", "crop_hw_start", "crop_hw_end", "crop_hw_axes"], ["input_color_u8"]),
         helper.make_node("Equal", ["input_color_u8", "colors9_u8"], ["color_masks9"]),
-        helper.make_node("Cast", ["color_masks9"], ["color_masks9_f16"], to=onnx.TensorProto.FLOAT16),
-        helper.make_node("ReduceSum", ["color_masks9_f16"], ["color_counts9_f16"], axes=[0, 2, 3], keepdims=0),
-        helper.make_node("Cast", ["color_counts9_f16"], ["color_counts9"], to=onnx.TensorProto.FLOAT),
-        helper.make_node("TopK", ["color_counts9", "k_top_colors"], ["top_color_counts", "top_color_idx0"], axis=0, largest=1, sorted=0),
-        helper.make_node("Add", ["top_color_idx0", "one_i64"], ["top_color_i64"]),
-        helper.make_node(
-            "Split",
-            ["top_color_counts"],
-            [f"top_color_count_{slot}" for slot in range(TOP_COLORS)],
-            axis=0,
-            split=[1] * TOP_COLORS,
-        ),
-        helper.make_node(
-            "Split",
-            ["top_color_i64"],
-            [f"top_color_i64_{slot}" for slot in range(TOP_COLORS)],
-            axis=0,
-            split=[1] * TOP_COLORS,
-        ),
-    ]
-    scores: list[str] = []
-    r_mins: list[str] = []
-    r_maxes: list[str] = []
-    c_mins: list[str] = []
-    c_maxes: list[str] = []
-    for slot in range(TOP_COLORS):
-        nodes.append(
-            helper.make_node(
-                "Cast",
-                [f"top_color_i64_{slot}"],
-                [f"top_color_u8_{slot}"],
-                to=onnx.TensorProto.UINT8,
-            )
-        )
-        score, r_min, r_max, c_min, c_max = _add_frame_candidate(
-            nodes, f"s{slot}", f"top_color_u8_{slot}", f"top_color_count_{slot}"
-        )
-        scores.append(score)
-        r_mins.append(r_min)
-        r_maxes.append(r_max)
-        c_mins.append(c_min)
-        c_maxes.append(c_max)
-
-    nodes.extend(
-        [
-            helper.make_node("Concat", scores, ["frame_scores"], axis=0),
-            helper.make_node("Concat", r_mins, ["r_min_values"], axis=0),
-            helper.make_node("Concat", r_maxes, ["r_max_values"], axis=0),
-            helper.make_node("Concat", c_mins, ["c_min_values"], axis=0),
-            helper.make_node("Concat", c_maxes, ["c_max_values"], axis=0),
+        helper.make_node("Cast", ["color_masks9"], ["color_masks9_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Reshape", ["color_counts9", "shape_1x9x1x1"], ["color_counts9_4d"]),
+        helper.make_node("ReduceMax", ["color_masks9_u8"], ["row_score9"], axes=[3], keepdims=1),
+        helper.make_node("ReduceMax", ["color_masks9_u8"], ["col_score9"], axes=[2], keepdims=1),
+        helper.make_node("ArgMax", ["row_score9"], ["r_min9"], axis=2, keepdims=1),
+        helper.make_node("ArgMax", ["row_score9"], ["r_max9"], axis=2, keepdims=1, select_last_index=1),
+        helper.make_node("ArgMax", ["col_score9"], ["c_min9"], axis=3, keepdims=1),
+        helper.make_node("ArgMax", ["col_score9"], ["c_max9"], axis=3, keepdims=1, select_last_index=1),
+        helper.make_node("Cast", ["r_min9"], ["r_min9_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["r_max9"], ["r_max9_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["c_min9"], ["c_min9_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Cast", ["c_max9"], ["c_max9_i32"], to=onnx.TensorProto.INT32),
+        helper.make_node("Sub", ["r_max9_i32", "r_min9_i32"], ["height_delta9"]),
+        helper.make_node("Sub", ["c_max9_i32", "c_min9_i32"], ["width_delta9"]),
+        helper.make_node("Greater", ["height_delta9", "one_i32"], ["height_ok9"]),
+        helper.make_node("Greater", ["width_delta9", "one_i32"], ["width_ok9"]),
+        helper.make_node("Add", ["height_delta9", "width_delta9"], ["perimeter_half9_i32"]),
+        helper.make_node("Add", ["perimeter_half9_i32", "perimeter_half9_i32"], ["perimeter9_i32"]),
+        helper.make_node("Cast", ["perimeter9_i32"], ["perimeter9_f32"], to=onnx.TensorProto.FLOAT),
+        helper.make_node("Equal", ["color_counts9_4d", "perimeter9_f32"], ["perimeter_ok9"]),
+        helper.make_node("And", ["height_ok9", "width_ok9"], ["size_ok9"]),
+        helper.make_node("And", ["size_ok9", "perimeter_ok9"], ["valid9"]),
+        helper.make_node("Sub", ["score_base", "color_counts9_4d"], ["valid_score_raw9"]),
+        helper.make_node("Where", ["valid9", "valid_score_raw9", "zero_f32"], ["frame_scores4d"]),
+        helper.make_node("Reshape", ["frame_scores4d", "shape9"], ["frame_scores"]),
+        helper.make_node("Reshape", ["r_min9_i32", "shape9"], ["r_min_values"]),
+        helper.make_node("Reshape", ["r_max9_i32", "shape9"], ["r_max_values"]),
+        helper.make_node("Reshape", ["c_min9_i32", "shape9"], ["c_min_values"]),
+        helper.make_node("Reshape", ["c_max9_i32", "shape9"], ["c_max_values"]),
             helper.make_node("TopK", ["frame_scores", "one_i64"], ["top_score", "frame_idx"], axis=0, largest=1, sorted=1),
             helper.make_node("Gather", ["r_min_values", "frame_idx"], ["r_min_1"], axis=0),
             helper.make_node("Gather", ["r_max_values", "frame_idx"], ["r_max_1"], axis=0),
@@ -183,7 +123,6 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Pad", ["color23", "pads_output", "invalid_u8"], ["color30"], mode="constant"),
             helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
         ]
-    )
 
     graph = helper.make_graph(nodes, "task029_top5_frame_inner_crop_color_grid_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
