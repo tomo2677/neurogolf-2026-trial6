@@ -27,8 +27,6 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("top_zero_starts", [0, 0, 0, 2], [4]),
-        _int64_tensor("top_zero_ends", [1, 1, 1, 4], [4]),
         _int64_tensor("marker_starts", [0, 3, 0, 0], [4]),
         _int64_tensor("marker_ends", [1, 4, SIZE, SIZE], [4]),
         _int64_tensor("top_left_starts", [0, 1, 0, 0], [4]),
@@ -45,10 +43,6 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes = [
-        helper.make_node("Slice", ["input", "top_zero_starts", "top_zero_ends"], ["top_zero"]),
-        helper.make_node("MaxPool", ["top_zero"], ["top_has_zero_f32"], kernel_shape=[1, 2]),
-        helper.make_node("Cast", ["top_has_zero_f32"], ["top_has_zero"], to=onnx.TensorProto.BOOL),
-        helper.make_node("Not", ["top_has_zero"], ["use_rows"]),
         helper.make_node("Slice", ["input", "marker_starts", "marker_ends"], ["marker_f32"]),
         helper.make_node("Cast", ["marker_f32"], ["marker"], to=onnx.TensorProto.BOOL),
     ]
@@ -64,6 +58,7 @@ def build_model() -> onnx.ModelProto:
 
     nodes.extend(
         [
+            helper.make_node("Equal", ["top_left_color", "top_right_color"], ["use_rows"]),
             helper.make_node(
                 "Concat",
                 [
@@ -108,7 +103,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task040_bg_scalar_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task040_corner_equal_orient_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
