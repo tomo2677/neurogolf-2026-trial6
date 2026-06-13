@@ -29,6 +29,14 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
+def _main_diag_values() -> list[int]:
+    return [r - c + SIZE - 1 for r in range(SIZE) for c in range(SIZE)]
+
+
+def _anti_diag_values() -> list[int]:
+    return [r + c for r in range(SIZE) for c in range(SIZE)]
+
+
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.UINT8, GRID_SHAPE)
@@ -39,8 +47,8 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("output_pads", [0, 0, 0, 0, 0, 0, 20, 20], [8]),
         _f16_tensor("row_grid_i32", [float(v) for v in range(SIZE)], [1, 1, SIZE, 1]),
         _f16_tensor("col_grid_i32", [float(v) for v in range(SIZE)], [1, 1, 1, SIZE]),
-        _f16_tensor("diag_offset_i32", [float(SIZE - 1)], [1]),
-        _f16_tensor("zero_i32", [0.0], [1]),
+        _u8_tensor("main_grid_u8", _main_diag_values(), [1, 1, SIZE, SIZE]),
+        _u8_tensor("anti_grid_u8", _anti_diag_values(), [1, 1, SIZE, SIZE]),
         _u8_tensor("zero_u8", [0], [1]),
     ]
 
@@ -64,15 +72,12 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("And", ["row_after_min", "row_before_max"], ["row_between"]),
         helper.make_node("And", ["col_after_min", "col_before_max"], ["col_between"]),
         helper.make_node("And", ["row_between", "col_between"], ["bbox"]),
-        helper.make_node("Sub", ["row_grid_i32", "col_grid_i32"], ["main_raw"]),
-        helper.make_node("Add", ["main_raw", "diag_offset_i32"], ["main_grid"]),
-        helper.make_node("Add", ["row_grid_i32", "col_grid_i32"], ["anti_grid"]),
-        helper.make_node("Where", ["input9_bool", "main_grid", "zero_i32"], ["main_points"]),
-        helper.make_node("Where", ["input9_bool", "anti_grid", "zero_i32"], ["anti_points"]),
+        helper.make_node("Where", ["input9_bool", "main_grid_u8", "zero_u8"], ["main_points"]),
+        helper.make_node("Where", ["input9_bool", "anti_grid_u8", "zero_u8"], ["anti_points"]),
         helper.make_node("ReduceMax", ["main_points"], ["main_const"], axes=[2, 3], keepdims=1),
         helper.make_node("ReduceMax", ["anti_points"], ["anti_const"], axes=[2, 3], keepdims=1),
-        helper.make_node("Equal", ["main_grid", "main_const"], ["main_diag"]),
-        helper.make_node("Equal", ["anti_grid", "anti_const"], ["anti_diag"]),
+        helper.make_node("Equal", ["main_grid_u8", "main_const"], ["main_diag"]),
+        helper.make_node("Equal", ["anti_grid_u8", "anti_const"], ["anti_diag"]),
         helper.make_node("Or", ["main_diag", "anti_diag"], ["diag_any"]),
         helper.make_node("ReduceMax", ["input9"], ["present_f32"], axes=[2, 3], keepdims=1),
         helper.make_node("Cast", ["present_f32"], ["present"], to=onnx.TensorProto.BOOL),
@@ -86,7 +91,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Pad", ["output10_u8", "output_pads"], ["output"], mode="constant"),
     ]
 
-    graph = helper.make_graph(nodes, "task037_f16_diag_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task037_u8_diag_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
