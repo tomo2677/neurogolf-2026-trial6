@@ -28,10 +28,6 @@ def build_model() -> onnx.ModelProto:
 
     row_top_values = [r < 5 for r in range(SIZE)]
     col_left_values = [c < 5 for c in range(SIZE)]
-    top_edge_values = [r == 0 for r in range(SIZE)]
-    bottom_edge_values = [r == SIZE - 1 for r in range(SIZE)]
-    left_edge_values = [c == 0 for c in range(SIZE)]
-    right_edge_values = [c == SIZE - 1 for c in range(SIZE)]
 
     initializers = [
         _int64_tensor("top_zero_starts", [0, 0, 0, 2], [4]),
@@ -46,15 +42,12 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("bottom_left_ends", [1, 10, SIZE, 1], [4]),
         _int64_tensor("output_pads_hw", [0, 0, 20, 20], [4]),
         _int64_tensor("output_pad_axes", [2, 3], [2]),
-        _u8_tensor("bg_u8", [9], [1]),
+        _u8_tensor("bg_row8", [9] * 8, [1, 1, 8, 1]),
+        _u8_tensor("bg_col8", [9] * 8, [1, 1, 1, 8]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10", [9, 0, 1, 2, 3, 4, 5, 6, 7, 8], [1, 10, 1, 1]),
         _bool_tensor("row_top", row_top_values, [1, 1, SIZE, 1]),
         _bool_tensor("col_left", col_left_values, [1, 1, 1, SIZE]),
-        _bool_tensor("top_edge", top_edge_values, [1, 1, SIZE, 1]),
-        _bool_tensor("bottom_edge", bottom_edge_values, [1, 1, SIZE, 1]),
-        _bool_tensor("left_edge", left_edge_values, [1, 1, 1, SIZE]),
-        _bool_tensor("right_edge", right_edge_values, [1, 1, 1, SIZE]),
     ]
 
     nodes = [
@@ -80,10 +73,8 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Where", ["row_top", "top_left_color", "bottom_left_color"], ["row_replacement"]),
             helper.make_node("Where", ["col_left", "top_left_color", "top_right_color"], ["col_replacement"]),
             helper.make_node("Where", ["use_rows", "row_replacement", "col_replacement"], ["replacement"]),
-            helper.make_node("Where", ["top_edge", "top_left_color", "bg_u8"], ["top_line"]),
-            helper.make_node("Where", ["bottom_edge", "bottom_left_color", "top_line"], ["row_guides"]),
-            helper.make_node("Where", ["left_edge", "top_left_color", "bg_u8"], ["left_line"]),
-            helper.make_node("Where", ["right_edge", "top_right_color", "left_line"], ["col_guides"]),
+            helper.make_node("Concat", ["top_left_color", "bg_row8", "bottom_left_color"], ["row_guides"], axis=2),
+            helper.make_node("Concat", ["top_left_color", "bg_col8", "top_right_color"], ["col_guides"], axis=3),
             helper.make_node("Where", ["use_rows", "row_guides", "col_guides"], ["guides"]),
             helper.make_node("Where", ["marker", "replacement", "guides"], ["color10"]),
             helper.make_node("Pad", ["color10", "output_pads_hw", "invalid_u8", "output_pad_axes"], ["color30"], mode="constant"),
@@ -91,7 +82,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task040_top_zero_width2_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task040_concat_edge_guides_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
