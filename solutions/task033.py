@@ -6,11 +6,6 @@ from onnx import helper
 from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
-def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
-    shape = [len(values)] if dims is None else dims
-    return helper.make_tensor(name, onnx.TensorProto.INT64, shape, values)
-
-
 def _bool_tensor(name: str, values: list[bool], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.BOOL, dims, values)
 
@@ -35,26 +30,26 @@ def build_model() -> onnx.ModelProto:
     x, y = make_io_value_infos()
 
     initializers = [
-        _int64_tensor("grid_color_starts", [5, 0], [2]),
-        _int64_tensor("grid_color_ends", [6, 1], [2]),
-        _int64_tensor("pad_axes_hw", [2, 3], [2]),
-        _int64_tensor("axes_chw", [1, 2, 3], [3]),
         _bool_tensor("false_col1", [False] * 3, [1, 1, 3, 1]),
         _bool_tensor("false_row30", [False] * 30, [1, 1, 1, 30]),
     ]
-    for br, row in enumerate((1, 7, 13)):
-        for bc, col in enumerate((1, 7, 13)):
-            name = f"bg{br}{bc}"
-            initializers.append(_int64_tensor(f"{name}_starts", [0, row, col], [3]))
-            initializers.append(_int64_tensor(f"{name}_ends", [1, row + 3, col + 3], [3]))
 
     nodes: list[onnx.NodeProto] = []
     for br in range(3):
         for bc in range(3):
             name = f"bg{br}{bc}"
+            row = (1, 7, 13)[br]
+            col = (1, 7, 13)[bc]
             nodes.extend(
                 [
-                    helper.make_node("Slice", ["input", f"{name}_starts", f"{name}_ends", "axes_chw"], [f"{name}_f32"]),
+                    helper.make_node(
+                        "Slice",
+                        ["input"],
+                        [f"{name}_f32"],
+                        starts=[0, row, col],
+                        ends=[1, row + 3, col + 3],
+                        axes=[1, 2, 3],
+                    ),
                     helper.make_node("Cast", [f"{name}_f32"], [f"{name}_bool"], to=onnx.TensorProto.BOOL),
                 ]
             )
@@ -92,12 +87,12 @@ def build_model() -> onnx.ModelProto:
             ["fill30"],
             axis=2,
         ),
-        helper.make_node("Slice", ["input", "grid_color_starts", "grid_color_ends", "pad_axes_hw"], ["grid_color"]),
+        helper.make_node("Slice", ["input"], ["grid_color"], starts=[5, 0], ends=[6, 1], axes=[2, 3]),
         helper.make_node("Where", ["fill30", "grid_color", "input"], ["output"]),
         ]
     )
 
     graph = helper.make_graph(nodes, "task033_direct_fill30_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 9)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
