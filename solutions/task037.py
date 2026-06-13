@@ -50,6 +50,8 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("main_grid_u8", _main_diag_values(), [1, 1, SIZE, SIZE]),
         _u8_tensor("anti_grid_u8", _anti_diag_values(), [1, 1, SIZE, SIZE]),
         _u8_tensor("zero_u8", [0], [1]),
+        _u8_tensor("colors9_u8", list(range(1, 10)), [1, 9, 1, 1]),
+        _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
 
     nodes = [
@@ -83,10 +85,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Cast", ["present_f32"], ["present"], to=onnx.TensorProto.BOOL),
         helper.make_node("And", ["diag_any", "bbox"], ["line_box"]),
         helper.make_node("And", ["line_box", "present"], ["line_bool"]),
-        helper.make_node("Cast", ["line_bool"], ["line9_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("ReduceMax", ["line9_u8"], ["line_any_u8"], axes=[1], keepdims=1),
-        helper.make_node("Equal", ["line_any_u8", "zero_u8"], ["zero10_bool"]),
-        helper.make_node("Concat", ["zero10_bool", "line_bool"], ["output10_bool"], axis=1),
+        helper.make_node("Where", ["line_bool", "colors9_u8", "zero_u8"], ["line_color9"]),
+        helper.make_node("ReduceMax", ["line_color9"], ["color10"], axes=[1], keepdims=1),
+        helper.make_node("Equal", ["colors10_u8", "color10"], ["output10_bool"]),
         helper.make_node("Pad", ["output10_bool", "output_pads"], ["output"], mode="constant"),
     ]
 
