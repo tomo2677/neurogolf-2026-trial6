@@ -20,16 +20,20 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
-def _gather_coords_padded(nodes: list[onnx.NodeProto], src_r: str, src_c: str, output: str) -> None:
+def _gather_coords_padded(nodes: list[onnx.NodeProto], src_r: str, src_c: str, output: str, *, swap_axes: bool) -> None:
+    gathered = f"{output}_gathered" if swap_axes else output
     nodes.extend(
         [
             helper.make_node("Add", [src_r, "pad_offset_i32"], [f"{output}_pad_r"]),
             helper.make_node("Add", [src_c, "pad_offset_i32"], [f"{output}_pad_c"]),
-            helper.make_node("Mul", [f"{output}_pad_r", "padded_width_i32"], [f"{output}_r_offset"]),
-            helper.make_node("Add", [f"{output}_r_offset", f"{output}_pad_c"], [f"{output}_spatial"]),
-            helper.make_node("Gather", ["input_color30_flat", f"{output}_spatial"], [output], axis=0),
+            helper.make_node("Reshape", [f"{output}_pad_r", "shape_vec10"], [f"{output}_pad_r_vec"]),
+            helper.make_node("Reshape", [f"{output}_pad_c", "shape_vec10"], [f"{output}_pad_c_vec"]),
+            helper.make_node("Gather", ["input_color30_u8", f"{output}_pad_r_vec"], [f"{output}_rows"], axis=2),
+            helper.make_node("Gather", [f"{output}_rows", f"{output}_pad_c_vec"], [gathered], axis=3),
         ]
     )
+    if swap_axes:
+        nodes.append(helper.make_node("Transpose", [gathered], [output], perm=[0, 1, 3, 2]))
 
 
 def build_model() -> onnx.ModelProto:
@@ -50,17 +54,14 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("axes_chw", [1, 2, 3], [3]),
         _int64_tensor("two_i64", [2], [1]),
         _int32_tensor("pad_offset_i32", [10], [1]),
-        _int32_tensor("padded_width_i32", [30], [1]),
         _int64_tensor("shape1", [1], [1]),
-        _int64_tensor("shape_flat300", [300], [1]),
+        _int64_tensor("shape_vec10", [10], [1]),
         _int32_tensor("row_grid_i32", list(range(10)), [1, 1, 10, 1]),
         _int32_tensor("col_grid_i32", list(range(10)), [1, 1, 1, 10]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
-        _int64_tensor("pad_axis_w", [3], [1]),
         _int64_tensor("reduce_axis_w", [3], [1]),
         _int64_tensor("reduce_axis_h", [2], [1]),
-        _int64_tensor("pads_source_w", [10, 10], [2]),
-        _int64_tensor("pads_flat900", [300, 300], [2]),
+        _int64_tensor("pads_source_hw", [10, 10, 10, 10], [4]),
         _int64_tensor("pads_output_hw", [0, 0, 20, 20], [4]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("two_u8", [2], [1]),
@@ -86,9 +87,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["c3_bool", "three_u8", "color12_u8"], ["color123_u8"]),
         helper.make_node("Where", ["c4_bool", "four_u8", "color123_u8"], ["color1234_u8"]),
         helper.make_node("Where", ["input8_bool", "eight_u8", "color1234_u8"], ["input_color_u8"]),
-        helper.make_node("Pad", ["input_color_u8", "pads_source_w", "zero_u8", "pad_axis_w"], ["input_color10x30_u8"], mode="constant"),
-        helper.make_node("Reshape", ["input_color10x30_u8", "shape_flat300"], ["input_color10x30_flat"]),
-        helper.make_node("Pad", ["input_color10x30_flat", "pads_flat900", "zero_u8"], ["input_color30_flat"], mode="constant"),
+        helper.make_node("Pad", ["input_color_u8", "pads_source_hw", "zero_u8", "pad_axes_hw"], ["input_color30_u8"], mode="constant"),
         helper.make_node("Greater", ["input_color_u8", "zero_u8"], ["nonzero_bool"]),
         helper.make_node("Cast", ["nonzero_bool"], ["nonzero_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["nonzero_u8", "reduce_axis_w"], ["row_present"], keepdims=1),
@@ -118,9 +117,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Sub", ["center_sum", "row_grid_i32"], ["rot270_src_c"]),
     ]
 
-    _gather_coords_padded(nodes, "rot90_src_r", "rot90_src_c", "rot90")
-    _gather_coords_padded(nodes, "rot180_src_r", "rot180_src_c", "rot180")
-    _gather_coords_padded(nodes, "rot270_src_r", "rot270_src_c", "rot270")
+    _gather_coords_padded(nodes, "rot90_src_r", "rot90_src_c", "rot90", swap_axes=True)
+    _gather_coords_padded(nodes, "rot180_src_r", "rot180_src_c", "rot180", swap_axes=False)
+    _gather_coords_padded(nodes, "rot270_src_r", "rot270_src_c", "rot270", swap_axes=True)
 
     nodes.extend(
         [
