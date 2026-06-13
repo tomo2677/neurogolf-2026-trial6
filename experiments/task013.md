@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 15.547341097323567 | 12647 | 95 | 2026-06-13T12:04:12+09:00 | exp010 |
+| passes_local | 15.54796913942303 | 12647 | 87 | 2026-06-13T12:52:22+09:00 | exp011 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -24,6 +24,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp008 | impl_opt | no-axes-slices | passes_local | 15.475433000349923 | 13599 | 93 | 0.000365110084745 | promoted | Auto promoted after canonical re-score. |
 | exp009 | impl_opt | int32-period-math | passes_local | 15.547262619787722 | 12647 | 96 | 0.0718296194378 | promoted | Auto promoted after canonical re-score. |
 | exp010 | impl_opt | remove-unused-two-i64 | passes_local | 15.547341097323567 | 12647 | 95 | 7.84775358458e-05 | promoted | Auto promoted after canonical re-score. |
+| exp011 | impl_opt | input0-axis-reuse | passes_local | 15.54796913942303 | 12647 | 87 | 0.000628042099462 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

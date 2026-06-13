@@ -45,8 +45,6 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("input0_start", [0, 0, 0, 0], [4]),
-        _int64_tensor("input0_end", [1, 1, 30, 30], [4]),
         _int32_tensor("row_idx", list(range(30)), [1, 1, 30, 1]),
         _int32_tensor("col_idx", list(range(30)), [1, 1, 1, 30]),
         _int64_tensor("ten_i64", [10], [1]),
@@ -74,7 +72,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("LessOrEqual", ["col_idx", "last_col_i32"], ["col_valid"]),
         helper.make_node("And", ["row_valid", "col_valid"], ["valid_area"]),
         helper.make_node("LessOrEqual", ["last_row", "last_col"], ["wide_bool"]),
-        helper.make_node("Slice", ["input", "input0_start", "input0_end"], ["input0"]),
+        helper.make_node("Slice", ["input", "zero_i64", "one_i64", "one_i64"], ["input0"]),
         helper.make_node("Equal", ["input0", "zero_f32"], ["nonzero_raw"]),
         helper.make_node("And", ["valid_area", "nonzero_raw"], ["nonblack_bool"]),
         helper.make_node("Cast", ["nonblack_bool"], ["nonblack_u8"], to=onnx.TensorProto.UINT8),
