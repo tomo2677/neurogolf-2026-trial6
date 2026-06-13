@@ -79,9 +79,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Unsqueeze", ["row_in_crop"], ["row_in_crop_2d"], axes=[1]),
         helper.make_node("Unsqueeze", ["col_in_crop"], ["col_in_crop_2d"], axes=[0]),
         helper.make_node("And", ["row_in_crop_2d", "col_in_crop_2d"], ["crop_valid"]),
-        helper.make_node("Gather", ["nonzero_u8", "safe_r"], ["gathered_rows_u8"], axis=2),
-        helper.make_node("Gather", ["gathered_rows_u8", "safe_c"], ["gathered_nonzero_u8"], axis=3),
-        helper.make_node("Cast", ["gathered_nonzero_u8"], ["gathered_nonzero"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Gather", ["nonzero_bool", "safe_r"], ["gathered_rows"], axis=2),
+        helper.make_node("Gather", ["gathered_rows", "safe_c"], ["gathered_nonzero"], axis=3),
         helper.make_node("ReduceMax", ["input"], ["present_colors"], axes=[0, 2, 3], keepdims=1),
         helper.make_node("ArgMax", ["present_colors"], ["fg_color_i64"], axis=1, keepdims=1, select_last_index=1),
         helper.make_node("Cast", ["fg_color_i64"], ["fg_color_u8"], to=onnx.TensorProto.UINT8),
@@ -91,7 +90,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task031_axis_gather_crop_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task031_bool_axis_gather_crop_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
