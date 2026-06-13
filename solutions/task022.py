@@ -18,6 +18,10 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
+def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+
+
 def _initializer_key(tensor: onnx.TensorProto) -> tuple:
     return (
         tensor.data_type,
@@ -78,13 +82,15 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("five_u8", [5], [1, 1, 1, 1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
+        _f32_tensor("five_f32", [5.0], [1, 1, 1, 1]),
+        _f32_tensor("color_conv_w", [float(i) for i in range(10)], [1, 10, 1, 1]),
     ]
 
     nodes: list[onnx.NodeProto] = [
         helper.make_node("Slice", ["input", "slice_hw_starts", "slice_hw_ends", "slice_hw_axes"], ["input11"]),
-        helper.make_node("ArgMax", ["input11"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
-        helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Equal", ["input_color_u8", "five_u8"], ["gray_bool"]),
+        helper.make_node("Conv", ["input11", "color_conv_w"], ["input_color_f32"]),
+        helper.make_node("Cast", ["input_color_f32"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Equal", ["input_color_f32", "five_f32"], ["gray_bool"]),
     ]
 
     slots: list[str] = []
@@ -114,7 +120,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task022_window11_gray_overlay_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task022_conv_color_map_graph", [x], [y], initializers)
     _dedupe_initializers(graph)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
