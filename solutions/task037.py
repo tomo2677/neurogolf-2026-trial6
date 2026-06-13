@@ -39,7 +39,7 @@ def _anti_diag_values() -> list[int]:
 
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
-    y = helper.make_tensor_value_info("output", onnx.TensorProto.UINT8, GRID_SHAPE)
+    y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
         _int64_tensor("nonzero_starts", [0, 1, 0, 0], [4]),
@@ -86,9 +86,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Cast", ["line_bool"], ["line9_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["line9_u8"], ["line_any_u8"], axes=[1], keepdims=1),
         helper.make_node("Equal", ["line_any_u8", "zero_u8"], ["zero10_bool"]),
-        helper.make_node("Cast", ["zero10_bool"], ["zero10_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Concat", ["zero10_u8", "line9_u8"], ["output10_u8"], axis=1),
-        helper.make_node("Pad", ["output10_u8", "output_pads"], ["output"], mode="constant"),
+        helper.make_node("Concat", ["zero10_bool", "line_bool"], ["output10_bool"], axis=1),
+        helper.make_node("Pad", ["output10_bool", "output_pads"], ["output"], mode="constant"),
     ]
 
     graph = helper.make_graph(nodes, "task037_u8_diag_graph", [x], [y], initializers)

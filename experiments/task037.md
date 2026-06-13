@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 15.330969758678355 | 15583 | 237 | 2026-06-13T17:41:49+09:00 | exp013 |
+| passes_local | 15.337310934016802 | 15483 | 237 | 2026-06-13T18:03:41+09:00 | exp014 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -21,6 +21,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp010 | impl_opt | float-presence | passes_local | 14.98550788942096 | 22309 | 39 | 0.0147907380014 | promoted | Auto promoted after canonical re-score. |
 | exp012 | impl_opt | f16-diag-grids | passes_local | 15.199653206383385 | 18001 | 39 | 0.214145316962 | promoted | Auto promoted after canonical re-score. |
 | exp013 | impl_opt | u8-diag-grids | passes_local | 15.330969758678355 | 15583 | 237 | 0.131316552295 | promoted | Auto promoted after canonical re-score. |
+| exp014 | impl_opt | bool-output-concat | passes_local | 15.337310934016802 | 15483 | 237 | 0.00634117533845 | promoted | Auto promoted after canonical re-score. |
+| exp015 | impl_opt | bool-reduce-output | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 
 ## Archived Summary
 - None yet.
