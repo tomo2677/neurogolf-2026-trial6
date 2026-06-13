@@ -57,11 +57,12 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("line_shape_i64", [1, 1, SIZE, 1], [4]),
         _int64_tensor("shift_above_pads", [0, 0, -1, 0, 0, 0, 1, 0], [8]),
         _int64_tensor("shift_below_pads", [0, 0, 1, 0, 0, 0, -1, 0], [8]),
+        _f32_tensor("color_conv_w", [float(i) for i in range(10)], [1, 10, 1, 1]),
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
-        helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Conv", ["input", "color_conv_w"], ["input_color_f32"]),
+        helper.make_node("Cast", ["input_color_f32"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceMax", ["input"], ["cell_present"], axes=[1], keepdims=1),
         helper.make_node("ReduceMax", ["cell_present"], ["row_present_f32"], axes=[3], keepdims=1),
         helper.make_node("ReduceMax", ["cell_present"], ["col_present_f32"], axes=[2], keepdims=1),
@@ -157,7 +158,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task025_top4_line_colors_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task025_conv_color_map_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
