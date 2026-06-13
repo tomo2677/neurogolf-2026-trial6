@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.769422782853546 | 3666 | 88 | 2026-06-13T10:30:02+09:00 | exp008 |
+| passes_local | 16.769422782853546 | 3666 | 88 | 2026-06-13T10:30:02+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -20,6 +20,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp004 | impl_opt | reuse-prev-starts | passes_local | 16.60520045679783 | 4324 | 100 | 0.000903750626357 | promoted | Auto promoted after canonical re-score. |
 | exp007 | impl_opt | single-pad-prev-shift | passes_local | 16.621149758205508 | 4266 | 88 | 0.0159493014077 | promoted | Auto promoted after canonical re-score. |
 | exp008 | impl_opt | bg-row-then-col | passes_local | 16.769422782853546 | 3666 | 88 | 0.148273024648 | promoted | Auto promoted after canonical re-score. |
+| exp009 | impl_opt | f16-dimension-sum | fails_local | 0.0 | 3542 | 88 | -16.7694227829 | fails_local | Candidate did not pass local validation. |
 
 ## Archived Summary
 - None yet.
