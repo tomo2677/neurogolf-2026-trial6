@@ -387,17 +387,17 @@
     "task": "task025",
     "status": "passes_local",
     "local_points": 13.630217687257748,
-    "official_public_score": null,
-    "official_delta_public_vs_local": null,
+    "official_public_score": 13.63,
+    "official_delta_public_vs_local": -0.00021768725774684583,
     "memory_bytes_approx": 86612,
     "params": 51,
-    "updated_at": "2026-06-13T15:54:09+09:00",
-    "official_status": "pending",
+    "updated_at": "2026-06-13T16:02:23+09:00",
+    "official_status": "complete",
     "official_submission_ref": "53627781",
     "official_run_id": "task025-20260613T063606Z-08d3f5d",
     "official_zip_sha256": "749b7a8d5a3f21179c582465dbd2a3d48ad4e903f54d85b13797dc758082cdb2",
     "official_submitted_at": "2026-06-13T15:36:13+09:00",
-    "official_completed_at": null
+    "official_completed_at": "2026-06-13T16:02:23+09:00"
   },
   "task026": {
     "task": "task026",
