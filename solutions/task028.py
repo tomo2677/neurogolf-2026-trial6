@@ -24,23 +24,36 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("window_starts", [0, 1, 0, 0], [4]),
-        _int64_tensor("window_ends", [1, 10, 2, 1], [4]),
+        _int64_tensor("nonblack_starts", [0, 1, 0, 0], [4]),
+        _int64_tensor("nonblack_ends", [1, 10, 1, 1], [4]),
+        _int64_tensor("axis_channel", [1], [1]),
         _int64_tensor("shape_row10", [1, 1, 1, 10], [4]),
         _int64_tensor("pads_hw", [0, 0, 20, 20], [4]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
         _bool_tensor("edge_cols", [True, False, False, False, False, False, False, False, False, True], [1, 1, 1, 10]),
+        _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("bg_u8", [9], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", [9, 0, 1, 2, 3, 4, 5, 6, 7, 8], [1, 10, 1, 1]),
     ]
 
     nodes = [
-        helper.make_node("MaxPool", ["input"], ["row_windows"], kernel_shape=[5, 30], strides=[5, 30]),
-        helper.make_node("Slice", ["row_windows", "window_starts", "window_ends"], ["nonblack_windows"]),
-        helper.make_node("ArgMax", ["nonblack_windows"], ["color_idx0"], axis=1, keepdims=1),
-        helper.make_node("Cast", ["color_idx0"], ["color_idx_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Split", ["color_idx_u8"], ["top_color_u8", "bottom_color_u8"], axis=2, num_outputs=2),
+        helper.make_node("MaxPool", ["input"], ["top_present"], kernel_shape=[5, 30], strides=[30, 30]),
+        helper.make_node("MaxPool", ["input"], ["both_present"], kernel_shape=[10, 30], strides=[30, 30]),
+        helper.make_node("Slice", ["top_present", "nonblack_starts", "nonblack_ends"], ["top_nonblack_f32"]),
+        helper.make_node("Slice", ["both_present", "nonblack_starts", "nonblack_ends"], ["both_nonblack_f32"]),
+        helper.make_node("ArgMax", ["top_nonblack_f32"], ["top_idx0"], axis=1, keepdims=1),
+        helper.make_node("Cast", ["top_nonblack_f32"], ["top_nonblack"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Cast", ["both_nonblack_f32"], ["both_nonblack"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Not", ["top_nonblack"], ["not_top_nonblack"]),
+        helper.make_node("And", ["both_nonblack", "not_top_nonblack"], ["bottom_only"]),
+        helper.make_node("Cast", ["bottom_only"], ["bottom_only_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("ReduceMax", ["bottom_only_u8", "axis_channel"], ["bottom_any_u8"], keepdims=1),
+        helper.make_node("Greater", ["bottom_any_u8", "zero_u8"], ["has_bottom"]),
+        helper.make_node("ArgMax", ["bottom_only_u8"], ["bottom_idx_candidate"], axis=1, keepdims=1),
+        helper.make_node("Where", ["has_bottom", "bottom_idx_candidate", "top_idx0"], ["bottom_idx0"]),
+        helper.make_node("Cast", ["top_idx0"], ["top_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Cast", ["bottom_idx0"], ["bottom_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Expand", ["top_color_u8", "shape_row10"], ["top_full"]),
         helper.make_node("Where", ["edge_cols", "top_color_u8", "bg_u8"], ["top_edge"]),
         helper.make_node("Expand", ["bottom_color_u8", "shape_row10"], ["bottom_full"]),
@@ -66,7 +79,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task028_window_color_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task028_top_both_color_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
