@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 15.99336826669942 | 8102 | 55 | 2026-06-13T13:01:45+09:00 | exp009 |
+| passes_local | 15.993490868305654 | 8102 | 54 | 2026-06-13T14:20:02+09:00 | exp010 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -22,6 +22,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp006 | impl_opt | pad-onehot3-output | passes_local | 15.988842541893183 | 8102 | 92 | 0.0942667439198 | promoted | Auto promoted after canonical re-score. |
 | exp007 | impl_opt | remove-unused-invalid | passes_local | 15.988964589858185 | 8102 | 91 | 0.000122047965002 | promoted | Auto promoted after canonical re-score. |
 | exp009 | impl_opt | pad-shift-axes-v2 | passes_local | 15.99336826669942 | 8102 | 55 | 0.00440367684124 | promoted | Auto promoted after canonical re-score. |
+| exp010 | impl_opt | u8-gray-compare | passes_local | 15.993490868305654 | 8102 | 54 | 0.000122601606234 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

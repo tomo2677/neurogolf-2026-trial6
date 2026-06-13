@@ -74,7 +74,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("slice_hw_starts", [0, 0], [2]),
         _int64_tensor("slice_hw_ends", [WINDOW, WINDOW], [2]),
         _int64_tensor("slice_hw_axes", [2, 3], [2]),
-        _int64_tensor("five_i64", [5], [1]),
         _int64_tensor("pads_output", [0, 0, 27, 27], [4]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("five_u8", [5], [1, 1, 1, 1]),
@@ -85,7 +84,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Slice", ["input", "slice_hw_starts", "slice_hw_ends", "slice_hw_axes"], ["input11"]),
         helper.make_node("ArgMax", ["input11"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Equal", ["input_color_i64", "five_i64"], ["gray_bool"]),
+        helper.make_node("Equal", ["input_color_u8", "five_u8"], ["gray_bool"]),
     ]
 
     slots: list[str] = []
