@@ -41,9 +41,13 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("input_row_grid_i32", list(range(INPUT_SIZE)), [1, 1, INPUT_SIZE, 1]),
         _int32_tensor("crop_row_grid_i32", list(range(OUT_H)), [OUT_H]),
         _int32_tensor("crop_col_grid_i32", list(range(OUT_W)), [OUT_W]),
+        _int64_tensor("squeeze_axes_012", [0, 1, 2], [3]),
+        _int64_tensor("unsq_axis1", [1], [1]),
+        _int64_tensor("unsq_axis0", [0], [1]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
+        helper.make_tensor("false_bool", onnx.TensorProto.BOOL, [1], [False]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
 
@@ -66,18 +70,18 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Cast", ["r_max"], ["r_max_i32_rank3"], to=onnx.TensorProto.INT32),
         helper.make_node("Cast", ["c_min"], ["c_min_i32_rank3"], to=onnx.TensorProto.INT32),
         helper.make_node("Cast", ["c_max"], ["c_max_i32_rank3"], to=onnx.TensorProto.INT32),
-        helper.make_node("Squeeze", ["r_min_i32_rank3"], ["r_min_i32"], axes=[0, 1, 2]),
-        helper.make_node("Squeeze", ["r_max_i32_rank3"], ["r_max_i32"], axes=[0, 1, 2]),
-        helper.make_node("Squeeze", ["c_min_i32_rank3"], ["c_min_i32"], axes=[0, 1, 2]),
-        helper.make_node("Squeeze", ["c_max_i32_rank3"], ["c_max_i32"], axes=[0, 1, 2]),
+        helper.make_node("Squeeze", ["r_min_i32_rank3", "squeeze_axes_012"], ["r_min_i32"]),
+        helper.make_node("Squeeze", ["r_max_i32_rank3", "squeeze_axes_012"], ["r_max_i32"]),
+        helper.make_node("Squeeze", ["c_min_i32_rank3", "squeeze_axes_012"], ["c_min_i32"]),
+        helper.make_node("Squeeze", ["c_max_i32_rank3", "squeeze_axes_012"], ["c_max_i32"]),
         helper.make_node("Add", ["crop_row_grid_i32", "r_min_i32"], ["src_r"]),
         helper.make_node("Add", ["crop_col_grid_i32", "c_min_i32"], ["src_c"]),
         helper.make_node("LessOrEqual", ["src_r", "r_max_i32"], ["row_in_crop"]),
         helper.make_node("LessOrEqual", ["src_c", "c_max_i32"], ["col_in_crop"]),
         helper.make_node("Where", ["row_in_crop", "src_r", "zero_i32"], ["safe_r"]),
         helper.make_node("Where", ["col_in_crop", "src_c", "zero_i32"], ["safe_c"]),
-        helper.make_node("Unsqueeze", ["row_in_crop"], ["row_in_crop_2d"], axes=[1]),
-        helper.make_node("Unsqueeze", ["col_in_crop"], ["col_in_crop_2d"], axes=[0]),
+        helper.make_node("Unsqueeze", ["row_in_crop", "unsq_axis1"], ["row_in_crop_2d"]),
+        helper.make_node("Unsqueeze", ["col_in_crop", "unsq_axis0"], ["col_in_crop_2d"]),
         helper.make_node("And", ["row_in_crop_2d", "col_in_crop_2d"], ["crop_valid"]),
         helper.make_node("Gather", ["nonzero_bool", "safe_r"], ["gathered_rows"], axis=2),
         helper.make_node("Gather", ["gathered_rows", "safe_c"], ["gathered_nonzero"], axis=3),
@@ -86,11 +90,11 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Cast", ["fg_color_i64"], ["fg_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Where", ["gathered_nonzero", "fg_color_u8", "zero_u8"], ["cropped_color"]),
         helper.make_node("Where", ["crop_valid", "cropped_color", "invalid_u8"], ["color_crop"]),
-        helper.make_node("Pad", ["color_crop", "pads_color_to30", "invalid_u8"], ["color30"], mode="constant"),
-        helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
+        helper.make_node("Equal", ["colors10_u8", "color_crop"], ["output_crop"]),
+        helper.make_node("Pad", ["output_crop", "pads_color_to30", "false_bool"], ["output"], mode="constant"),
     ]
 
-    graph = helper.make_graph(nodes, "task031_bg_height_graph", [x], [y], initializers)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
+    graph = helper.make_graph(nodes, "task031_bool_crop_pad_opset13_graph", [x], [y], initializers)
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
