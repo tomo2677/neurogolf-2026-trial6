@@ -27,7 +27,6 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _f32_tensor("zero_f32", [0.0], [1]),
         _f32_tensor("row_idx", [float(v) for v in range(SIZE)], [1, 1, SIZE, 1]),
         _f32_tensor("col_idx", [float(v) for v in range(SIZE)], [1, 1, 1, SIZE]),
         _int64_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
@@ -46,8 +45,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ReduceMax", ["input", "axis_row"], ["col_has_bg10"], keepdims=1),
         helper.make_node("Gather", ["row_has_bg10", "bg_idx"], ["row_has_bg"], axis=1),
         helper.make_node("Gather", ["col_has_bg10", "bg_idx"], ["col_has_bg"], axis=1),
-        helper.make_node("Greater", ["row_has_bg", "zero_f32"], ["row_non_sep_bool"]),
-        helper.make_node("Greater", ["col_has_bg", "zero_f32"], ["col_non_sep_bool"]),
+        helper.make_node("Cast", ["row_has_bg"], ["row_non_sep_bool"], to=onnx.TensorProto.BOOL),
+        helper.make_node("Cast", ["col_has_bg"], ["col_non_sep_bool"], to=onnx.TensorProto.BOOL),
         helper.make_node("Pad", ["row_non_sep_bool", "row_prev_pads", "", "axis_row"], ["row_prev_bool"], mode="constant"),
         helper.make_node("Pad", ["col_non_sep_bool", "row_prev_pads", "", "axis_col"], ["col_prev_bool"], mode="constant"),
         helper.make_node("Not", ["row_prev_bool"], ["row_prev_not"]),
