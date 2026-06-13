@@ -22,6 +22,9 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
+BLOCK_STARTS = (0, 4, 8)
+
+
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
@@ -32,8 +35,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pad_axes_chw", [1, 2, 3]),
         _int64_tensor("pads_pattern4_hw", [0, 0, 1, 1], [4]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
-        _int64_tensor("channel8_starts", [8, 0, 0], [3]),
-        _int64_tensor("channel8_ends", [9, 11, 11], [3]),
         _int32_tensor("slice_channel_start", [0], [1]),
         _int32_tensor("slice_channel_end", [7], [1]),
         _int32_tensor("three_i32", [3], [1]),
@@ -42,30 +43,52 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("colors7", list(range(7)), [1, 7, 1, 1]),
         _u8_tensor("five_u8", [5], [1]),
     ]
+    for br, row in enumerate(BLOCK_STARTS):
+        for bc, col in enumerate(BLOCK_STARTS):
+            initializers.extend(
+                [
+                    _int64_tensor(f"block{br}{bc}_starts", [8, row, col], [3]),
+                    _int64_tensor(f"block{br}{bc}_ends", [9, row + 3, col + 3], [3]),
+                ]
+            )
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("Slice", ["input", "channel8_starts", "channel8_ends", "pad_axes_chw"], ["blue11"]),
-        helper.make_node("MaxPool", ["blue11"], ["has8_grid"], kernel_shape=[3, 3], strides=[4, 4]),
-        helper.make_node("Cast", ["has8_grid"], ["has8_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Flatten", ["has8_u8"], ["has8_flat"], axis=2),
-        helper.make_node("ArgMin", ["has8_flat"], ["selected_index"], axis=1, keepdims=0),
-        helper.make_node("Cast", ["selected_index"], ["selected_index_i32"], to=onnx.TensorProto.INT32),
-        helper.make_node("Div", ["selected_index_i32", "three_i32"], ["row_block"]),
-        helper.make_node("Mod", ["selected_index_i32", "three_i32"], ["col_block"]),
-        helper.make_node("Mul", ["row_block", "four_i32"], ["row_start"]),
-        helper.make_node("Mul", ["col_block", "four_i32"], ["col_start"]),
-        helper.make_node("Add", ["row_start", "three_i32"], ["row_end"]),
-        helper.make_node("Add", ["col_start", "three_i32"], ["col_end"]),
-        helper.make_node("Concat", ["slice_channel_start", "row_start", "col_start"], ["selected_start"], axis=0),
-        helper.make_node("Concat", ["slice_channel_end", "row_end", "col_end"], ["selected_end"], axis=0),
-        helper.make_node("Slice", ["input", "selected_start", "selected_end", "axes3"], ["selected_onehot"]),
-        helper.make_node("ArgMax", ["selected_onehot"], ["pattern_i64"], axis=1, keepdims=1),
-        helper.make_node("Cast", ["pattern_i64"], ["pattern"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Pad", ["pattern", "pads_pattern4_hw", "five_u8", "pad_axes_hw"], ["pattern4"], mode="constant"),
-        helper.make_node("Gather", ["pattern4", "expand_index11"], ["expanded11x4"], axis=2),
-        helper.make_node("Gather", ["expanded11x4", "expand_index11"], ["color11"], axis=3),
-        helper.make_node("Equal", ["colors7", "color11"], ["output7"]),
-        helper.make_node("Pad", ["output7", "pads_output_chw", "", "pad_axes_chw"], ["output"], mode="constant"),
     ]
+    has8_scalars: list[str] = []
+    for br in range(3):
+        for bc in range(3):
+            key = f"block{br}{bc}"
+            nodes.extend(
+                [
+                    helper.make_node("Slice", ["input", f"{key}_starts", f"{key}_ends", "pad_axes_chw"], [f"{key}_8"]),
+                    helper.make_node("MaxPool", [f"{key}_8"], [f"{key}_has8_f32"], kernel_shape=[3, 3]),
+                    helper.make_node("Cast", [f"{key}_has8_f32"], [f"{key}_has8_u8"], to=onnx.TensorProto.UINT8),
+                ]
+            )
+            has8_scalars.append(f"{key}_has8_u8")
+    nodes.extend(
+        [
+            helper.make_node("Concat", has8_scalars, ["has8_grid"], axis=2),
+            helper.make_node("Flatten", ["has8_grid"], ["has8_flat"], axis=2),
+            helper.make_node("ArgMin", ["has8_flat"], ["selected_index"], axis=1, keepdims=0),
+            helper.make_node("Cast", ["selected_index"], ["selected_index_i32"], to=onnx.TensorProto.INT32),
+            helper.make_node("Div", ["selected_index_i32", "three_i32"], ["row_block"]),
+            helper.make_node("Mod", ["selected_index_i32", "three_i32"], ["col_block"]),
+            helper.make_node("Mul", ["row_block", "four_i32"], ["row_start"]),
+            helper.make_node("Mul", ["col_block", "four_i32"], ["col_start"]),
+            helper.make_node("Add", ["row_start", "three_i32"], ["row_end"]),
+            helper.make_node("Add", ["col_start", "three_i32"], ["col_end"]),
+            helper.make_node("Concat", ["slice_channel_start", "row_start", "col_start"], ["selected_start"], axis=0),
+            helper.make_node("Concat", ["slice_channel_end", "row_end", "col_end"], ["selected_end"], axis=0),
+            helper.make_node("Slice", ["input", "selected_start", "selected_end", "axes3"], ["selected_onehot"]),
+            helper.make_node("ArgMax", ["selected_onehot"], ["pattern_i64"], axis=1, keepdims=1),
+            helper.make_node("Cast", ["pattern_i64"], ["pattern"], to=onnx.TensorProto.UINT8),
+            helper.make_node("Pad", ["pattern", "pads_pattern4_hw", "five_u8", "pad_axes_hw"], ["pattern4"], mode="constant"),
+            helper.make_node("Gather", ["pattern4", "expand_index11"], ["expanded11x4"], axis=2),
+            helper.make_node("Gather", ["expanded11x4", "expand_index11"], ["color11"], axis=3),
+            helper.make_node("Equal", ["colors7", "color11"], ["output7"]),
+            helper.make_node("Pad", ["output7", "pads_output_chw", "", "pad_axes_chw"], ["output"], mode="constant"),
+        ]
+    )
 
     value_infos = [
         helper.make_tensor_value_info("selected_onehot", onnx.TensorProto.FLOAT, [1, 7, 3, 3]),
