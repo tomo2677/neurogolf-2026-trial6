@@ -47,7 +47,6 @@ def build_model() -> onnx.ModelProto:
         _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
-        helper.make_tensor("false_bool", onnx.TensorProto.BOOL, [1], [False]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
 
@@ -91,10 +90,10 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Where", ["gathered_nonzero", "fg_color_u8", "zero_u8"], ["cropped_color"]),
         helper.make_node("Where", ["crop_valid", "cropped_color", "invalid_u8"], ["color_crop"]),
         helper.make_node("Equal", ["colors10_u8", "color_crop"], ["output_crop"]),
-        helper.make_node("Pad", ["output_crop", "pads_color_to30", "false_bool"], ["output"], mode="constant"),
+        helper.make_node("Pad", ["output_crop", "pads_color_to30"], ["output"], mode="constant"),
     ]
 
-    graph = helper.make_graph(nodes, "task031_bool_crop_pad_opset13_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task031_default_false_pad_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
