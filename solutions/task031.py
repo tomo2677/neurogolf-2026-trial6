@@ -6,7 +6,7 @@ from onnx import helper
 from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
-INPUT_SIZE = 12
+INPUT_SIZE = 11
 OUT_H = 7
 OUT_W = 8
 
