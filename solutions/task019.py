@@ -49,6 +49,7 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("col_idx6", list(range(INPUT_SIZE)), [1, 1, 1, INPUT_SIZE]),
         _int32_tensor("one_i32", [1], [1]),
         _int32_tensor("two_i32", [2], [1]),
+        helper.make_tensor("zero_f32", onnx.TensorProto.FLOAT, [1], [0.0]),
         _f16_tensor("zero_f16", [0.0], [1]),
         _f16_tensor("diag_kernel", [1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0], [1, 1, 3, 3]),
         _u8_tensor("zero_u8", [0], [1]),
@@ -78,8 +79,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Less", ["row_idx6", "height_i32"], ["row_valid6"]),
         helper.make_node("Less", ["col_idx6", "width_dyn_i32"], ["col_valid6"]),
         helper.make_node("And", ["row_valid6", "col_valid6"], ["valid_in6"]),
-        helper.make_node("Cast", ["input0_6"], ["bg_bool6"], to=onnx.TensorProto.BOOL),
-        helper.make_node("Not", ["bg_bool6"], ["not_bg6"]),
+        helper.make_node("Equal", ["input0_6", "zero_f32"], ["not_bg6"]),
         helper.make_node("And", ["valid_in6", "not_bg6"], ["nonzero6"]),
         helper.make_node("Where", ["nonzero6", "fg_color_u8", "zero_u8"], ["input_color_u8"]),
         helper.make_node("Mod", ["row_idx", "height_i32"], ["tile_src_r"], fmod=0),
@@ -106,7 +106,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task019_bg_shape_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task019_equal_not_bg_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
