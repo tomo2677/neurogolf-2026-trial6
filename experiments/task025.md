@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 13.296297162954836 | 120959 | 60 | 2026-06-13T13:25:01+09:00 | ledger |
+| passes_local | 13.296297162954836 | 120959 | 60 | 2026-06-13T13:25:01+09:00 | exp011 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
