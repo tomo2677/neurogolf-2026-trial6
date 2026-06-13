@@ -87,8 +87,12 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("Slice", ["input", "slice_hw_starts", "slice_hw_ends", "slice_hw_axes"], ["input11"]),
-        helper.make_node("Conv", ["input11", "color_conv_w"], ["input_color_f32"]),
+        helper.make_node("Conv", ["input", "color_conv_w"], ["input_color30_f32"]),
+        helper.make_node(
+            "Slice",
+            ["input_color30_f32", "slice_hw_starts", "slice_hw_ends", "slice_hw_axes"],
+            ["input_color_f32"],
+        ),
         helper.make_node("Cast", ["input_color_f32"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Equal", ["input_color_f32", "five_f32"], ["gray_bool"]),
     ]
