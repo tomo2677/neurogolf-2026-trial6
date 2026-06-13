@@ -68,19 +68,18 @@ def build_model() -> onnx.ModelProto:
     initializers = [
         _int32_tensor("grid_pixel_start", [0, 2, 2]),
         _int32_tensor("grid_pixel_end", [10, 3, 3]),
-        _int32_tensor("present_start", [1]),
-        _int32_tensor("present_end", [10]),
         _int64_tensor("k4", [OBJECT_COLORS]),
         _int64_tensor("one_i64", [1]),
         _int64_tensor("cell_indices_i64", list(range(CELLS)), [1, 1, 1, CELLS]),
         _int64_tensor("cell_row_indices_i64", list(range(CELLS)), [1, 1, CELLS, 1]),
-        _int32_tensor("input_channel_ids", list(range(1, 10)), [9]),
+        _int32_tensor("input_channel_ids10", list(range(10)), [10]),
         _int32_tensor("slice_axes3", [1, 2, 3], [3]),
         _int32_tensor("slice_zero", [0], [1]),
         _int32_tensor("selected_delta", [1, FULL, FULL], [3]),
         _int32_tensor("cell_slice_steps", [1, 3, 3], [3]),
         _int64_tensor("resize_sizes", [1, 1, FULL, FULL], [4]),
         helper.make_tensor("zero_score_f32", onnx.TensorProto.FLOAT, [1], np.array([0.0], dtype=np.float32)),
+        helper.make_tensor("neg_one_f32", onnx.TensorProto.FLOAT, [1], np.array([-1.0], dtype=np.float32)),
         _uint8_tensor("channel_ids_u8", list(range(10)), [1, 10, 1, 1]),
         _uint8_tensor("zero_score_u8", [0], [1]),
         _uint8_tensor("outside_u8", [255], [1]),
@@ -97,10 +96,11 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Cast", ["grid_color_i64"], ["grid_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Cast", ["grid_color_i64"], ["grid_color_i32"], to=onnx.TensorProto.INT32),
         helper.make_node("Reshape", ["grid_color_i32", "one_i64"], ["grid_shifted_i32"]),
-        helper.make_node("Equal", ["input_channel_ids", "grid_shifted_i32"], ["grid_score_mask"]),
+        helper.make_node("Equal", ["input_channel_ids10", "grid_shifted_i32"], ["grid_score_mask"]),
+        helper.make_node("Equal", ["input_channel_ids10", "slice_zero"], ["black_score_mask"]),
+        helper.make_node("Or", ["grid_score_mask", "black_score_mask"], ["excluded_score_mask"]),
         helper.make_node("ReduceMax", ["input"], ["present_scores10"], axes=[0, 2, 3], keepdims=0),
-        helper.make_node("Slice", ["present_scores10", "present_start", "present_end"], ["present_scores"]),
-        helper.make_node("Where", ["grid_score_mask", "zero_score_f32", "present_scores"], ["object_scores"]),
+        helper.make_node("Where", ["excluded_score_mask", "neg_one_f32", "present_scores10"], ["object_scores"]),
         helper.make_node("TopK", ["object_scores", "k4"], ["top_scores", "top_indices"], axis=0, largest=1, sorted=1),
         helper.make_node(
             "Split",
@@ -114,7 +114,7 @@ def build_model() -> onnx.ModelProto:
     for slot in range(OBJECT_COLORS):
         nodes.extend(
             [
-                helper.make_node("Gather", ["input_channel_ids", f"top_idx_{slot}"], [f"input_channel_{slot}"], axis=0),
+                helper.make_node("Cast", [f"top_idx_{slot}"], [f"input_channel_{slot}"], to=onnx.TensorProto.INT32),
                 helper.make_node("Concat", [f"input_channel_{slot}", "slice_zero", "slice_zero"], [f"selected_start_{slot}"], axis=0),
                 helper.make_node("Add", [f"selected_start_{slot}", "selected_delta"], [f"selected_end_{slot}"]),
                 helper.make_node(
@@ -162,8 +162,10 @@ def build_model() -> onnx.ModelProto:
         helper.make_tensor_value_info("grid_color_u8", onnx.TensorProto.UINT8, [1, 1, 1, 1]),
         helper.make_tensor_value_info("grid_color_i32", onnx.TensorProto.INT32, [1, 1, 1, 1]),
         helper.make_tensor_value_info("grid_shifted_i32", onnx.TensorProto.INT32, [1]),
-        helper.make_tensor_value_info("grid_score_mask", onnx.TensorProto.BOOL, [9]),
-        helper.make_tensor_value_info("object_scores", onnx.TensorProto.FLOAT, [9]),
+        helper.make_tensor_value_info("grid_score_mask", onnx.TensorProto.BOOL, [10]),
+        helper.make_tensor_value_info("black_score_mask", onnx.TensorProto.BOOL, [10]),
+        helper.make_tensor_value_info("excluded_score_mask", onnx.TensorProto.BOOL, [10]),
+        helper.make_tensor_value_info("object_scores", onnx.TensorProto.FLOAT, [10]),
         helper.make_tensor_value_info("cell_or_black_u8", onnx.TensorProto.UINT8, [1, 1, CELLS, CELLS]),
         helper.make_tensor_value_info("cell_or_black30_u8", onnx.TensorProto.UINT8, [1, 1, FULL, FULL]),
     ]
