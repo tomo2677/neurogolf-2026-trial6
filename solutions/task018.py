@@ -78,24 +78,24 @@ def _sum(nodes: list[onnx.NodeProto], source: str, output: str) -> None:
 
 
 def _grow_component(nodes: list[onnx.NodeProto], seed: str, nonzero: str, prefix: str) -> str:
-    current = seed
+    nodes.append(helper.make_node("Cast", [seed], [f"{prefix}_seed_u8"], to=onnx.TensorProto.UINT8))
+    current = f"{prefix}_seed_u8"
     for step in range(GROW_STEPS):
-        _cast_f32(nodes, current, f"{prefix}_grow_f32_{step}")
         nodes.extend(
             [
                 helper.make_node(
-                    "Conv",
-                    [f"{prefix}_grow_f32_{step}", "cross_kernel"],
-                    [f"{prefix}_dilated_score_{step}"],
+                    "MaxPool",
+                    [current],
+                    [f"{prefix}_dilated_u8_{step}"],
                     kernel_shape=[3, 3],
                     pads=[1, 1, 1, 1],
                 ),
-                helper.make_node("Greater", [f"{prefix}_dilated_score_{step}", "zero_f16"], [f"{prefix}_dilated_{step}"]),
-                helper.make_node("And", [f"{prefix}_dilated_{step}", nonzero], [f"{prefix}_grown_{step}"]),
+                helper.make_node("Min", [f"{prefix}_dilated_u8_{step}", nonzero], [f"{prefix}_grown_u8_{step}"]),
             ]
         )
-        current = f"{prefix}_grown_{step}"
-    return current
+        current = f"{prefix}_grown_u8_{step}"
+    nodes.append(helper.make_node("Greater", [current, "zero_u8"], [f"{prefix}_grown_bool"]))
+    return f"{prefix}_grown_bool"
 
 
 def _transform_tensor(nodes: list[onnx.NodeProto], source: str, name: str, transform: str) -> str:
@@ -169,6 +169,9 @@ def _static_shift_color_base(
         [
             helper.make_node("Sub", ["row_grid_i32", dr], [f"{prefix}_src_r"]),
             helper.make_node("Sub", ["col_grid_i32", dc], [f"{prefix}_src_c"]),
+            helper.make_node("Mul", [dr, "width_i32"], [f"{prefix}_dr_offset"]),
+            helper.make_node("Add", [f"{prefix}_dr_offset", dc], [f"{prefix}_offset"]),
+            helper.make_node("Sub", ["flat_grid_i32", f"{prefix}_offset"], [f"{prefix}_src_spatial"]),
             helper.make_node("Greater", [f"{prefix}_src_r", "neg_one_i32"], [f"{prefix}_r_nonneg"]),
             helper.make_node("Less", [f"{prefix}_src_r", "size_i32"], [f"{prefix}_r_lt_size"]),
             helper.make_node("Greater", [f"{prefix}_src_c", "neg_one_i32"], [f"{prefix}_c_nonneg"]),
@@ -176,10 +179,7 @@ def _static_shift_color_base(
             helper.make_node("And", [f"{prefix}_r_nonneg", f"{prefix}_r_lt_size"], [f"{prefix}_r_ok"]),
             helper.make_node("And", [f"{prefix}_c_nonneg", f"{prefix}_c_lt_size"], [f"{prefix}_c_ok"]),
             helper.make_node("And", [f"{prefix}_r_ok", f"{prefix}_c_ok"], [f"{prefix}_in_bounds"]),
-            helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_src_r", "zero_i32"], [f"{prefix}_safe_r"]),
-            helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_src_c", "zero_i32"], [f"{prefix}_safe_c"]),
-            helper.make_node("Mul", [f"{prefix}_safe_r", "width_i32"], [f"{prefix}_safe_r_offset"]),
-            helper.make_node("Add", [f"{prefix}_safe_r_offset", f"{prefix}_safe_c"], [f"{prefix}_safe_spatial"]),
+            helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_src_spatial", "zero_i32"], [f"{prefix}_safe_spatial"]),
             helper.make_node("Reshape", [color_source, "shape_flat900"], [f"{prefix}_color_flat"]),
             helper.make_node("Gather", [f"{prefix}_color_flat", f"{prefix}_safe_spatial"], [f"{prefix}_color_shifted"], axis=0),
             helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_color_shifted", "zero_u8"], [color_output]),
@@ -338,6 +338,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("flat_index", list(range(SIZE * SIZE)), [SIZE * SIZE]),
         _int32_tensor("row_grid_i32", list(range(SIZE)), [1, 1, SIZE, 1]),
         _int32_tensor("col_grid_i32", list(range(SIZE)), [1, 1, 1, SIZE]),
+        _int32_tensor("flat_grid_i32", list(range(SIZE * SIZE)), [1, 1, SIZE, SIZE]),
         _int64_tensor("color_ids", list(range(1, 10)), [9]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _f16_tensor("zero_f16", [0.0], [1]),
@@ -356,6 +357,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Cast", ["input0"], ["input0_f16"], to=onnx.TensorProto.FLOAT16),
         helper.make_node("ReduceMax", ["input_nonzero"], ["nonzero_score"], axes=[1], keepdims=1),
         helper.make_node("Greater", ["nonzero_score", "zero_f32"], ["nonzero_mask"]),
+        helper.make_node("Cast", ["nonzero_mask"], ["nonzero_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("ReduceSum", ["input_nonzero"], ["color_counts"], axes=[0, 2, 3], keepdims=0),
         helper.make_node("ArgMax", ["color_counts"], ["base_idx"], axis=0, keepdims=1),
         helper.make_node("Add", ["base_idx", "one_i64"], ["base_color"]),
@@ -374,7 +376,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["color_grid", "anchor_color1111"], ["anchor_color_mask"]),
     ]
 
-    source_mask_all = _grow_component(nodes, "base_mask", "nonzero_mask", "source_all")
+    source_mask_all = _grow_component(nodes, "base_mask", "nonzero_u8", "source_all")
     _cast_f32(nodes, source_mask_all, "source_mask_all_f32")
 
     nodes.extend(
@@ -391,7 +393,7 @@ def build_model() -> onnx.ModelProto:
     nodes.append(helper.make_node("Reshape", ["first_base_flat", "seed_shape"], ["first_base_seed"]))
     initializers.append(_int64_tensor("seed_shape", [1, 1, SIZE, SIZE], [4]))
 
-    comp1 = _grow_component(nodes, "first_base_seed", "nonzero_mask", "comp1")
+    comp1 = _grow_component(nodes, "first_base_seed", "nonzero_u8", "comp1")
     comp1_mask = comp1
     nodes.extend(
         [
@@ -442,6 +444,6 @@ def build_model() -> onnx.ModelProto:
 
     graph = helper.make_graph(nodes, "task018_template_copy_graph", [x], [y], initializers)
     _dedupe_initializers(graph)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 11)])
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model

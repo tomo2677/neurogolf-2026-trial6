@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 11.004833100441234 | 1195752 | 1054 | 2026-06-13T15:32:27+09:00 | zero-repair-size30 |
+| passes_local | 11.32244890984462 | 869180 | 1954 | 2026-06-13T16:09:52+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -31,6 +31,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp024 | impl_opt | color-grid-candidates | passes_local | 11.130734480039619 | 1054516 | 710 | 1.38943448663 | promoted | Auto promoted after canonical re-score. |
 | exp025 | impl_opt | f16-shared-shift-bool-output | passes_local | 11.669484889100698 | 614988 | 712 | 0.538750409061 | promoted | Auto promoted after canonical re-score. |
 | zero001 | rule_redesign | zero-repair-size30 | passes_local | 11.004833100441234 | 1195752 | 1054 | -0.664651788659 | official_repaired | Official zero resolved: full 30x30 crop and 30-step growth scored 11.00 public. |
+| exp026 | impl_opt | u8-maxpool-flat-shift | passes_local | 11.32244890984462 | 869180 | 1954 | 0.317615809403 | promoted | Auto promoted after canonical re-score. |
+| exp027 | impl_opt | bool-base-u8-candidate-max | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 
 ## Archived Summary
 - None yet.
