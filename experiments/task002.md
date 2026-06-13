@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 12.83308406967102 | 192196 | 124 | 2026-06-13T17:31:04+09:00 | ledger |
+| passes_local | 14.453685350803942 | 37984 | 53 | 2026-06-13T18:03:47+09:00 | exp066 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -14,9 +14,6 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp038 | impl_opt | direct-green-float | passes_local | 14.882248200756257 | 24740 | 39 | -0.101828817378 | not_better | Passed but did not improve local_points. |
-| exp039 | impl_opt | drop-unused-slice-axis-w | passes_local | 14.984121701884845 | 22340 | 39 | 4.46837507617e-05 | promoted | Auto promoted after canonical re-score. |
-| exp040 | impl_opt | cast-open-seed-u8-square | passes_local | 14.984166387632333 | 22340 | 38 | 4.46857474881e-05 | promoted | Auto promoted after canonical re-score. |
 | exp041 | impl_opt | bool-row-valid-slice | passes_local | 14.986448012601564 | 22290 | 37 | 0.00228162496923 | promoted | Auto promoted after canonical re-score. |
 | exp042 | impl_opt | bool-flood-state | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp043 | impl_opt | default-green-slice-axes | passes_local | 14.986492802425323 | 22290 | 36 | 4.47898237592e-05 | promoted | Auto promoted after canonical re-score. |
@@ -38,6 +35,10 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp059 | rule_redesign | line-closure-5 | passes_local | 12.189556744300727 | 365896 | 124 | 0.659784365165 | promoted | 5 row/column segment-closure rounds pass public; 2 rounds failed 4 arc-gen examples. |
 | exp060 | rule_redesign | line-closure-3-shared-green | passes_local | 12.693539180438558 | 220996 | 124 | 0.503982436138 | promoted | Auto promoted after canonical re-score. |
 | exp061 | rule_redesign | line-closure-2-plus-h | passes_local | 12.83308406967102 | 192196 | 124 | 0.139544889232 | promoted | Auto promoted after canonical re-score. |
+| exp063 | rule_redesign | line-closure-1-plus-h | fails_local | 0.0 | 125596 | 124 | -12.8330840697 | fails_local | Candidate did not pass local validation. |
+| exp064 | impl_opt | f16-closure-state | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp065 | impl_opt | f16-closure-state-after-cumsum | passes_local | 12.890823791715523 | 181406 | 124 | 0.0577397220445 | promoted | Auto promoted after canonical re-score. |
+| exp066 | rule_redesign | full30-u8-ray-flood | passes_local | 14.453685350803942 | 37984 | 53 | 1.56286155909 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - 2026-06-13 official zero repair: the exp056 model passed local public data but received official publicScore `0.00`. The repair prioritizes hidden correctness over cost by using full `30x30` valid-area inference and 900-step 4-neighbor flood fill from border black cells. Canonical local score became `10.002367232660871`, and official run `task002-20260612T145920Z-f86ab16` completed with publicScore `10.00`.
