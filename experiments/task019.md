@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.79532817104919 | 3581 | 77 | 2026-06-13T10:41:16+09:00 | ledger |
+| passes_local | 16.849243529724447 | 3389 | 77 | 2026-06-13T10:43:23+09:00 | exp019 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -29,6 +29,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp016 | impl_opt | single-color-axis-gather | passes_local | 16.719542313417442 | 3869 | 77 | 0.123342817479 | promoted | Auto promoted after canonical re-score. |
 | exp017 | impl_opt | diag-fill-direct | passes_local | 16.79532817104919 | 3581 | 77 | 0.0757858576317 | promoted | Auto promoted after canonical re-score. |
 | exp018 | impl_opt | raw-colored | fails_local | 0.0 | 3437 | 77 | -16.795328171 | fails_local | Candidate did not pass local validation. |
+| exp019 | rule_redesign | bg-shape | passes_local | 16.849243529724447 | 3389 | 77 | 0.0539153586753 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

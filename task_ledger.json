@@ -290,18 +290,18 @@
   "task019": {
     "task": "task019",
     "status": "passes_local",
-    "local_points": 16.79532817104919,
-    "official_public_score": 14.84,
-    "official_delta_public_vs_local": -1.9553281710491888,
-    "memory_bytes_approx": 3581,
+    "local_points": 16.849243529724447,
+    "official_public_score": 16.84,
+    "official_delta_public_vs_local": -0.009243529724447086,
+    "memory_bytes_approx": 3389,
     "params": 77,
-    "updated_at": "2026-06-13T10:41:16+09:00",
+    "updated_at": "2026-06-13T10:44:56+09:00",
     "official_status": "complete",
-    "official_submission_ref": "53616296",
-    "official_run_id": "task019-20260612T214533Z-154189b",
-    "official_zip_sha256": "dcda59b3528bed5cb139c3414f25e29a0da9bd01d56422f4f3ad35a5f0274383",
-    "official_submitted_at": "2026-06-13T06:45:40+09:00",
-    "official_completed_at": "2026-06-13T06:46:49+09:00"
+    "official_submission_ref": "53620958",
+    "official_run_id": "task019-20260613T014341Z-f113d27",
+    "official_zip_sha256": "565d4c2293e513da17daaf731c2f24a29bbc846182b46105a58a3ad92e6b4149",
+    "official_submitted_at": "2026-06-13T10:43:47+09:00",
+    "official_completed_at": "2026-06-13T10:44:56+09:00"
   },
   "task020": {
     "task": "task020",
