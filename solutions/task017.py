@@ -86,7 +86,6 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("axes_nchw", [0, 1, 2, 3], [4]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 9, 9], [8]),
         _int64_tensor("one_i64", [1], [1]),
-        _f16_tensor("zero_f32", [0.0], [1]),
         _f16_tensor("one_f32", [1.0], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
         _u8_tensor("outside_u8", [255], [1]),
@@ -139,7 +138,7 @@ def build_model() -> onnx.ModelProto:
         if p != PERIODS[-1]:
             nodes.extend(
                 [
-                    helper.make_node("Greater", [f"counts_{p}", "zero_f32"], [f"seen_{p}"]),
+                    helper.make_node("Cast", [f"counts_{p}"], [f"seen_{p}"], to=onnx.TensorProto.BOOL),
                     helper.make_node("Cast", [f"seen_{p}"], [f"seen_f32_{p}"], to=INTERNAL_TYPE),
                     helper.make_node("ReduceSum", [f"seen_f32_{p}"], [f"color_count_{p}"], axes=[1], keepdims=0),
                     helper.make_node("Equal", [f"color_count_{p}", "one_f32"], [f"residue_ok_{p}"]),
