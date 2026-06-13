@@ -20,6 +20,10 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
+def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+
+
 def _period_index_map(p: int) -> list[int]:
     return [(r % p) * p + (c % p) for r in range(H) for c in range(W)]
 
@@ -37,6 +41,7 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("one_u8", [1], [1]),
         _u8_tensor("outside_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
+        _f32_tensor("color_conv_w", [float(i) for i in range(10)], [1, 10, 1, 1]),
     ]
 
     for p in PERIODS:
@@ -61,8 +66,8 @@ def build_model() -> onnx.ModelProto:
             initializers.append(_int64_tensor(f"period_slice_start_{p}_{residue}", [0, 0, rr, cc], [4]))
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1),
-        helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Conv", ["input", "color_conv_w"], ["input_color_f32"]),
+        helper.make_node("Cast", ["input_color_f32"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
     ]
 
     color_candidates: list[tuple[int, str]] = []
@@ -130,7 +135,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task017_period_minmax_color_grid_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task017_conv_color_map_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
