@@ -66,27 +66,8 @@ def _shift_u8(
     dr: int,
     dc: int,
 ) -> str:
-    row_start = max(0, -dr)
-    row_end = SIZE - max(0, dr)
-    col_start = max(0, -dc)
-    col_end = SIZE - max(0, dc)
-    pad_top = max(0, dr)
-    pad_bottom = max(0, -dr)
-    pad_left = max(0, dc)
-    pad_right = max(0, -dc)
-    initializers.extend(
-        [
-            _int64_tensor(f"{output}_starts", [0, 0, row_start, col_start], [4]),
-            _int64_tensor(f"{output}_ends", [1, 1, row_end, col_end], [4]),
-            _int64_tensor(f"{output}_pads", [0, 0, pad_top, pad_left, 0, 0, pad_bottom, pad_right], [8]),
-        ]
-    )
-    nodes.extend(
-        [
-            helper.make_node("Slice", [source, f"{output}_starts", f"{output}_ends"], [f"{output}_crop"]),
-            helper.make_node("Pad", [f"{output}_crop", f"{output}_pads"], [output], mode="constant"),
-        ]
-    )
+    initializers.append(_int64_tensor(f"{output}_pads", [0, 0, dr, dc, 0, 0, -dr, -dc], [8]))
+    nodes.append(helper.make_node("Pad", [source, f"{output}_pads"], [output], mode="constant"))
     return output
 
 
