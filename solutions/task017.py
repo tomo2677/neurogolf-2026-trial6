@@ -33,6 +33,7 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 9, 9], [8]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("shape_111", [1, 1, 1], [3]),
+        _int64_tensor("period_slice_end", [1, 1, H, W], [4]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("one_u8", [1], [1]),
         _u8_tensor("outside_u8", [255], [1]),
@@ -41,14 +42,21 @@ def build_model() -> onnx.ModelProto:
 
     for p in PERIODS:
         p2 = p * p
-        initializers.extend(
-            [
-                _int64_tensor(f"period_slice_end_{p}", [1, 1, H, W], [4]),
-                _int64_tensor(f"period_slice_steps_{p}", [1, 1, p, p], [4]),
-                _int64_tensor(f"shape_tile_{p}", [p2], [1]),
-                _int64_tensor(f"period_index_{p}", _period_index_map(p), [1, 1, H, W]),
-            ]
-        )
+        initializers.append(_int64_tensor(f"period_slice_steps_{p}", [1, 1, p, p], [4]))
+        if p == 7:
+            initializers.extend(
+                [
+                    _int64_tensor(f"shape_tile_{p}", [1, 1, p, p], [4]),
+                    _int64_tensor("tile_repeats_7", [1, 1, 3, 3], [4]),
+                ]
+            )
+        else:
+            initializers.extend(
+                [
+                    _int64_tensor(f"shape_tile_{p}", [p2], [1]),
+                    _int64_tensor(f"period_index_{p}", _period_index_map(p), [1, 1, H, W]),
+                ]
+            )
         for residue in range(p2):
             rr, cc = divmod(residue, p)
             initializers.append(_int64_tensor(f"period_slice_start_{p}_{residue}", [0, 0, rr, cc], [4]))
@@ -71,7 +79,7 @@ def build_model() -> onnx.ModelProto:
                         [
                             "input_color_u8",
                             f"period_slice_start_{p}_{residue}",
-                            f"period_slice_end_{p}",
+                            "period_slice_end",
                             "axes_nchw",
                             f"period_slice_steps_{p}",
                         ],
@@ -93,9 +101,12 @@ def build_model() -> onnx.ModelProto:
             [
                 helper.make_node("Concat", residue_colors, [f"tile_color_rank3_{p}"], axis=2),
                 helper.make_node("Reshape", [f"tile_color_rank3_{p}", f"shape_tile_{p}"], [f"tile_color_u8_{p}"]),
-                helper.make_node("Gather", [f"tile_color_u8_{p}", f"period_index_{p}"], [f"color21_{p}"], axis=0),
             ]
         )
+        if p == 7:
+            nodes.append(helper.make_node("Tile", [f"tile_color_u8_{p}", "tile_repeats_7"], [f"color21_{p}"]))
+        else:
+            nodes.append(helper.make_node("Gather", [f"tile_color_u8_{p}", f"period_index_{p}"], [f"color21_{p}"], axis=0))
         if p != PERIODS[-1]:
             nodes.extend(
                 [
