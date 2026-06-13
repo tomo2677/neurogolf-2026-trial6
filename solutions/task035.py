@@ -18,6 +18,10 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
+def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+
+
 def _bool_tensor(name: str, values: list[bool], dims: list[int]) -> onnx.TensorProto:
     return helper.make_tensor(name, onnx.TensorProto.BOOL, dims, values)
 
@@ -51,6 +55,7 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
         _bool_tensor("false_cell", [False], [1, 1, 1, 1]),
         _bool_tensor("right_col5", [c == 5 for c in range(SIZE)], [1, 1, 1, SIZE]),
+        _f32_tensor("color_w", [float(c) for c in range(10)], [1, 10, 1, 1]),
     ]
 
     nodes = [
@@ -81,8 +86,8 @@ def build_model() -> onnx.ModelProto:
         nodes.extend(
             [
                 helper.make_node("Slice", ["input", starts, ends, "pad_axes_hw"], [f"{name}_onehot"]),
-                helper.make_node("ArgMax", [f"{name}_onehot"], [f"{name}_i64"], axis=1, keepdims=1),
-                helper.make_node("Cast", [f"{name}_i64"], [f"{name}_u8"], to=onnx.TensorProto.UINT8),
+                helper.make_node("Conv", [f"{name}_onehot", "color_w"], [f"{name}_f32"], kernel_shape=[1, 1]),
+                helper.make_node("Cast", [f"{name}_f32"], [f"{name}_u8"], to=onnx.TensorProto.UINT8),
             ]
         )
 
