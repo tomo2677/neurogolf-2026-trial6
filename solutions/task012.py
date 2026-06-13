@@ -57,24 +57,29 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("slice_one", [1], [1]),
         _int32_tensor("slice_12", [SIZE], [1]),
         _int32_tensor("axes3", [1, 2, 3], [3]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 18, 18]),
+        _int64_tensor("reduce_present_axes", [0, 2, 3], [3]),
+        _int64_tensor("reduce_all_axes", [0, 1, 2, 3], [4]),
+        _int64_tensor("pad_axis_row", [2], [1]),
+        _int64_tensor("pad_axis_col", [3], [1]),
+        _int64_tensor("pad_axes_hw", [2, 3], [2]),
+        _int64_tensor("pads_output_hw", [0, 0, 18, 18], [4]),
         _f16_tensor("zero_f16", [0.0], [1]),
         _f16_tensor("center_kernel", _kernel(CENTER_OFFSETS), [1, 1, 5, 5]),
         _f16_tensor("arm_kernel", _kernel(ARM_OFFSETS), [1, 1, 5, 5]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
         _u8_tensor("outside_u8", [255], [1]),
-        _int64_tensor("pads_shift_up", [0, 0, 1, 0, 0, 0, -1, 0], [8]),
-        _int64_tensor("pads_shift_down", [0, 0, -1, 0, 0, 0, 1, 0], [8]),
-        _int64_tensor("pads_shift_left", [0, 0, 0, 1, 0, 0, 0, -1], [8]),
-        _int64_tensor("pads_shift_right", [0, 0, 0, -1, 0, 0, 0, 1], [8]),
+        _int64_tensor("pads_shift_up", [1, -1], [2]),
+        _int64_tensor("pads_shift_down", [-1, 1], [2]),
+        _int64_tensor("pads_shift_left", [1, -1], [2]),
+        _int64_tensor("pads_shift_right", [-1, 1], [2]),
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("ReduceMax", ["input"], ["present_scores10"], axes=[0, 2, 3], keepdims=0),
+        helper.make_node("ReduceMax", ["input", "reduce_present_axes"], ["present_scores10"], keepdims=0),
         helper.make_node("Slice", ["present_scores10", "present_start", "present_end"], ["present_scores"]),
         helper.make_node("TopK", ["present_scores", "k2"], ["top_scores", "top_indices"], axis=0, largest=1, sorted=0),
-        helper.make_node("Split", ["top_indices"], ["top_idx0", "top_idx1"], axis=0),
+        helper.make_node("Split", ["top_indices"], ["top_idx0", "top_idx1"], axis=0, num_outputs=2),
     ]
 
     for slot in range(2):
@@ -95,10 +100,10 @@ def build_model() -> onnx.ModelProto:
         [
             helper.make_node("Or", ["selected_0_bool", "selected_1_bool"], ["nonzero_bool"]),
             helper.make_node("Max", ["selected_color_0", "selected_color_1"], ["color12"]),
-            helper.make_node("Pad", ["nonzero_bool", "pads_shift_up"], ["has_up"], mode="constant"),
-            helper.make_node("Pad", ["nonzero_bool", "pads_shift_down"], ["has_down"], mode="constant"),
-            helper.make_node("Pad", ["nonzero_bool", "pads_shift_left"], ["has_left"], mode="constant"),
-            helper.make_node("Pad", ["nonzero_bool", "pads_shift_right"], ["has_right"], mode="constant"),
+            helper.make_node("Pad", ["nonzero_bool", "pads_shift_up", "", "pad_axis_row"], ["has_up"], mode="constant"),
+            helper.make_node("Pad", ["nonzero_bool", "pads_shift_down", "", "pad_axis_row"], ["has_down"], mode="constant"),
+            helper.make_node("Pad", ["nonzero_bool", "pads_shift_left", "", "pad_axis_col"], ["has_left"], mode="constant"),
+            helper.make_node("Pad", ["nonzero_bool", "pads_shift_right", "", "pad_axis_col"], ["has_right"], mode="constant"),
             helper.make_node("And", ["nonzero_bool", "has_up"], ["center_ud0"]),
             helper.make_node("And", ["center_ud0", "has_down"], ["center_ud"]),
             helper.make_node("And", ["has_left", "has_right"], ["center_lr"]),
@@ -109,13 +114,13 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Greater", ["center_fill_score", "zero_f16"], ["center_fill"]),
             helper.make_node("Greater", ["arm_fill_score", "zero_f16"], ["arm_fill"]),
             helper.make_node("Where", ["center_mask", "color12", "zero_u8"], ["center_value"]),
-            helper.make_node("Pad", ["color12", "pads_shift_up", "zero_u8"], ["up_color"], mode="constant"),
+            helper.make_node("Pad", ["color12", "pads_shift_up", "zero_u8", "pad_axis_row"], ["up_color"], mode="constant"),
             helper.make_node("Where", ["center_mask", "up_color", "zero_u8"], ["arm_value"]),
-            helper.make_node("ReduceMax", ["center_value"], ["center_color"], axes=[0, 1, 2, 3], keepdims=1),
-            helper.make_node("ReduceMax", ["arm_value"], ["arm_color"], axes=[0, 1, 2, 3], keepdims=1),
+            helper.make_node("ReduceMax", ["center_value", "reduce_all_axes"], ["center_color"], keepdims=1),
+            helper.make_node("ReduceMax", ["arm_value", "reduce_all_axes"], ["arm_color"], keepdims=1),
             helper.make_node("Where", ["arm_fill", "arm_color", "zero_u8"], ["arm_out"]),
             helper.make_node("Where", ["center_fill", "center_color", "arm_out"], ["color12_out"]),
-            helper.make_node("Pad", ["color12_out", "pads_output", "outside_u8"], ["color30"], mode="constant"),
+            helper.make_node("Pad", ["color12_out", "pads_output_hw", "outside_u8", "pad_axes_hw"], ["color30"], mode="constant"),
             helper.make_node("Equal", ["colors10", "color30"], ["output"]),
         ]
     )
@@ -135,7 +140,7 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    graph = helper.make_graph(nodes, "task012_top2_cross_expand_conv_graph", [x], [y], initializers, value_info=value_infos)
-    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
+    graph = helper.make_graph(nodes, "task012_opset18_pad_axes_graph", [x], [y], initializers, value_info=value_infos)
+    model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
