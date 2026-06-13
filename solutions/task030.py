@@ -63,7 +63,7 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("size_i32", [SIZE], [1]),
         _int32_tensor("row_grid_i32", list(range(SIZE)), [1, 1, SIZE, 1]),
         _int64_tensor("shape_vec10", [SIZE], [1]),
-        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 5, 30 - SIZE, 30 - SIZE], [8]),
+        _int64_tensor("pads_output", [0, 0, 0, 5, 30 - SIZE, 30 - SIZE], [6]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("two_u8", [2], [1]),
         _u8_tensor("four_u8", [4], [1]),
@@ -116,7 +116,7 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Greater", ["row_present_u8", "zero_u8"], ["valid_rows"]),
             helper.make_node("Where", ["valid_rows", "placed_color", "invalid_u8"], ["color10"]),
             helper.make_node("Equal", ["colors5_u8", "color10"], ["output5"]),
-            helper.make_node("Pad", ["output5", "pads_output"], ["output"], mode="constant"),
+            helper.make_node("Pad", ["output5", "pads_output", "", "axes_chw"], ["output"], mode="constant"),
         ]
     )
 
