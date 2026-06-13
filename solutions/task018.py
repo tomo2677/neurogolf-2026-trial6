@@ -6,7 +6,8 @@ from onnx import helper
 from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
-SIZE = 30
+SIZE = 24
+GRID_SIZE = 30
 GROW_STEPS = 8
 TRANSFORMS = ("vflip", "transpose", "trans_hflip", "trans_vflip")
 
@@ -331,6 +332,10 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("size_i32", [SIZE], [1]),
         _int32_tensor("width_i32", [SIZE], [1]),
         _int64_tensor("k2", [2], [1]),
+        _int64_tensor("crop_hw_start", [0, 0], [2]),
+        _int64_tensor("crop_hw_end", [SIZE, SIZE], [2]),
+        _int64_tensor("crop_hw_axes", [2, 3], [2]),
+        _int64_tensor("pads_to_grid", [0, 0, 0, 0, 0, 0, GRID_SIZE - SIZE, GRID_SIZE - SIZE], [8]),
         _int64_tensor("shape1111", [1, 1, 1, 1], [4]),
         _int64_tensor("shape_flat900", [SIZE * SIZE], [1]),
         _int64_tensor("shape_index_1x900", [1, 1, SIZE * SIZE], [3]),
@@ -423,9 +428,16 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Not", ["placed_bool"], ["not_placed_bool"]),
             helper.make_node("And", ["valid_cell", "not_placed_bool"], ["blank_bool"]),
             helper.make_node("Where", ["blank_bool", "black_pixel", "zero_f32"], ["blank_output"]),
-            helper.make_node("Max", ["placed_nonzero", "blank_output"], ["output"]),
+            helper.make_node("Max", ["placed_nonzero", "blank_output"], ["output24"]),
         ]
     )
+
+    for node in nodes:
+        for index, input_name in enumerate(node.input):
+            if input_name == "input":
+                node.input[index] = "input24"
+    nodes.insert(0, helper.make_node("Slice", ["input", "crop_hw_start", "crop_hw_end", "crop_hw_axes"], ["input24"]))
+    nodes.append(helper.make_node("Pad", ["output24", "pads_to_grid"], ["output"], mode="constant"))
 
     graph = helper.make_graph(nodes, "task018_template_copy_graph", [x], [y], initializers)
     _dedupe_initializers(graph)
