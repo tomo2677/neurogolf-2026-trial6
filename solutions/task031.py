@@ -48,11 +48,11 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes = [
-        helper.make_node("ReduceMax", ["input"], ["row_present30"], axes=[1, 3], keepdims=1),
-        helper.make_node("ArgMax", ["row_present30"], ["last_row"], axis=2, keepdims=0, select_last_index=1),
+        helper.make_node("Slice", ["input", "slice_ch0_starts", "slice_ch0_ends"], ["input0_12"]),
+        helper.make_node("ReduceMax", ["input0_12"], ["row_bg_present12"], axes=[1, 3], keepdims=1),
+        helper.make_node("ArgMax", ["row_bg_present12"], ["last_row"], axis=2, keepdims=0, select_last_index=1),
         helper.make_node("Cast", ["last_row"], ["last_row_i32"], to=onnx.TensorProto.INT32),
         helper.make_node("LessOrEqual", ["input_row_grid_i32", "last_row_i32"], ["input_row_valid"]),
-        helper.make_node("Slice", ["input", "slice_ch0_starts", "slice_ch0_ends"], ["input0_12"]),
         helper.make_node("Equal", ["input0_12", "zero_f32"], ["nonzero_raw"]),
         helper.make_node("And", ["input_row_valid", "nonzero_raw"], ["nonzero_bool"]),
         helper.make_node("Cast", ["nonzero_bool"], ["nonzero_u8"], to=onnx.TensorProto.UINT8),
@@ -90,7 +90,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task031_bool_axis_gather_crop_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task031_bg_height_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
