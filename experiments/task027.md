@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.505013766049466 | 1755 | 44 | 2026-06-13T10:52:17+09:00 | exp026 |
+| passes_local | 17.642443799089648 | 1523 | 45 | 2026-06-13T10:54:38+09:00 | exp028 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -36,6 +36,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp024 | impl_opt | direct-rot10-slice | passes_local | 17.50279277679668 | 1755 | 48 | 0.0481825264085 | promoted | Auto promoted after canonical re-score. |
 | exp025 | impl_opt | bool-reducemax | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp026 | impl_opt | pad-rot10-axes | passes_local | 17.505013766049466 | 1755 | 44 | 0.00222098925278 | promoted | Auto promoted after canonical re-score. |
+| exp027 | impl_opt | u8-bitwise | passes_local | 17.521830305840215 | 1724 | 45 | 0.0168165397907 | promoted | Auto promoted after canonical re-score. |
+| exp028 | impl_opt | u8-where-select | passes_local | 17.642443799089648 | 1523 | 45 | 0.120613493249 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
