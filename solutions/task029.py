@@ -88,11 +88,11 @@ def _add_frame_candidate(nodes: list[onnx.NodeProto], prefix: str, color_u8: str
             helper.make_node("And", [f"{prefix}_border_ok", f"{prefix}_interior_ok"], [f"{prefix}_shape_ok"]),
             helper.make_node("And", [f"{prefix}_size_ok", f"{prefix}_shape_ok"], [f"{prefix}_valid"]),
             helper.make_node("Cast", [f"{prefix}_valid"], [f"{prefix}_valid_f32_4d"], to=onnx.TensorProto.FLOAT),
-            helper.make_node("Reshape", [f"{prefix}_valid_f32_4d", "shape1"], [f"{prefix}_score"]),
-            helper.make_node("Reshape", [f"{prefix}_r_min_i32", "shape1"], [f"{prefix}_r_min_1"]),
-            helper.make_node("Reshape", [f"{prefix}_r_max_i32", "shape1"], [f"{prefix}_r_max_1"]),
-            helper.make_node("Reshape", [f"{prefix}_c_min_i32", "shape1"], [f"{prefix}_c_min_1"]),
-            helper.make_node("Reshape", [f"{prefix}_c_max_i32", "shape1"], [f"{prefix}_c_max_1"]),
+            helper.make_node("Reshape", [f"{prefix}_valid_f32_4d", "one_i64"], [f"{prefix}_score"]),
+            helper.make_node("Reshape", [f"{prefix}_r_min_i32", "one_i64"], [f"{prefix}_r_min_1"]),
+            helper.make_node("Reshape", [f"{prefix}_r_max_i32", "one_i64"], [f"{prefix}_r_max_1"]),
+            helper.make_node("Reshape", [f"{prefix}_c_min_i32", "one_i64"], [f"{prefix}_c_min_1"]),
+            helper.make_node("Reshape", [f"{prefix}_c_max_i32", "one_i64"], [f"{prefix}_c_max_1"]),
         ]
     )
     return (
@@ -113,7 +113,6 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("zero_i32", [0], [1]),
         _int64_tensor("one_i64", [1], [1]),
         _int64_tensor("k_top_colors", [TOP_COLORS], [1]),
-        _int64_tensor("shape1", [1], [1]),
         _int64_tensor("shape1111", [1, 1, 1, 1], [4]),
         _int64_tensor("shape_vec23", [OUT], [1]),
         _int32_tensor("row_grid_i32", list(range(SIZE)), [1, 1, SIZE, 1]),
@@ -175,7 +174,7 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("Concat", r_maxes, ["r_max_values"], axis=0),
             helper.make_node("Concat", c_mins, ["c_min_values"], axis=0),
             helper.make_node("Concat", c_maxes, ["c_max_values"], axis=0),
-            helper.make_node("TopK", ["frame_scores", "shape1"], ["top_score", "frame_idx"], axis=0, largest=1, sorted=1),
+            helper.make_node("TopK", ["frame_scores", "one_i64"], ["top_score", "frame_idx"], axis=0, largest=1, sorted=1),
             helper.make_node("Gather", ["r_min_values", "frame_idx"], ["r_min_1"], axis=0),
             helper.make_node("Gather", ["r_max_values", "frame_idx"], ["r_max_1"], axis=0),
             helper.make_node("Gather", ["c_min_values", "frame_idx"], ["c_min_1"], axis=0),

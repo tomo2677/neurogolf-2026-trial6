@@ -7,7 +7,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
 SIZE = 30
-LINE_CLOSURE_STEPS = 10
+LINE_CLOSURE_STEPS = 5
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
