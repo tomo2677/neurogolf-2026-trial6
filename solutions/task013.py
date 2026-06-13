@@ -34,8 +34,8 @@ def _color_at_coord(nodes: list[onnx.NodeProto], row: str, col: str, output: str
             helper.make_node("Concat", ["zero_i64", "zero_i64", f"{output}_row1", f"{output}_col1"], [f"{output}_starts"], axis=0),
             helper.make_node("Concat", ["one_i64", "ten_i64", f"{output}_row_end1", f"{output}_col_end1"], [f"{output}_ends"], axis=0),
             helper.make_node("Slice", ["input", f"{output}_starts", f"{output}_ends"], [f"{output}_onehot"]),
-            helper.make_node("ArgMax", [f"{output}_onehot"], [f"{output}_i64"], axis=1, keepdims=1),
-            helper.make_node("Cast", [f"{output}_i64"], [output], to=onnx.TensorProto.UINT8),
+            helper.make_node("Conv", [f"{output}_onehot", "color_w"], [f"{output}_f32"], kernel_shape=[1, 1]),
+            helper.make_node("Cast", [f"{output}_f32"], [output], to=onnx.TensorProto.UINT8),
         ]
     )
 
@@ -59,6 +59,7 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("outside_u8", [255], [1]),
         _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
+        _f32_tensor("color_w", [float(c) for c in range(10)], [1, 10, 1, 1]),
     ]
 
     nodes: list[onnx.NodeProto] = [
@@ -147,7 +148,7 @@ def build_model() -> onnx.ModelProto:
         value_infos.extend(
             [
                 helper.make_tensor_value_info(f"{name}_onehot", onnx.TensorProto.FLOAT, [1, 10, 1, 1]),
-                helper.make_tensor_value_info(f"{name}_i64", onnx.TensorProto.INT64, [1, 1, 1, 1]),
+                helper.make_tensor_value_info(f"{name}_f32", onnx.TensorProto.FLOAT, [1, 1, 1, 1]),
                 helper.make_tensor_value_info(name, onnx.TensorProto.UINT8, [1, 1, 1, 1]),
             ]
         )
