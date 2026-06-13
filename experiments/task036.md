@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 14.22817323152291 | 47617 | 42 | 2026-06-13T13:04:49+09:00 | exp027 |
+| passes_local | 14.906512114742917 | 24145 | 40 | 2026-06-13T16:37:56+09:00 | exp031 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -14,9 +14,6 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp001 | impl_opt | h001 | build_failed |  |  |  |  | build_failed | Candidate did not build. |
-| exp002 | impl_opt | h001 | passes_local | 12.928138978399213 | 172953 | 1928 | 0.748085592345 | promoted | Auto promoted after canonical re-score. |
-| exp003 | impl_opt | h002 | passes_local | 12.92819044329016 | 172953 | 1919 | 5.1464890948e-05 | promoted | Auto promoted after canonical re-score. |
 | exp004 | impl_opt | f16-density-count | passes_local | 13.025518990574064 | 156735 | 1919 | 0.0973285472839 | promoted | Auto promoted after canonical re-score. |
 | exp005 | impl_opt | int32-crop-indices | passes_local | 13.145827999248258 | 138751 | 1919 | 0.120309008674 | promoted | Auto promoted after canonical re-score. |
 | exp006 | impl_opt | crop5-window | passes_local | 13.47388194124379 | 101151 | 177 | 0.328053941996 | promoted | Auto promoted after canonical re-score. |
@@ -39,6 +36,9 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp025 | impl_opt | u8-pair-sum | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp026 | impl_opt | axis-gather-crop | passes_local | 14.228047345072321 | 47617 | 48 | 0.0222206007672 | promoted | Auto promoted after canonical re-score. |
 | exp027 | impl_opt | pad-axes-opset18 | passes_local | 14.22817323152291 | 47617 | 42 | 0.000125886450588 | promoted | Auto promoted after canonical re-score. |
+| exp029 | rule_redesign | priority-strong-pair-color | passes_local | 14.6748459600177 | 30445 | 45 | 0.446672728495 | promoted | Auto promoted after canonical re-score. |
+| exp030 | impl_opt | priority-strong-pair-nomask | passes_local | 14.906305396395927 | 24145 | 45 | 0.231295434738 | promoted | Auto promoted after canonical re-score. |
+| exp031 | impl_opt | drop-unused-initializers-final | passes_local | 14.906512114742917 | 24145 | 40 | 0.00020671834699 | promoted | Canonical re-score after removing unused initializers. |
 
 ## Archived Summary
 - None yet.
