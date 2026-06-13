@@ -9,7 +9,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 SIZE = 25
 GRID_SIZE = 30
 OUT = 23
-COLORS = list(range(1, 10))
+TOP_COLORS = 5
 
 
 def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -> onnx.TensorProto:
@@ -34,11 +34,10 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
-def _add_frame_candidate(nodes: list[onnx.NodeProto], color: int) -> tuple[str, str, str, str, str]:
-    prefix = f"c{color}"
+def _add_frame_candidate(nodes: list[onnx.NodeProto], prefix: str, color_u8: str) -> tuple[str, str, str, str, str]:
     nodes.extend(
         [
-            helper.make_node("Equal", ["input_color_u8", f"{prefix}_u8"], [f"{prefix}_mask"]),
+            helper.make_node("Equal", ["input_color_u8", color_u8], [f"{prefix}_mask"]),
             helper.make_node("Cast", [f"{prefix}_mask"], [f"{prefix}_mask_f16"], to=onnx.TensorProto.FLOAT16),
             helper.make_node("ReduceMax", [f"{prefix}_mask_f16"], [f"{prefix}_row_score"], axes=[3], keepdims=1),
             helper.make_node("ReduceMax", [f"{prefix}_mask_f16"], [f"{prefix}_col_score"], axes=[2], keepdims=1),
@@ -112,6 +111,9 @@ def build_model() -> onnx.ModelProto:
     initializers = [
         _int32_tensor("one_i32", [1], [1]),
         _int32_tensor("zero_i32", [0], [1]),
+        _int64_tensor("one_i64", [1], [1]),
+        _int64_tensor("k_top_colors", [TOP_COLORS], [1]),
+        _int64_tensor("split_top_colors", [1] * TOP_COLORS, [TOP_COLORS]),
         _int64_tensor("shape1", [1], [1]),
         _int64_tensor("shape1111", [1, 1, 1, 1], [4]),
         _int64_tensor("shape_vec23", [OUT], [1]),
@@ -125,22 +127,41 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, GRID_SIZE - OUT, GRID_SIZE - OUT], [8]),
         _f16_tensor("zero_f16", [0.0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
+        _u8_tensor("colors9_u8", list(range(1, 10)), [1, 9, 1, 1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
-    for color in COLORS:
-        initializers.append(_u8_tensor(f"c{color}_u8", [color], [1]))
 
     nodes: list[onnx.NodeProto] = [
         helper.make_node("ArgMax", ["input"], ["input_color_i64"], axis=1, keepdims=1, select_last_index=0),
         helper.make_node("Cast", ["input_color_i64"], ["input_color_u8"], to=onnx.TensorProto.UINT8),
+        helper.make_node("Equal", ["input_color_u8", "colors9_u8"], ["color_masks9"]),
+        helper.make_node("Cast", ["color_masks9"], ["color_masks9_f32"], to=onnx.TensorProto.FLOAT),
+        helper.make_node("ReduceSum", ["color_masks9_f32"], ["color_counts9"], axes=[0, 2, 3], keepdims=0),
+        helper.make_node("TopK", ["color_counts9", "k_top_colors"], ["top_color_counts", "top_color_idx0"], axis=0, largest=1, sorted=0),
+        helper.make_node("Add", ["top_color_idx0", "one_i64"], ["top_color_i64"]),
+        helper.make_node(
+            "Split",
+            ["top_color_i64"],
+            [f"top_color_i64_{slot}" for slot in range(TOP_COLORS)],
+            axis=0,
+            split=[1] * TOP_COLORS,
+        ),
     ]
     scores: list[str] = []
     r_mins: list[str] = []
     r_maxes: list[str] = []
     c_mins: list[str] = []
     c_maxes: list[str] = []
-    for color in COLORS:
-        score, r_min, r_max, c_min, c_max = _add_frame_candidate(nodes, color)
+    for slot in range(TOP_COLORS):
+        nodes.append(
+            helper.make_node(
+                "Cast",
+                [f"top_color_i64_{slot}"],
+                [f"top_color_u8_{slot}"],
+                to=onnx.TensorProto.UINT8,
+            )
+        )
+        score, r_min, r_max, c_min, c_max = _add_frame_candidate(nodes, f"s{slot}", f"top_color_u8_{slot}")
         scores.append(score)
         r_mins.append(r_min)
         r_maxes.append(r_max)
@@ -188,7 +209,7 @@ def build_model() -> onnx.ModelProto:
                 node.input[index] = "input25"
     nodes.insert(0, helper.make_node("Slice", ["input", "crop_hw_start", "crop_hw_end", "crop_hw_axes"], ["input25"]))
 
-    graph = helper.make_graph(nodes, "task029_frame_inner_crop_color_grid_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task029_top5_frame_inner_crop_color_grid_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
