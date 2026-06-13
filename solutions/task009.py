@@ -43,7 +43,7 @@ def _line_fill(nodes: list[onnx.NodeProto], occ: str, prefix: str, axis: int, in
     nodes.extend(
         [
             helper.make_node("ReduceMax", [occ], [f"{prefix}_any_u8"], axes=[axis], keepdims=1),
-            helper.make_node("Greater", [f"{prefix}_any_u8", "zero_score_f32"], [f"{prefix}_any"]),
+            helper.make_node("Cast", [f"{prefix}_any_u8"], [f"{prefix}_any"], to=onnx.TensorProto.BOOL),
             helper.make_node("ArgMax", [occ], [f"{prefix}_left_idx"], axis=axis, keepdims=1, select_last_index=0),
             helper.make_node("ArgMax", [occ], [f"{prefix}_right_idx"], axis=axis, keepdims=1, select_last_index=1),
             helper.make_node("LessOrEqual", [f"{prefix}_left_idx", indices], [f"{prefix}_after_left"]),
@@ -78,7 +78,6 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("selected_delta", [1, FULL, FULL], [3]),
         _int32_tensor("cell_slice_steps", [1, 3, 3], [3]),
         _int64_tensor("resize_sizes", [1, 1, FULL, FULL], [4]),
-        helper.make_tensor("zero_score_f32", onnx.TensorProto.FLOAT, [1], np.array([0.0], dtype=np.float32)),
         helper.make_tensor("neg_one_f32", onnx.TensorProto.FLOAT, [1], np.array([-1.0], dtype=np.float32)),
         _uint8_tensor("channel_ids_u8", list(range(10)), [1, 10, 1, 1]),
         _uint8_tensor("zero_score_u8", [0], [1]),
@@ -88,7 +87,7 @@ def build_model() -> onnx.ModelProto:
 
     nodes: list[onnx.NodeProto] = [
         helper.make_node("ReduceMax", ["input"], ["row_present"], axes=[1, 3], keepdims=1),
-        helper.make_node("Greater", ["row_present", "zero_score_f32"], ["row_valid"]),
+        helper.make_node("Cast", ["row_present"], ["row_valid"], to=onnx.TensorProto.BOOL),
         helper.make_node("Transpose", ["row_valid"], ["col_valid"], perm=[0, 1, 3, 2]),
         helper.make_node("And", ["row_valid", "col_valid"], ["valid_area"]),
         helper.make_node("Slice", ["input", "grid_pixel_start", "grid_pixel_end", "slice_axes3"], ["grid_pixel"]),
