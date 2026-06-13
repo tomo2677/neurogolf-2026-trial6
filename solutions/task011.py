@@ -32,8 +32,8 @@ def build_model() -> onnx.ModelProto:
 
     initializers = [
         _int32_tensor("axes3", [1, 2, 3]),
-        _int64_tensor("pads_output", [0, 0, 19, 19]),
-        _int64_tensor("pad_axes_hw", [2, 3]),
+        _int64_tensor("pads_output_chw", [0, 0, 0, 3, 19, 19]),
+        _int64_tensor("pad_axes_chw", [1, 2, 3]),
         _int64_tensor("channel8_starts", [0, 8, 0, 0], [4]),
         _int64_tensor("channel8_ends", [1, 9, 11, 11], [4]),
         _int32_tensor("slice_channel_start", [0], [1]),
@@ -41,8 +41,7 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("three_i32", [3], [1]),
         _int32_tensor("four_i32", [4], [1]),
         _int64_tensor("expand_index11", [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2], [11]),
-        _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
-        _u8_tensor("outside_u8", [255], [1]),
+        _u8_tensor("colors7", list(range(7)), [1, 7, 1, 1]),
         _u8_tensor("five_u8", [5], [1]),
         _u8_tensor("one_u8", [1], [1]),
         _bool_tensor("sep_mask", [r in (3, 7) or c in (3, 7) for r in range(11) for c in range(11)], [1, 1, 11, 11]),
@@ -69,8 +68,8 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Gather", ["pattern", "expand_index11"], ["expanded11x3"], axis=2),
         helper.make_node("Gather", ["expanded11x3", "expand_index11"], ["expanded11"], axis=3),
         helper.make_node("Where", ["sep_mask", "five_u8", "expanded11"], ["color11"]),
-        helper.make_node("Pad", ["color11", "pads_output", "outside_u8", "pad_axes_hw"], ["color30"], mode="constant"),
-        helper.make_node("Equal", ["colors10", "color30"], ["output"]),
+        helper.make_node("Equal", ["colors7", "color11"], ["output7"]),
+        helper.make_node("Pad", ["output7", "pads_output_chw", "", "pad_axes_chw"], ["output"], mode="constant"),
     ]
 
     value_infos = [
@@ -80,8 +79,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_tensor_value_info("expanded11x3", onnx.TensorProto.UINT8, [1, 1, 11, 3]),
         helper.make_tensor_value_info("expanded11", onnx.TensorProto.UINT8, [1, 1, 11, 11]),
         helper.make_tensor_value_info("color11", onnx.TensorProto.UINT8, [1, 1, 11, 11]),
+        helper.make_tensor_value_info("output7", onnx.TensorProto.BOOL, [1, 7, 11, 11]),
     ]
-    graph = helper.make_graph(nodes, "task011_u8_no8_graph", [x], [y], initializers, value_info=value_infos)
+    graph = helper.make_graph(nodes, "task011_bool7_pad_graph", [x], [y], initializers, value_info=value_infos)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
