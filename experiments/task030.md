@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 15.869677336009849 | 9178 | 53 | 2026-06-13T11:16:05+09:00 | exp012 |
+| passes_local | 15.914089706401993 | 8778 | 52 | 2026-06-13T11:51:31+09:00 | exp015 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -26,6 +26,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp010 | impl_opt | broadcast-shift-grids | passes_local | 15.709647690054432 | 10778 | 55 | 0.235747257054 | promoted | Auto promoted after canonical re-score. |
 | exp011 | impl_opt | int32-shift-gather | passes_local | 15.869460698227373 | 9178 | 55 | 0.159813008173 | promoted | Auto promoted after canonical re-score. |
 | exp012 | impl_opt | opset18-pad-axes | passes_local | 15.869677336009849 | 9178 | 53 | 0.000216637782476 | promoted | Auto promoted after canonical re-score. |
+| exp015 | impl_opt | colors5-valid-pad | passes_local | 15.914089706401993 | 8778 | 52 | 0.0444123703921 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

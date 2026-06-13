@@ -64,13 +64,13 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("row_grid_i32", list(range(SIZE)), [1, 1, SIZE, 1]),
         _int32_tensor("col_grid_i32", list(range(SIZE)), [1, 1, 1, SIZE]),
         _int64_tensor("shape_flat100", [SIZE * SIZE], [1]),
-        _int64_tensor("pads_color10_to30_hw", [0, 0, 30 - SIZE, 30 - SIZE], [4]),
+        _int64_tensor("pads_output", [0, 0, 0, 0, 0, 5, 30 - SIZE, 30 - SIZE], [8]),
         _f32_tensor("zero_f32", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("two_u8", [2], [1]),
         _u8_tensor("four_u8", [4], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
-        _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
+        _u8_tensor("colors5_u8", list(range(5)), [1, 5, 1, 1]),
     ]
 
     nodes: list[onnx.NodeProto] = [
@@ -117,12 +117,12 @@ def build_model() -> onnx.ModelProto:
             helper.make_node("ReduceMax", ["input10", "axis_channel"], ["cell_present_f32"], keepdims=1),
             helper.make_node("Greater", ["cell_present_f32", "zero_f32"], ["valid_area"]),
             helper.make_node("Where", ["valid_area", "placed_color", "invalid_u8"], ["color10"]),
-            helper.make_node("Pad", ["color10", "pads_color10_to30_hw", "invalid_u8", "slice_hw_axes"], ["color30"], mode="constant"),
-            helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
+            helper.make_node("Equal", ["colors5_u8", "color10"], ["output5"]),
+            helper.make_node("Pad", ["output5", "pads_output"], ["output"], mode="constant"),
         ]
     )
 
-    graph = helper.make_graph(nodes, "task030_opset18_pad_axes_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task030_colors5_bool_pad_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
