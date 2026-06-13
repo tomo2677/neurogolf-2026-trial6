@@ -14,6 +14,7 @@ from neurogolf_onnx import ROOT, load_ledger, normalize_task_id
 LOW_SCORE_THRESHOLD = 2.0
 HIGH_SCORE_THRESHOLD = 1.0
 HIGH_SCORE_MIN = 20.0
+PENDING_OFFICIAL_STATUSES = {"submitted", "pending", "not_found", "poll_failed"}
 
 
 def is_number(value: Any) -> bool:
@@ -110,6 +111,10 @@ def classify_status() -> dict[str, Any]:
 
         if official_status == "quota_skipped":
             official_pending.append({"task": task_id, "reason": "quota_skipped"})
+            continue
+
+        if official_status in PENDING_OFFICIAL_STATUSES:
+            official_pending.append({"task": task_id, "reason": official_status})
             continue
 
         if official_status == "complete" and official_public_score == 0.0:

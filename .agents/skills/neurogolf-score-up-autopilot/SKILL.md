@@ -17,7 +17,9 @@ official submit/poll, and official-zero repair to the smaller skills.
 2. If `baseline_targets` is nonempty, process the lowest-numbered task first
    with `neurogolf-new-task-baseline`.
 3. If `official_pending` is nonempty, resume the lowest-numbered task with
-   `neurogolf-official-submit-score`, respecting quota guard.
+   `neurogolf-official-submit-score`, respecting quota guard. This includes
+   ledger statuses such as `submitted`, `pending`, `not_found`,
+   `poll_failed`, and `quota_skipped`.
 4. If `official_zero` is nonempty, process the lowest-numbered task with
    `neurogolf-official-zero-repair`.
 5. Otherwise select one `passes_local` task for `neurogolf-cost-experiment`.
