@@ -23,6 +23,10 @@ def _repeat10(name: str) -> list[str]:
     return [name] * 10
 
 
+def _edge_row(color_name: str) -> list[str]:
+    return [color_name] + ["zero_u8"] * 8 + [color_name]
+
+
 def build_model() -> onnx.ModelProto:
     x, _ = make_io_value_infos()
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
@@ -30,7 +34,7 @@ def build_model() -> onnx.ModelProto:
     initializers = [
         _int64_tensor("pads_hw", [0, 0, 20, 20], [4]),
         _int64_tensor("pad_axes_hw", [2, 3], [2]),
-        _u8_tensor("zero8_u8", [0] * 8, [1, 1, 1, 8]),
+        _u8_tensor("zero_u8", [0], [1, 1, 1, 1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
     ]
@@ -46,9 +50,9 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ArgMax", ["bottom_diff"], ["bottom_idx"], axis=1, keepdims=1),
         helper.make_node("Cast", ["bottom_idx"], ["bottom_color_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Concat", _repeat10("top_color_u8"), ["top_full"], axis=3),
-        helper.make_node("Concat", ["top_color_u8", "zero8_u8", "top_color_u8"], ["top_edge"], axis=3),
+        helper.make_node("Concat", _edge_row("top_color_u8"), ["top_edge"], axis=3),
         helper.make_node("Concat", _repeat10("bottom_color_u8"), ["bottom_full"], axis=3),
-        helper.make_node("Concat", ["bottom_color_u8", "zero8_u8", "bottom_color_u8"], ["bottom_edge"], axis=3),
+        helper.make_node("Concat", _edge_row("bottom_color_u8"), ["bottom_edge"], axis=3),
         helper.make_node(
             "Concat",
             [
@@ -70,7 +74,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
     ]
 
-    graph = helper.make_graph(nodes, "task028_concat_full_rows_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task028_zero_scalar_edge_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
