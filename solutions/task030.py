@@ -36,10 +36,8 @@ def _shift_mask(nodes: list[onnx.NodeProto], source: str, delta: str, prefix: st
             helper.make_node("Less", [f"{prefix}_src_r", "size_i32"], [f"{prefix}_r_lt_size"]),
             helper.make_node("And", [f"{prefix}_r_ge_zero", f"{prefix}_r_lt_size"], [f"{prefix}_in_bounds"]),
             helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_src_r", "zero_i32"], [f"{prefix}_safe_r"]),
-            helper.make_node("Mul", [f"{prefix}_safe_r", "size_i32"], [f"{prefix}_safe_r_offset"]),
-            helper.make_node("Add", [f"{prefix}_safe_r_offset", "col_grid_i32"], [f"{prefix}_safe_spatial"]),
-            helper.make_node("Reshape", [source, "shape_flat100"], [f"{prefix}_source_flat"]),
-            helper.make_node("Gather", [f"{prefix}_source_flat", f"{prefix}_safe_spatial"], [f"{prefix}_shifted_raw"], axis=0),
+            helper.make_node("Reshape", [f"{prefix}_safe_r", "shape_vec10"], [f"{prefix}_safe_r_vec"]),
+            helper.make_node("Gather", [source, f"{prefix}_safe_r_vec"], [f"{prefix}_shifted_raw"], axis=2),
             helper.make_node("Where", [f"{prefix}_in_bounds", f"{prefix}_shifted_raw", "zero_u8"], [f"{prefix}_shifted"]),
         ]
     )
@@ -64,8 +62,7 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("zero_i32", [0], [1]),
         _int32_tensor("size_i32", [SIZE], [1]),
         _int32_tensor("row_grid_i32", list(range(SIZE)), [1, 1, SIZE, 1]),
-        _int32_tensor("col_grid_i32", list(range(SIZE)), [1, 1, 1, SIZE]),
-        _int64_tensor("shape_flat100", [SIZE * SIZE], [1]),
+        _int64_tensor("shape_vec10", [SIZE], [1]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 5, 30 - SIZE, 30 - SIZE], [8]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("two_u8", [2], [1]),
