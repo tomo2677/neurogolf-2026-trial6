@@ -51,14 +51,15 @@ def build_model() -> onnx.ModelProto:
     y = helper.make_tensor_value_info("output", onnx.TensorProto.BOOL, GRID_SHAPE)
 
     initializers = [
-        _int64_tensor("c0_starts", [0, 0, 0, 0], [4]),
-        _int64_tensor("c0_ends", [1, 1, SIZE, 1], [4]),
-        _int64_tensor("c1_starts", [0, 1, 0, 0], [4]),
-        _int64_tensor("c1_ends", [1, 2, SIZE, SIZE], [4]),
-        _int64_tensor("c2_starts", [0, 2, 0, 0], [4]),
-        _int64_tensor("c2_ends", [1, 3, SIZE, SIZE], [4]),
-        _int64_tensor("c4_starts", [0, 4, 0, 0], [4]),
-        _int64_tensor("c4_ends", [1, 5, SIZE, SIZE], [4]),
+        _int64_tensor("c0_starts", [0, 0, 0], [3]),
+        _int64_tensor("c0_ends", [1, SIZE, 1], [3]),
+        _int64_tensor("c1_starts", [1, 0, 0], [3]),
+        _int64_tensor("c1_ends", [2, SIZE, SIZE], [3]),
+        _int64_tensor("c2_starts", [2, 0, 0], [3]),
+        _int64_tensor("c2_ends", [3, SIZE, SIZE], [3]),
+        _int64_tensor("c4_starts", [4, 0, 0], [3]),
+        _int64_tensor("c4_ends", [5, SIZE, SIZE], [3]),
+        _int64_tensor("axes_chw", [1, 2, 3], [3]),
         _int64_tensor("axis_col", [3], [1]),
         _int32_tensor("zero_i32", [0], [1]),
         _int32_tensor("size_i32", [SIZE], [1]),
@@ -74,10 +75,10 @@ def build_model() -> onnx.ModelProto:
     ]
 
     nodes: list[onnx.NodeProto] = [
-        helper.make_node("Slice", ["input", "c0_starts", "c0_ends"], ["c0_f32"]),
-        helper.make_node("Slice", ["input", "c1_starts", "c1_ends"], ["c1_f32"]),
-        helper.make_node("Slice", ["input", "c2_starts", "c2_ends"], ["c2_f32"]),
-        helper.make_node("Slice", ["input", "c4_starts", "c4_ends"], ["c4_f32"]),
+        helper.make_node("Slice", ["input", "c0_starts", "c0_ends", "axes_chw"], ["c0_f32"]),
+        helper.make_node("Slice", ["input", "c1_starts", "c1_ends", "axes_chw"], ["c1_f32"]),
+        helper.make_node("Slice", ["input", "c2_starts", "c2_ends", "axes_chw"], ["c2_f32"]),
+        helper.make_node("Slice", ["input", "c4_starts", "c4_ends", "axes_chw"], ["c4_f32"]),
         helper.make_node("Cast", ["c0_f32"], ["c0_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Cast", ["c1_f32"], ["c1_u8"], to=onnx.TensorProto.UINT8),
         helper.make_node("Cast", ["c2_f32"], ["c2_u8"], to=onnx.TensorProto.UINT8),
