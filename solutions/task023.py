@@ -72,27 +72,8 @@ def _shift(
     dr: int,
     dc: int,
 ) -> str:
-    row_start = max(0, -dr)
-    row_end = HEIGHT - max(0, dr)
-    col_start = max(0, -dc)
-    col_end = WIDTH - max(0, dc)
-    pad_top = max(0, dr)
-    pad_bottom = max(0, -dr)
-    pad_left = max(0, dc)
-    pad_right = max(0, -dc)
-    initializers.extend(
-        [
-            _int64_tensor(f"{output}_starts_hw", [row_start, col_start], [2]),
-            _int64_tensor(f"{output}_ends_hw", [row_end, col_end], [2]),
-            _int64_tensor(f"{output}_pads_hw", [pad_top, pad_left, pad_bottom, pad_right], [4]),
-        ]
-    )
-    nodes.extend(
-        [
-            helper.make_node("Slice", [source, f"{output}_starts_hw", f"{output}_ends_hw", "axes_hw"], [f"{output}_crop"]),
-            helper.make_node("Pad", [f"{output}_crop", f"{output}_pads_hw", "", "axes_hw"], [output], mode="constant"),
-        ]
-    )
+    initializers.append(_int64_tensor(f"{output}_pads_hw", [dr, dc, -dr, -dc], [4]))
+    nodes.append(helper.make_node("Pad", [source, f"{output}_pads_hw", "", "axes_hw"], [output], mode="constant"))
     return output
 
 
