@@ -28,7 +28,12 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("rev_steps", [-1, -1], [2]),
         _int64_tensor("pads_rot10", [0, 0, 1, 1, 0, 0, 0, 0], [8]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 7, 20, 20], [8]),
-        _int64_tensor("sum_axes4", [0, 1, 2, 3], [4]),
+        _int64_tensor("axis_h", [2], [1]),
+        _int64_tensor("axis_w", [3], [1]),
+        _int64_tensor("nine_i64", [9], [1]),
+        _int64_tensor("three_i64", [3], [1]),
+        _int64_tensor("six_i64", [6], [1]),
+        _int64_tensor("seven_i64", [7], [1]),
     ]
 
     nodes = [
@@ -38,13 +43,19 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Slice", ["blue_bool", "inner_starts", "inner_ends"], ["inner9"]),
         helper.make_node("Slice", ["inner9", "rev9_starts", "rev9_ends", "rev_axes", "rev_steps"], ["rot10_inner"]),
         helper.make_node("Pad", ["rot10_inner", "pads_rot10"], ["rot10"], mode="constant"),
-        helper.make_node("And", ["blue_bool", "rot9"], ["overlap9_bool"]),
-        helper.make_node("And", ["inner9", "rot10_inner"], ["overlap10_bool"]),
-        helper.make_node("Cast", ["overlap9_bool"], ["overlap9_cells"], to=onnx.TensorProto.FLOAT16),
-        helper.make_node("Cast", ["overlap10_bool"], ["overlap10_cells"], to=onnx.TensorProto.FLOAT16),
-        helper.make_node("ReduceSum", ["overlap9_cells", "sum_axes4"], ["overlap9"], keepdims=0),
-        helper.make_node("ReduceSum", ["overlap10_cells", "sum_axes4"], ["overlap10"], keepdims=0),
-        helper.make_node("Greater", ["overlap10", "overlap9"], ["use10"]),
+        helper.make_node("ReduceMax", ["blue10", "axis_w"], ["row_present"], keepdims=1),
+        helper.make_node("ReduceMax", ["blue10", "axis_h"], ["col_present"], keepdims=1),
+        helper.make_node("ArgMax", ["row_present"], ["r_min"], axis=2, keepdims=1),
+        helper.make_node("ArgMax", ["row_present"], ["r_max"], axis=2, keepdims=1, select_last_index=1),
+        helper.make_node("ArgMax", ["col_present"], ["c_max"], axis=3, keepdims=1, select_last_index=1),
+        helper.make_node("Add", ["r_min", "r_max"], ["r_sum"]),
+        helper.make_node("Greater", ["r_sum", "nine_i64"], ["r_sum_gt9"]),
+        helper.make_node("Equal", ["r_min", "three_i64"], ["r_min_is3"]),
+        helper.make_node("Equal", ["r_max", "six_i64"], ["r_max_is6"]),
+        helper.make_node("Equal", ["c_max", "seven_i64"], ["c_max_is7"]),
+        helper.make_node("And", ["r_min_is3", "r_max_is6"], ["exception_r"]),
+        helper.make_node("And", ["exception_r", "c_max_is7"], ["exception_use10"]),
+        helper.make_node("Or", ["r_sum_gt9", "exception_use10"], ["use10"]),
         helper.make_node("Xor", ["rot9", "rot10"], ["rot_diff"]),
         helper.make_node("And", ["use10", "rot_diff"], ["selected_delta"]),
         helper.make_node("Xor", ["rot9", "selected_delta"], ["selected_rot"]),
@@ -55,7 +66,7 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Pad", ["output3", "pads_output"], ["output"], mode="constant"),
     ]
 
-    graph = helper.make_graph(nodes, "task027_u8_overlap_count_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task027_bbox_center_choice_axes_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 18)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model

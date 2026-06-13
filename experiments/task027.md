@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 17.23443091890268 | 2310 | 48 | 2026-06-13T09:25:26+09:00 | exp017 |
+| passes_local | 17.434206717571485 | 1881 | 50 | 2026-06-13T10:00:48+09:00 | exp020 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -29,6 +29,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp015 | impl_opt | pad-rot10-inner | passes_local | 17.210545433913328 | 2367 | 48 | 0.0409710517337 | promoted | Auto promoted after canonical re-score. |
 | exp016 | impl_opt | u8-overlap-counts | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp017 | impl_opt | inner-overlap10-count | passes_local | 17.23443091890268 | 2310 | 48 | 0.0238854849894 | promoted | Auto promoted after canonical re-score. |
+| exp019 | rule_redesign | bbox-center-choice | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp020 | rule_redesign | bbox-center-choice-axes | passes_local | 17.434206717571485 | 1881 | 50 | 0.199775798669 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
