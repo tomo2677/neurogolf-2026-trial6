@@ -18,6 +18,10 @@ def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProt
     return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
+def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.FLOAT, dims, values)
+
+
 def _guide_row(left: str, right: str) -> list[str]:
     return [left] + ["bg_u8"] * 8 + [right]
 
@@ -41,6 +45,7 @@ def build_model() -> onnx.ModelProto:
         _u8_tensor("bg_u8", [9], [1, 1, 1, 1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10", [9, 0, 1, 2, 3, 4, 5, 6, 7, 8], [1, 10, 1, 1]),
+        _f32_tensor("shift_color_w", [float(c) for c in range(9)], [1, 9, 1, 1]),
     ]
 
     nodes = [
@@ -52,8 +57,8 @@ def build_model() -> onnx.ModelProto:
         nodes.extend(
             [
                 helper.make_node("Slice", ["input", f"{name}_starts", f"{name}_ends", "axes_chw"], [f"{name}_onehot"]),
-                helper.make_node("ArgMax", [f"{name}_onehot"], [f"{name}_i64"], axis=1, keepdims=1),
-                helper.make_node("Cast", [f"{name}_i64"], [f"{name}_color"], to=onnx.TensorProto.UINT8),
+                helper.make_node("Conv", [f"{name}_onehot", "shift_color_w"], [f"{name}_f32"], kernel_shape=[1, 1]),
+                helper.make_node("Cast", [f"{name}_f32"], [f"{name}_color"], to=onnx.TensorProto.UINT8),
             ]
         )
 
