@@ -43,16 +43,14 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("expand_index11", [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2], [11]),
         _u8_tensor("colors7", list(range(7)), [1, 7, 1, 1]),
         _u8_tensor("five_u8", [5], [1]),
-        _u8_tensor("one_u8", [1], [1]),
         _bool_tensor("sep_mask", [r in (3, 7) or c in (3, 7) for r in range(11) for c in range(11)], [1, 1, 11, 11]),
     ]
     nodes: list[onnx.NodeProto] = [
         helper.make_node("Slice", ["input", "channel8_starts", "channel8_ends", "pad_axes_chw"], ["blue11"]),
         helper.make_node("MaxPool", ["blue11"], ["has8_grid"], kernel_shape=[3, 3], strides=[4, 4]),
         helper.make_node("Cast", ["has8_grid"], ["has8_u8"], to=onnx.TensorProto.UINT8),
-        helper.make_node("Sub", ["one_u8", "has8_u8"], ["no8_u8"]),
-        helper.make_node("Flatten", ["no8_u8"], ["no8_flat"], axis=2),
-        helper.make_node("ArgMax", ["no8_flat"], ["selected_index"], axis=1, keepdims=0),
+        helper.make_node("Flatten", ["has8_u8"], ["has8_flat"], axis=2),
+        helper.make_node("ArgMin", ["has8_flat"], ["selected_index"], axis=1, keepdims=0),
         helper.make_node("Cast", ["selected_index"], ["selected_index_i32"], to=onnx.TensorProto.INT32),
         helper.make_node("Div", ["selected_index_i32", "three_i32"], ["row_block"]),
         helper.make_node("Mod", ["selected_index_i32", "three_i32"], ["col_block"]),
