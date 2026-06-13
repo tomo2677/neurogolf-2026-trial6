@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.501785775181567 | 4784 | 122 | 2026-06-13T13:05:36+09:00 | exp013 |
+| passes_local | 16.501989628000537 | 4784 | 121 | 2026-06-13T13:07:11+09:00 | exp014 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -26,6 +26,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp010 | impl_opt | orig-border-concat | passes_local | 16.48280680858376 | 4864 | 136 | 0.0307231726428 | promoted | Auto promoted after canonical re-score. |
 | exp011 | impl_opt | edge-slice-hw-axes | passes_local | 16.485209693200073 | 4864 | 124 | 0.00240288461631 | promoted | Auto promoted after canonical re-score. |
 | exp013 | impl_opt | top-row-concat | passes_local | 16.501785775181567 | 4784 | 122 | 0.0165760819815 | promoted | Auto promoted after canonical re-score. |
+| exp014 | impl_opt | reuse-axis-col | passes_local | 16.501989628000537 | 4784 | 121 | 0.00020385281897 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
