@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 14.211980736538221 | 48393 | 44 | 2026-06-14T22:34:48+09:00 | exp021 |
+| passes_local | 14.211980736538221 | 48393 | 44 | 2026-06-14T22:34:48+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -12,6 +12,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | --- | --- | --- | --- |
 | conv-color-map | impl_opt | Replace full-grid ArgMax color decoding with a 1x1 FLOAT Conv over one-hot channels to reduce INT64 memory. | promoted |
 | threshold01-broadcast-canon-select | impl_opt | expected_delta 0.1-1.0: keep the current row-canonical projection and color-pool matching, but remove the full-grid `has_col` Expand tensors so canonical input/valid/output selection uses scalar/line broadcasting; failure would show ORT materializes equivalent broadcast temporaries or needs explicit shape alignment for these ops. | promoted |
+| threshold01-direct-line-match-pool | impl_opt | expected_delta 0.1-1.0: replace color/inverse/color8 projection pools with a direct same-line-color UINT8 mask before pooling; failed because multi-line-color cases need per-line color comparison after pooling, and pre-pool equality either matches background zeroes or loses off-line points. | fails_local |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
@@ -33,6 +34,9 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp019 | rule_redesign | color-pool-extreme-u8 | passes_local | 14.174816350931167 | 50223 | 48 | 0.502291369233 | promoted | Auto promoted after canonical re-score. |
 | exp020 | impl_opt | hu-drop-color8-special | fails_local | 0.0 | 42993 | 47 | -14.1748163509 | fails_local | Candidate did not pass local validation. |
 | exp021 | impl_opt | threshold01-broadcast-canon-select | passes_local | 14.211980736538221 | 48393 | 44 | 0.0371643856071 | promoted | Auto promoted after canonical re-score. |
+| exp022 | impl_opt | threshold01-direct-line-match-pool | fails_local | 0.0 | 33033 | 42 | -14.2119807365 | fails_local | Pre-pool equality matched background zeroes and over-projected broad stripes. |
+| exp023 | impl_opt | threshold01-direct-line-match-pool-v2 | fails_local | 0.0 | 33933 | 42 | -14.2119807365 | fails_local | Gating by line rows avoided zero background but lost off-line same-color points. |
+| exp024 | impl_opt | threshold01-direct-line-match-pool-v3 | fails_local | 0.0 | 34834 | 42 | -14.2119807365 | fails_local | Scalar line color fails multi-line-color cases; original color/inverse pool preserves per-line comparison. |
 
 ## Archived Summary
 - None yet.
