@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 11.675572897849506 | 610008 | 1955 | 2026-06-13T17:35:04+09:00 | ledger |
+| passes_local | 11.787622259086902 | 545140 | 1955 | 2026-06-14T23:21:07+09:00 | exp041 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -13,11 +13,11 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | zero-repair-size30 | rule_redesign | Official zero likely came from the `SIZE=24` internal crop and 8-step component growth shortcut; restore full 30x30 crop and 30-step growth before resubmit. | official_complete |
 | conv-color-map | impl_opt | Replace full-grid ArgMax color decoding with a 1x1 FLOAT Conv and compare base/anchor colors as UINT8 to reduce INT64 memory. | promoted |
 | drop-unused-cross-kernel | impl_opt | Remove the unused cross_kernel initializer left after the current component-growth implementation. | promoted |
+| threshold01-drop-base-zero-check | impl_opt | expected_delta 0.1-1.0: remove the shifted-base-on-input-zero validation from each transform/target placement and rely on inside-grid, marker color match, and outside-source checks; failure would show base-empty validation is still needed to suppress false placements. | promoted |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp005 | impl_opt | grow-steps-8 | passes_local | 8.989728341011567 | 8975056 | 2800 | 0.0139369590115 | promoted | Auto promoted after canonical re-score. |
 | exp009 | impl_opt | int32-static-shift | passes_local | 9.056021454579346 | 8399184 | 2801 | 0.0662931135678 | promoted | Auto promoted after canonical re-score. |
 | exp010 | impl_opt | where-shift-bounds | passes_local | 9.069827364755408 | 8283984 | 2801 | 0.0138059101761 | promoted | Auto promoted after canonical re-score. |
 | exp013 | impl_opt | dedupe-initializers | passes_local | 9.069829054193692 | 8283984 | 2787 | 1.68943828349e-06 | promoted | Auto promoted after canonical re-score. |
@@ -42,6 +42,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp038 | impl_opt | hu-smoke-transform2 | fails_local | 0.0 | 368608 | 1955 | -11.6755728978 | fails_local | Candidate did not pass local validation. |
 | exp039 | impl_opt | hu-smoke-grow4 | fails_local | 0.0 | 595608 | 1955 | -11.6755728978 | fails_local | Candidate did not pass local validation. |
 | exp040 | impl_opt | hu-transform3-no-trans-vflip | fails_local | 0.0 | 489308 | 1955 | -11.6755728978 | fails_local | Candidate did not pass local validation. |
+| exp041 | impl_opt | threshold01-drop-base-zero-check | passes_local | 11.787622259086902 | 545140 | 1955 | 0.112049361237 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
