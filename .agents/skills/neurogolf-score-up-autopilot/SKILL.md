@@ -25,23 +25,25 @@ official submit/poll, and official-zero repair to the smaller skills.
 5. If `score_up_candidates` is nonempty, process an existing gate-passing
    improvement with `neurogolf-official-submit-score` before starting new
    local experiments. Prefer largest `delta`, then lowest task number.
-6. Otherwise run the High-Upside Hypothesis Loop below, then process one
+6. If `batch_sync_candidates` has at least 10 entries, process the top 10 with
+   `neurogolf-official-batch-sync` before starting new local experiments.
+7. Otherwise run the High-Upside Hypothesis Loop below, then process one
    selected task with `neurogolf-cost-experiment`.
-7. After a promoted local improvement, run:
+8. After a promoted local improvement, run:
 
 ```bash
 uv run python tools/score_up_gate.py should-submit --task taskNNN
 ```
 
-8. Submit only when the gate returns `can_submit: true`; use
+9. Submit only when the gate returns `can_submit: true`; use
    `neurogolf-official-submit-score`.
-9. Keep moving to another task unless a clear blocker affects the overall
+10. Keep moving to another task unless a clear blocker affects the overall
    toolchain or official score attribution.
 
 ## High-Upside Hypothesis Loop
 
-Use this loop only after baseline, official-pending, official-zero, and
-existing `score_up_candidates` work is exhausted.
+Use this loop only after baseline, official-pending, official-zero,
+single-task `score_up_candidates`, and batch sync work are exhausted.
 
 1. Read `task_ledger.json`, relevant `experiments/taskNNN.md` notes, and
    current `solutions/taskNNN.py` files before selecting a local experiment.
@@ -71,10 +73,10 @@ existing `score_up_candidates` work is exhausted.
 
 ## Score-Up Submit Gate
 
-- If `local_points < 20`, submit only when
-  `local_points - official_public_score >= 2.0`.
-- If `local_points >= 20`, submit only when
-  `local_points - official_public_score >= 1.0`.
+- Submit a previously scored task one-by-one only when
+  `local_points - official_public_score >= 3.0`.
+- For smaller nonzero public/local gaps, wait for
+  `neurogolf-official-batch-sync` to aggregate exactly 10 tasks.
 - Do not submit if `official_status != "complete"` or
   `official_public_score` is missing.
 - If `official_public_score == 0.0`, do not run cost optimization first; use
