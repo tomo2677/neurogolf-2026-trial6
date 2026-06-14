@@ -11,8 +11,8 @@ def _int64_tensor(name: str, values: list[int], dims: list[int] | None = None) -
     return helper.make_tensor(name, onnx.TensorProto.INT64, shape, values)
 
 
-def _bool_tensor(name: str, values: list[bool], dims: list[int]) -> onnx.TensorProto:
-    return helper.make_tensor(name, onnx.TensorProto.BOOL, dims, values)
+def _u8_tensor(name: str, values: list[int], dims: list[int]) -> onnx.TensorProto:
+    return helper.make_tensor(name, onnx.TensorProto.UINT8, dims, values)
 
 
 def _f32_tensor(name: str, values: list[float], dims: list[int]) -> onnx.TensorProto:
@@ -30,8 +30,9 @@ def build_model() -> onnx.ModelProto:
         _int64_tensor("right_ends", [1, 1, 5, 7], [4]),
         _int64_tensor("pads_output", [0, 0, 0, 0, 0, 0, 25, 27], [8]),
         _f32_tensor("zero_f32", [0.0], [1]),
-        _bool_tensor("false7", [False] * (7 * 5 * 3), [1, 7, 5, 3]),
-        _bool_tensor("false9", [False] * (5 * 3), [1, 1, 5, 3]),
+        _u8_tensor("zero_u8", [0], [1]),
+        _u8_tensor("eight_u8", [8], [1]),
+        _u8_tensor("colors10", list(range(10)), [1, 10, 1, 1]),
     ]
 
     nodes = [
@@ -40,12 +41,12 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("Greater", ["left_black", "zero_f32"], ["left_is_black"]),
         helper.make_node("Greater", ["right_black", "zero_f32"], ["right_is_black"]),
         helper.make_node("And", ["left_is_black", "right_is_black"], ["eight_ch"]),
-        helper.make_node("Not", ["eight_ch"], ["zero_ch"]),
-        helper.make_node("Concat", ["zero_ch", "false7", "eight_ch", "false9"], ["output5x3"], axis=1),
+        helper.make_node("Where", ["eight_ch", "eight_u8", "zero_u8"], ["color5x3"]),
+        helper.make_node("Equal", ["colors10", "color5x3"], ["output5x3"]),
         helper.make_node("Pad", ["output5x3", "pads_output"], ["output"], mode="constant"),
     ]
 
-    graph = helper.make_graph(nodes, "task026_bool_output_onehot_graph", [x], [y], initializers)
+    graph = helper.make_graph(nodes, "task026_color_grid_equal_graph", [x], [y], initializers)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 13)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
     return model
