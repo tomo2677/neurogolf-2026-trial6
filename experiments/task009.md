@@ -10,11 +10,11 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
+| hu-top3-object-slots | rule_redesign | expected_delta 0.1-1.0: cap object-color slots at 3 instead of 4, removing one full 10x10 line-fill pipeline; failure proved the local generator still needs 4 object-color slots. | fails_local |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp047 | impl_opt | argmax-first-last-multi | fails_local | 0.0 | 16642 | 986 | -15.2136644323 | fails_local | Candidate did not pass local validation. |
 | exp048 | impl_opt | colorized-reducemax-cell-select | passes_local | 15.235946943455449 | 16406 | 991 | 0.0222825111807 | promoted | Auto promoted after canonical re-score. |
 | exp049 | impl_opt | actual-color-code-cell-select | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp050 | impl_opt | actual-color-code-gather | passes_local | 15.277015658451043 | 15698 | 999 | 0.0410687149956 | promoted | Auto promoted after canonical re-score. |
@@ -39,6 +39,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp066 | impl_opt | zero-f32-shared | passes_local | 15.566516076709608 | 11534 | 966 | 7.99968001708e-05 | promoted | Auto promoted after canonical re-score. |
 | exp068 | impl_opt | topk10-mask-black-grid | passes_local | 15.567396464136914 | 11523 | 966 | 0.000880387427307 | promoted | Auto promoted after canonical re-score. |
 | exp069 | impl_opt | cast-zero-f32 | passes_local | 15.567476537804732 | 11523 | 965 | 8.00736678173e-05 | promoted | Auto promoted after canonical re-score. |
+| exp070 | rule_redesign | hu-top3-object-slots | fails_local | 0.0 | 9654 | 965 | -15.5674765378 | fails_local | Candidate did not pass local validation. |
 
 ## Archived Summary
 - Official ERROR repair: the 2026-06-12 single-task official submission for the previous model returned `SubmissionStatus.ERROR` despite local `passes_local` and `passes_rules`. The common pattern with other ERROR tasks was `TopK(UINT8)`. Repaired by keeping `object_scores` as `FLOAT` through `TopK`; expected local score after repair is about `15.566436079909437`.

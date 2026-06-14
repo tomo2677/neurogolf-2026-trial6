@@ -17,7 +17,6 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp004 | impl_opt | grow-steps-15 | passes_local | 8.975791382000043 | 9101056 | 2800 | 0.0292264777083 | promoted | Auto promoted after canonical re-score. |
 | exp005 | impl_opt | grow-steps-8 | passes_local | 8.989728341011567 | 8975056 | 2800 | 0.0139369590115 | promoted | Auto promoted after canonical re-score. |
 | exp009 | impl_opt | int32-static-shift | passes_local | 9.056021454579346 | 8399184 | 2801 | 0.0662931135678 | promoted | Auto promoted after canonical re-score. |
 | exp010 | impl_opt | where-shift-bounds | passes_local | 9.069827364755408 | 8283984 | 2801 | 0.0138059101761 | promoted | Auto promoted after canonical re-score. |
@@ -42,6 +41,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp035 | impl_opt | drop-unused-cross-kernel | passes_local | 11.675572897849506 | 610008 | 1955 | 1.47066633431e-05 | promoted | Auto promoted after canonical re-score. |
 | exp038 | impl_opt | hu-smoke-transform2 | fails_local | 0.0 | 368608 | 1955 | -11.6755728978 | fails_local | Candidate did not pass local validation. |
 | exp039 | impl_opt | hu-smoke-grow4 | fails_local | 0.0 | 595608 | 1955 | -11.6755728978 | fails_local | Candidate did not pass local validation. |
+| exp040 | impl_opt | hu-transform3-no-trans-vflip | fails_local | 0.0 | 489308 | 1955 | -11.6755728978 | fails_local | Candidate did not pass local validation. |
 
 ## Archived Summary
 - None yet.

@@ -11,6 +11,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
 | conv-color-map | impl_opt | Replace full-grid ArgMax color decoding with a 1x1 FLOAT Conv over one-hot channels to reduce INT64 memory. | promoted |
+| threshold01-drop-period5 | rule_redesign | expected_delta 0.1-1.0: remove only period 5 while keeping known-needed periods 8 and 9; failure showed the local generator still needs p=5. | fails_local |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
@@ -36,6 +37,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp022 | impl_opt | conv-color-map | passes_local | 14.920712107660183 | 20476 | 3368 | 0.140250506699 | promoted | Auto promoted after canonical re-score. |
 | exp023 | rule_redesign | hu-smoke-drop-period9 | fails_local | 0.0 | 17574 | 2598 | -14.9207121077 | fails_local | Candidate did not pass local validation. |
 | exp024 | rule_redesign | hu-smoke-drop-period8 | fails_local | 0.0 | 17693 | 2666 | -14.9207121077 | fails_local | Candidate did not pass local validation. |
+| exp025 | rule_redesign | threshold01-drop-period5 | fails_local | 0.0 | 18044 | 2822 | -14.9207121077 | fails_local | Candidate did not pass local validation. |
 
 ## Archived Summary
 - None yet.

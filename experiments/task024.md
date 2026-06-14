@@ -10,6 +10,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
+| hu-single-channel-line-conv | impl_opt | expected_delta 0.1-1.0: slice colors 1/3/2 first and use 1-channel line Conv weights, trading three 30x30 slices for fewer dense Conv params; not_better showed current dense Conv is still the better memory/param frontier. | not_better |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
@@ -24,6 +25,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp015 | impl_opt | slice-axes-hw-chw | passes_local | 16.571419466940366 | 4530 | 46 | 0.00152855144949 | promoted | Auto promoted after canonical re-score. |
 | exp017 | impl_opt | conv-sparse-line-presence | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp018 | impl_opt | conv-dense-line-presence | passes_local | 16.77986604284814 | 2790 | 925 | 0.208446575908 | promoted | Auto promoted after canonical re-score. |
+| exp019 | impl_opt | hu-single-channel-line-conv | passes_local | 15.472734337102395 | 13590 | 139 | -1.30713170575 | not_better | Passed but did not improve local_points. |
+| exp020 | impl_opt | sparse-conv-debug | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 
 ## Archived Summary
 - None yet.

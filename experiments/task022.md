@@ -11,6 +11,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
 | conv-color-map | impl_opt | Replace ArgMax+Cast color decoding with a 1x1 FLOAT Conv over one-hot channels to reduce INT64 intermediate memory. | promoted |
+| hu-window10-gate-probe | rule_redesign | expected_delta 0.1-1.0: shrink the gray-neighborhood scan from 11x11 to 10x10 to reduce dense scan cost; failure confirmed the public generator needs the 11th row/col. | fails_local |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
@@ -27,6 +28,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp011 | impl_opt | conv-color-map | passes_local | 16.053234625132365 | 7618 | 65 | 0.0597437568267 | promoted | Auto promoted after canonical re-score. |
 | exp012 | impl_opt | full-conv-slice-color | passes_local | 16.229250450861358 | 6378 | 65 | 0.176015825729 | promoted | Auto promoted after canonical re-score. |
 | exp013 | rule_redesign | hu-smoke-window9 | fails_local | 0.0 | 5498 | 65 | -16.2292504509 | fails_local | Candidate did not pass local validation. |
+| exp014 | rule_redesign | hu-window10-gate-probe | fails_local | 0.0 | 5916 | 65 | -16.2292504509 | fails_local | Candidate did not pass local validation. |
 
 ## Archived Summary
 - None yet.
