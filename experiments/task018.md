@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 11.88078156273975 | 496476 | 1954 | 2026-06-14T23:24:25+09:00 | exp042 |
+| passes_local | 12.007968567487396 | 436948 | 1954 | 2026-06-14T23:34:51+09:00 | exp043 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -11,15 +11,14 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
 | zero-repair-size30 | rule_redesign | Official zero likely came from the `SIZE=24` internal crop and 8-step component growth shortcut; restore full 30x30 crop and 30-step growth before resubmit. | official_complete |
-| conv-color-map | impl_opt | Replace full-grid ArgMax color decoding with a 1x1 FLOAT Conv and compare base/anchor colors as UINT8 to reduce INT64 memory. | promoted |
 | drop-unused-cross-kernel | impl_opt | Remove the unused cross_kernel initializer left after the current component-growth implementation. | promoted |
 | threshold01-drop-base-zero-check | impl_opt | expected_delta 0.1-1.0: remove the shifted-base-on-input-zero validation from each transform/target placement and rely on inside-grid, marker color match, and outside-source checks; failure would show base-empty validation is still needed to suppress false placements. | promoted |
 | threshold01-drop-source-overlap-check | impl_opt | expected_delta 0.1-1.0: remove the per-placement marker-source-overlap count and stale input0 path after base-zero removal, relying on target-anchor outside-source plus marker color/count checks; failure would show non-anchor markers can falsely land on the source component. | promoted |
+| threshold01-marker-only-placement | impl_opt | expected_delta 0.1-1.0: remove per-placement shifted-count and inside-grid validation, relying on target marker count/color match to imply the transformed component is fully in-bounds; failure would show marker matches can accept partial or out-of-grid template placements. | promoted |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp010 | impl_opt | where-shift-bounds | passes_local | 9.069827364755408 | 8283984 | 2801 | 0.0138059101761 | promoted | Auto promoted after canonical re-score. |
 | exp013 | impl_opt | dedupe-initializers | passes_local | 9.069829054193692 | 8283984 | 2787 | 1.68943828349e-06 | promoted | Auto promoted after canonical re-score. |
 | exp014 | impl_opt | remove-transform-identities | passes_local | 9.109044501135914 | 7965304 | 2787 | 0.0392154469422 | promoted | Auto promoted after canonical re-score. |
 | exp015 | impl_opt | gather-1d-base-shift | passes_local | 9.138386119353912 | 7734904 | 2787 | 0.029341618218 | promoted | Auto promoted after canonical re-score. |
@@ -44,6 +43,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp040 | impl_opt | hu-transform3-no-trans-vflip | fails_local | 0.0 | 489308 | 1955 | -11.6755728978 | fails_local | Candidate did not pass local validation. |
 | exp041 | impl_opt | threshold01-drop-base-zero-check | passes_local | 11.787622259086902 | 545140 | 1955 | 0.112049361237 | promoted | Auto promoted after canonical re-score. |
 | exp042 | impl_opt | threshold01-drop-source-overlap-check | passes_local | 11.88078156273975 | 496476 | 1954 | 0.0931593036528 | promoted | Auto promoted after canonical re-score. |
+| exp043 | impl_opt | threshold01-marker-only-placement | passes_local | 12.007968567487396 | 436948 | 1954 | 0.127187004748 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.
