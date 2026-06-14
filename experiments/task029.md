@@ -11,7 +11,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
 | conv-color-map | impl_opt | Replace full-grid ArgMax color decoding with a 1x1 FLOAT Conv over one-hot channels to reduce INT64 memory. | promoted |
-| threshold01-direct-onehot-crop | impl_opt | expected_delta 0.1-1.0: keep the required 23x23 public output envelope, but replace the final UINT8 color crop plus `Equal(colors10)` expansion with direct one-hot gather/pad from the input crop; failure would show the 10-channel gather costs more than the current compact color-grid expansion. | planned |
+| threshold01-direct-onehot-crop | impl_opt | expected_delta 0.1-1.0: keep the required 23x23 public output envelope, but replace the final UINT8 color crop plus `Equal(colors10)` expansion with direct one-hot gather/pad from the input crop; not better because the 10-channel gather costs more than the compact color-grid expansion. | not_better |
+| threshold01-bool-mask-reducemax | impl_opt | expected_delta 0.1-1.0: avoid casting the full `[1,9,25,25]` color mask grid to UINT8; reduce BOOL masks to row/col presence first and cast only the small row/col score tensors for ArgMax. Build failed because public ONNX checker rejects `ReduceMax(BOOL)`. | build_failed |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
@@ -38,6 +39,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp021 | impl_opt | vector-all9-input-counts-u8-extents | passes_local | 15.01654666582599 | 21558 | 107 | 0.521942918488 | promoted | Auto promoted after canonical re-score. |
 | exp022 | impl_opt | hu-smoke-out21 | fails_local | 0.0 | 21192 | 103 | -15.0165466658 | fails_local | Candidate did not pass local validation. |
 | exp023 | impl_opt | threshold01-direct-onehot-crop | passes_local | 13.396859129758468 | 109345 | 96 | -1.61968753607 | not_better | Passed but did not improve local_points. |
+| exp024 | impl_opt | threshold01-bool-mask-reducemax | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 
 ## Archived Summary
 - None yet.
