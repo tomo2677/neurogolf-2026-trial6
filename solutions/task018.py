@@ -197,7 +197,6 @@ def _flat_position(nodes: list[onnx.NodeProto], flat_index: str, prefix: str) ->
 def _component_outputs(
     nodes: list[onnx.NodeProto],
     comp_mask: str,
-    source_mask: str,
     target_rows: list[str],
     target_cols: list[str],
     prefix: str,
@@ -205,16 +204,13 @@ def _component_outputs(
     outputs: list[str] = []
     nodes.extend(
         [
-            helper.make_node("And", [comp_mask, "base_mask"], [f"{prefix}_base_bool"]),
             helper.make_node("Not", ["base_mask"], [f"{prefix}_not_base"]),
             helper.make_node("And", [comp_mask, f"{prefix}_not_base"], [f"{prefix}_marker_bool"]),
             helper.make_node("And", [comp_mask, "anchor_color_mask"], [f"{prefix}_anchor_bool"]),
             helper.make_node("Where", [comp_mask, "input_color_u8", "zero_u8"], [f"{prefix}_color"]),
         ]
     )
-    _cast_f32(nodes, comp_mask, f"{prefix}_mask_f32")
     _cast_f32(nodes, f"{prefix}_marker_bool", f"{prefix}_marker_f32")
-    _sum(nodes, f"{prefix}_mask_f32", f"{prefix}_count")
     _sum(nodes, f"{prefix}_marker_f32", f"{prefix}_marker_count")
 
     nodes.extend(
@@ -300,10 +296,6 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("size_i32", [SIZE], [1]),
         _int32_tensor("width_i32", [SIZE], [1]),
         _int64_tensor("k2", [2], [1]),
-        _int64_tensor("crop_hw_start", [0, 0], [2]),
-        _int64_tensor("crop_hw_end", [SIZE, SIZE], [2]),
-        _int64_tensor("crop_hw_axes", [2, 3], [2]),
-        _int64_tensor("pads_to_grid", [0, 0, 0, 0, 0, 0, GRID_SIZE - SIZE, GRID_SIZE - SIZE], [8]),
         _int64_tensor("shape1111", [1, 1, 1, 1], [4]),
         _int64_tensor("shape_flat900", [SIZE * SIZE], [1]),
         _int64_tensor("shape_1x1x30x30", [1, 1, SIZE, SIZE], [4]),
@@ -381,10 +373,10 @@ def build_model() -> onnx.ModelProto:
     target1_row, target1_col = _flat_position(nodes, "target_anchor_index1", "target1")
     candidate_outputs = []
     candidate_outputs.extend(
-        _component_outputs(nodes, comp1_mask, source_mask_all, [target0_row, target1_row], [target0_col, target1_col], "comp1")
+        _component_outputs(nodes, comp1_mask, [target0_row, target1_row], [target0_col, target1_col], "comp1")
     )
     candidate_outputs.extend(
-        _component_outputs(nodes, "comp2_mask", source_mask_all, [target0_row, target1_row], [target0_col, target1_col], "comp2")
+        _component_outputs(nodes, "comp2_mask", [target0_row, target1_row], [target0_col, target1_col], "comp2")
     )
     nodes.extend(
         [
@@ -392,15 +384,9 @@ def build_model() -> onnx.ModelProto:
         ]
     )
 
-    for node in nodes:
-        for index, input_name in enumerate(node.input):
-            if input_name == "input":
-                node.input[index] = "input24"
-    nodes.insert(0, helper.make_node("Slice", ["input", "crop_hw_start", "crop_hw_end", "crop_hw_axes"], ["input24"]))
     nodes.extend(
         [
-            helper.make_node("Where", ["valid_cell", "color24", "invalid_u8"], ["color24_valid"]),
-            helper.make_node("Pad", ["color24_valid", "pads_to_grid", "invalid_u8"], ["color30"], mode="constant"),
+            helper.make_node("Where", ["valid_cell", "color24", "invalid_u8"], ["color30"]),
             helper.make_node("Equal", ["colors10_u8", "color30"], ["output"]),
         ]
     )
