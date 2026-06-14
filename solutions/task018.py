@@ -266,14 +266,11 @@ def _component_outputs(
                     helper.make_node("Equal", [f"{place}_shifted_color", "input_color_u8"], [f"{place}_marker_color_equal"]),
                     helper.make_node("And", [f"{place}_marker_mask_bool", f"{place}_marker_color_equal"], [f"{place}_marker_matches_bool"]),
                     helper.make_node("Cast", [f"{place}_marker_matches_bool"], [f"{place}_marker_matches"], to=onnx.TensorProto.FLOAT16),
-                    helper.make_node("And", [f"{place}_marker_mask_bool", source_mask], [f"{place}_marker_source_overlap_bool"]),
-                    helper.make_node("Cast", [f"{place}_marker_source_overlap_bool"], [f"{place}_marker_source_overlap"], to=onnx.TensorProto.FLOAT16),
                 ]
             )
             _sum(nodes, f"{place}_shifted_mask", f"{place}_shifted_count")
             _sum(nodes, f"{place}_inside_grid", f"{place}_inside_count")
             _sum(nodes, f"{place}_marker_matches", f"{place}_marker_match_count")
-            _sum(nodes, f"{place}_marker_source_overlap", f"{place}_marker_source_overlap_count")
 
             nodes.extend(
                 [
@@ -282,15 +279,9 @@ def _component_outputs(
                     helper.make_node(
                         "Equal", [f"{place}_marker_match_count", f"{prefix}_marker_count"], [f"{place}_marker_ok"]
                     ),
-                    helper.make_node(
-                        "Equal", [f"{place}_marker_source_overlap_count", "zero_f16"], [f"{place}_outside_source_ok"]
-                    ),
                     helper.make_node("And", [f"{place}_same_count", f"{place}_inside_ok"], [f"{place}_valid_a"]),
                     helper.make_node("And", [f"{place}_valid_a", f"{place}_marker_ok"], [f"{place}_valid_c"]),
-                    helper.make_node(
-                        "And", [f"{place}_valid_c", f"{place}_outside_source_ok"], [f"{place}_valid"]
-                    ),
-                    helper.make_node("Where", [f"{place}_valid", f"{place}_shifted_color", "zero_u8"], [f"{place}_output"]),
+                    helper.make_node("Where", [f"{place}_valid_c", f"{place}_shifted_color", "zero_u8"], [f"{place}_output"]),
                 ]
             )
             outputs.append(f"{place}_output")
@@ -331,7 +322,6 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("flat_grid_i32", list(range(SIZE * SIZE)), [1, 1, SIZE, SIZE]),
         _int64_tensor("color_ids", list(range(1, 10)), [9]),
         _f32_tensor("zero_f32", [0.0], [1]),
-        _f16_tensor("zero_f16", [0.0], [1]),
         _u8_tensor("zero_u8", [0], [1]),
         _u8_tensor("invalid_u8", [255], [1]),
         _u8_tensor("colors10_u8", list(range(10)), [1, 10, 1, 1]),
@@ -342,8 +332,6 @@ def build_model() -> onnx.ModelProto:
         helper.make_node("ReduceMax", ["input"], ["valid_cell_score"], axes=[1], keepdims=1),
         helper.make_node("Greater", ["valid_cell_score", "zero_f32"], ["valid_cell"]),
         helper.make_node("Cast", ["valid_cell"], ["valid_cell_f32"], to=onnx.TensorProto.FLOAT16),
-        helper.make_node("Slice", ["input", "slice_zero_start", "slice_one_end", "axis_channel"], ["input0"]),
-        helper.make_node("Cast", ["input0"], ["input0_f16"], to=onnx.TensorProto.FLOAT16),
         helper.make_node("ReduceSum", ["input"], ["color_counts10"], axes=[0, 2, 3], keepdims=0),
         helper.make_node("Slice", ["color_counts10", "slice_nonzero_start", "slice_nonzero_end", "axis0"], ["color_counts"]),
         helper.make_node("ArgMax", ["color_counts"], ["base_idx"], axis=0, keepdims=1),
