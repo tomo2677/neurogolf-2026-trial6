@@ -39,7 +39,8 @@
 - `docs/`: task 横断で再利用する安定知識、public facts、official observations。
 - `experiments/taskNNN.md`: task 固有の仮説、失敗知見、promotion 履歴。
 - `task_ledger.json` / `task_ledger.md`: task 状態と local/official score の台帳。
-- `official_score_snapshots.json` / `official_score_snapshots.md`: aggregate score snapshot 履歴。
+- `local_score_progress.json` / `local_score_progress.md`: 改善作業中の local estimate 現在地履歴。
+- `official_score_snapshots.json` / `official_score_snapshots.md`: official submit で確認した aggregate score snapshot 履歴。
 - `outputs/` / `submissions/`: raw/generated artifacts。原則 git 管理しない。
 
 ## Adding New AI Workflows
