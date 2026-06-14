@@ -50,10 +50,17 @@ single experiment.
 - A completed unit can be a baseline task, resumed official poll, zero repair
   step, batch sync attempt, promoted cost experiment, or failed local
   experiment with notes recorded.
+- Treat promotion, task commit, local progress commit, note-only commit, and a
+  clean worktree as checkpoints, not stop reasons.
+- After each checkpoint, return to the priority loop and re-evaluate official
+  queues, batch sync eligibility, and local hypothesis ranking.
 - Re-rank local experiment candidates after every ledger-changing commit and
   after every failed-probe note commit. Do not keep using a stale candidate
   order when `task_ledger.*`, `experiments/taskNNN.md`, or relevant solutions
   have changed.
+- `should-submit: false`, fewer than 10 `batch_sync_candidates`, and empty
+  official queues are not local score-up stop reasons. Continue into local
+  experiments when no higher-priority official work is actionable.
 - Continue iterating until the user-specified budget is reached, a clear
   blocker appears, official attribution becomes unsafe, quota policy requires a
   stop, or no credible `expected_delta >= 0.1` hypothesis remains after
@@ -61,6 +68,24 @@ single experiment.
 - When a loop stops, leave tracked current-run work clean when the commit policy
   allows it, and summarize the latest status, commits, remaining candidates,
   and stop reason.
+
+## Autonomous Stop Reasons
+
+For autonomous score-up runs, stop only for one of these reasons:
+
+- The user-specified budget or stop condition is reached.
+- Build/score tooling is broken across tasks.
+- `git push origin main` fails after a required commit.
+- Official score attribution is unsafe or quota policy requires pausing
+  official work.
+- The same task has repeated unexplained `build_failed` candidates.
+- No credible `expected_delta >= 0.1` hypothesis remains across plausible
+  tasks after rebuilding hypotheses from ledger, notes, and solutions.
+
+Do not report the workflow as complete merely because a checkpoint was reached.
+If execution must end because of context or runtime boundaries, call it a
+resumable pause and report the latest `score_up_gate.py status`, the next task
+or hypothesis to inspect, and any remaining stop-condition uncertainty.
 
 ## High-Upside Hypothesis Loop
 

@@ -65,6 +65,8 @@ credible `expected_delta >= 0.1` hypotheses, with `>= 1.0` preferred.
 7. If the candidate is rule-compliant and improves `local_points`, the tool auto-promotes it by re-running canonical build/score. For a `rule_invalid` baseline, the first rule-compliant `passes_local` candidate may be promoted even without a numeric baseline score.
 8. If the report has `decision == "promoted"`, run the promotion commit flow below.
 9. Move to the next task or next hypothesis until a blocker or user stop condition is reached.
+   When invoked by `neurogolf-score-up-autopilot`, return control to the parent
+   after each candidate result so the parent can decide continuation.
 
 ## Promotion Commit Flow
 
@@ -112,6 +114,10 @@ does not own local score progress history.
 - When invoked by `neurogolf-score-up-autopilot`, return control to the parent
   after a promoted task commit so the parent can run
   `neurogolf-local-score-progress`.
+- Parent continuation does not depend on the candidate decision. For
+  `promoted`, `not_better`, `fails_local`, `build_failed`, `rule_invalid`, or
+  `score_failed`, the parent should re-enter its priority loop unless a parent
+  stop reason applies.
 - When used directly and a promotion updates `task_ledger.*`, run
   `uv run python tools/local_score_progress.py record` after the promoted task
   commit/push if the user wants the local progress history updated.
