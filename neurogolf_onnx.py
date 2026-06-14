@@ -25,6 +25,7 @@ LEDGER_COLUMNS = [
     "local_points",
     "official_public_score",
     "official_delta_public_vs_local",
+    "official_sync_status",
     "memory_bytes_approx",
     "params",
     "updated_at",
@@ -44,6 +45,17 @@ STATUS_VALUES = {
     "passes_local",
     "fails_local",
     "needs_human_review",
+}
+OFFICIAL_SYNC_TOLERANCE = 0.01
+PENDING_OFFICIAL_SYNC_STATUSES = {
+    "submitted",
+    "pending",
+    "not_found",
+    "poll_failed",
+    "quota_skipped",
+    "ambiguous",
+    "submit_failed",
+    "failed",
 }
 
 
@@ -273,6 +285,46 @@ def initialize_ledger(existing: dict[str, dict[str, Any]] | None = None) -> dict
     return ledger
 
 
+def is_ledger_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def compute_official_sync_status(entry: dict[str, Any]) -> str:
+    official_status = entry.get("official_status")
+    if official_status == "complete":
+        public_score = entry.get("official_public_score")
+        if not is_ledger_number(public_score):
+            return "unknown"
+        if float(public_score) == 0.0:
+            return "official_zero"
+        local_score = entry.get("local_points")
+        if not is_ledger_number(local_score):
+            return "unknown"
+        if abs(float(local_score) - float(public_score)) <= OFFICIAL_SYNC_TOLERANCE:
+            return "synced"
+        return "drift"
+    if official_status in PENDING_OFFICIAL_SYNC_STATUSES:
+        return "pending"
+    return "unknown"
+
+
+def refresh_official_derived_fields(entry: dict[str, Any]) -> dict[str, Any]:
+    public_score = entry.get("official_public_score")
+    local_score = entry.get("local_points")
+    if is_ledger_number(public_score) and is_ledger_number(local_score):
+        entry["official_delta_public_vs_local"] = float(public_score) - float(local_score)
+    else:
+        entry["official_delta_public_vs_local"] = None
+    entry["official_sync_status"] = compute_official_sync_status(entry)
+    return entry
+
+
+def normalize_ledger_entry(task: str, entry: dict[str, Any]) -> dict[str, Any]:
+    normalized = {col: entry.get(col) for col in LEDGER_COLUMNS}
+    normalized["task"] = normalize_task_id(normalized.get("task") or task)
+    return refresh_official_derived_fields(normalized)
+
+
 def update_ledger(task: str | int, **updates: Any) -> dict[str, dict[str, Any]]:
     task_id = normalize_task_id(task)
     ledger = initialize_ledger(load_ledger())
@@ -285,19 +337,14 @@ def update_ledger(task: str | int, **updates: Any) -> dict[str, dict[str, Any]]:
         entry[key] = value
     entry["task"] = task_id
     entry.setdefault("updated_at", None)
-    public_score = entry.get("official_public_score")
-    local_score = entry.get("local_points")
-    if isinstance(public_score, (int, float)) and isinstance(local_score, (int, float)):
-        entry["official_delta_public_vs_local"] = float(public_score) - float(local_score)
-    elif "official_public_score" in updates or "local_points" in updates:
-        entry["official_delta_public_vs_local"] = None
+    refresh_official_derived_fields(entry)
     write_ledger(ledger)
     return ledger
 
 
 def write_ledger(ledger: dict[str, dict[str, Any]]) -> None:
     json_path = ROOT / "task_ledger.json"
-    normalized = {task: {col: entry.get(col) for col in LEDGER_COLUMNS} for task, entry in sorted(ledger.items())}
+    normalized = {task: normalize_ledger_entry(task, entry) for task, entry in sorted(ledger.items())}
     with json_path.open("w", encoding="utf-8") as f:
         json.dump(normalized, f, indent=2, ensure_ascii=False)
         f.write("\n")

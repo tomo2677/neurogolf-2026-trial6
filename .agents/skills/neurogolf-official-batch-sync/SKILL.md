@@ -57,6 +57,7 @@ uv run python tools/official_batch_sync.py resolve --run-dir submissions/officia
 4. Prepare, submit, and poll the selected 10 tasks.
 5. Run `resolve`. If aggregate publicScore matches the expected local total
    within `0.01`, accept the attribution and sync all 10 tasks.
+   Confirm the synced rows show `official_sync_status == synced`.
 6. If one task being official zero exactly explains the aggregate deficit,
    submit that one task via `neurogolf-official-submit-score`.
 7. If the single-task publicScore is `0.0`, resolve with `--zero-run-dir` and
