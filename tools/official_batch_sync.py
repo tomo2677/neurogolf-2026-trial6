@@ -127,7 +127,7 @@ def resolution_for_manifest(manifest: dict[str, Any], zero_manifest: dict[str, A
     if actual is None:
         return {"status": "missing_public_score", "sync_tasks": []}
     expected = float(manifest["expected_public_score"])
-    if abs(float(score2(actual)) - float(score2(expected))) <= float(MATCH_TOLERANCE):
+    if abs(score2(actual) - score2(expected)) <= MATCH_TOLERANCE:
         return {"status": "matched", "sync_tasks": list(manifest["tasks"])}
 
     candidates = one_zero_candidates(manifest, actual)

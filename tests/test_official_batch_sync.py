@@ -53,6 +53,11 @@ class OfficialBatchSyncTests(unittest.TestCase):
         self.assertEqual(resolution["status"], "matched")
         self.assertEqual(resolution["sync_tasks"], ["task001", "task002"])
 
+    def test_resolve_accepts_one_cent_tolerance(self) -> None:
+        m = manifest([("task001", 80.0), ("task002", 83.69)], 163.68)
+        resolution = official_batch_sync.resolution_for_manifest(m)
+        self.assertEqual(resolution["status"], "matched")
+
     def test_one_zero_probe_required_and_confirmed_syncs_remaining_tasks(self) -> None:
         m = manifest([("task001", 11.11), ("task002", 12.22), ("task003", 13.33)], 23.33)
         required = official_batch_sync.resolution_for_manifest(m)
