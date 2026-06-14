@@ -12,6 +12,11 @@ This workflow is local-only. It reads `task_ledger.*` as the source of truth
 and writes progress history to `local_score_progress.md` and
 `local_score_progress.json`. It must not submit to Kaggle.
 
+It is also the dependent workflow to call after score-up, baseline, official
+sync, or zero-repair work updates `task_ledger.*`. The ledger remains the
+task-level source of truth; this workflow only records the current local
+estimate history derived from that ledger.
+
 For official aggregate score confirmation, use
 `neurogolf-current-score-snapshot` instead.
 
@@ -40,10 +45,16 @@ uv run python tools/local_score_progress.py record
 4. Check `local_score_progress.md`; it is the user-facing summary file.
 5. Commit `local_score_progress.md` and `local_score_progress.json` together
    when recording progress.
+6. When called from a parent workflow after a ledger-changing commit, keep this
+   as a separate `Record local score progress` commit. If `record` produces no
+   diff, skip the commit.
 
 ## Rules
 
 - Do not edit `task_ledger.*`; this workflow only reads it.
+- Do not add automatic calls to this workflow inside ledger helpers or
+  build/score tools. Parent workflows call it explicitly after ledger-changing
+  work when curated progress history should be updated.
 - Do not edit `official_score_snapshots.*`; that file is only for official
   aggregate submit history.
 - `local_scaled_score_400` is the current local average scaled to 400 tasks.

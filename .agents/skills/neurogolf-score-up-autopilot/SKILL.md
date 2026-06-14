@@ -105,6 +105,44 @@ single-task `score_up_candidates`, and batch sync work are exhausted.
 git add solutions/taskNNN.py task_specs/taskNNN.md experiments/taskNNN.md task_ledger.json task_ledger.md
 ```
 
+## Local Progress Recording
+
+When this parent workflow causes `task_ledger.*` to change, record the current
+local score progress through `neurogolf-local-score-progress` after the
+ledger-changing commit/push finishes.
+
+This applies after:
+
+- A promoted local cost improvement updates and commits `task_ledger.*`.
+- A completed new-task baseline updates and commits `task_ledger.*`.
+- `neurogolf-official-submit-score`, `neurogolf-official-batch-sync`, or
+  `neurogolf-official-zero-repair` updates and commits official ledger fields.
+- Any other score-up activity changes `task_ledger.json` or `task_ledger.md`.
+
+Run:
+
+```bash
+uv run python tools/local_score_progress.py record
+```
+
+If `record` changes `local_score_progress.md` or `local_score_progress.json`,
+commit and push those files separately:
+
+```bash
+git add local_score_progress.md local_score_progress.json
+git diff --cached --name-only
+git diff --cached --stat
+git commit -m "Record local score progress"
+git push origin main
+```
+
+Do not mix `local_score_progress.*` with task solution commits, official sync
+commits, or note-only commits. If `record` produces no diff, skip the progress
+commit. Do not embed this side effect in `neurogolf_onnx.update_ledger`,
+`tools/build_task.py`, or `tools/score_task.py`; this parent workflow delegates
+explicitly to `neurogolf-local-score-progress` to keep ledger source-of-truth
+updates separate from curated progress history.
+
 ## No Lingering Dirty Notes
 
 `tools/experiment_task.py` updates tracked `experiments/taskNNN.md` notes even
@@ -133,6 +171,8 @@ git push origin main
   separately; do not hide current-run note changes behind unrelated work.
 - Before the final response, run `git status --short --branch` and make the
   current-run tracked work clean whenever the commit policy allows it.
+- In the final response, report task solution commits, official sync commits,
+  note-only commits, and local progress commits as separate outcomes.
 
 ## Integrity
 

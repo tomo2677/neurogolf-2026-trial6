@@ -104,6 +104,23 @@ separate `Record score-up experiment notes` commit so failed-probe lessons do
 not leave the worktree dirty. Such note-only commits must not include
 `solutions/`, `task_ledger.*`, `task_specs/`, or generated artifacts.
 
+## Local Progress Handoff
+
+This skill owns local candidate evaluation and the promoted task commit. It
+does not own local score progress history.
+
+- When invoked by `neurogolf-score-up-autopilot`, return control to the parent
+  after a promoted task commit so the parent can run
+  `neurogolf-local-score-progress`.
+- When used directly and a promotion updates `task_ledger.*`, run
+  `uv run python tools/local_score_progress.py record` after the promoted task
+  commit/push if the user wants the local progress history updated.
+- Commit `local_score_progress.md` and `local_score_progress.json` separately
+  with `Record local score progress`; do not include `solutions/`,
+  `task_ledger.*`, experiment notes, or generated artifacts in that progress
+  commit.
+- If the progress record command produces no diff, skip the progress commit.
+
 ## Notes Discipline
 
 Tracked notes live at `experiments/taskNNN.md`.
