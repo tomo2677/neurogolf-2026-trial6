@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 14.920712107660183 | 20476 | 3368 | 2026-06-13T17:31:34+09:00 | ledger |
+| passes_local | 14.920712107660183 | 20476 | 3368 | 2026-06-14T22:21:24+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -12,6 +12,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | --- | --- | --- | --- |
 | conv-color-map | impl_opt | Replace full-grid ArgMax color decoding with a 1x1 FLOAT Conv over one-hot channels to reduce INT64 memory. | promoted |
 | threshold01-drop-period5 | rule_redesign | expected_delta 0.1-1.0: remove only period 5 while keeping known-needed periods 8 and 9; failure showed the local generator still needs p=5. | fails_local |
+| threshold01-tile-all-periods | impl_opt | expected_delta 0.1-1.0: keep all required periods but replace p=4/5/6/8/9 period-index Gather maps with Tile+Slice like p=7, trading small tiled intermediates for removal of large index maps; not better because tile memory exceeded param savings. | not_better |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
@@ -38,6 +39,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp023 | rule_redesign | hu-smoke-drop-period9 | fails_local | 0.0 | 17574 | 2598 | -14.9207121077 | fails_local | Candidate did not pass local validation. |
 | exp024 | rule_redesign | hu-smoke-drop-period8 | fails_local | 0.0 | 17693 | 2666 | -14.9207121077 | fails_local | Candidate did not pass local validation. |
 | exp025 | rule_redesign | threshold01-drop-period5 | fails_local | 0.0 | 18044 | 2822 | -14.9207121077 | fails_local | Candidate did not pass local validation. |
+| exp026 | impl_opt | threshold01-tile-all-periods | passes_local | 14.865519781206263 | 23999 | 1198 | -0.0551923264539 | not_better | Passed but did not improve local_points. |
 
 ## Archived Summary
 - None yet.
