@@ -3,24 +3,22 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 12.337959264188555 | 313588 | 1952 | 2026-06-14T23:47:35+09:00 | exp048 |
+| passes_local | 12.337959264188555 | 313588 | 1952 | 2026-06-14T23:47:35+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
 
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
-| threshold01-remove-noops-unused-counts | impl_opt | expected_delta 0.1-1.0: after the marker-only placement promotion, remove full-30 crop/no-op Pad plus unused component base/count tensors; failure would show one of these apparently dead dense tensors still affects public-rule output shape or invalid-cell masking. | promoted |
-| threshold01-color-match-only | impl_opt | expected_delta 0.1-1.0: replace shifted-base exclusion plus marker-mask construction with shifted-nonzero exact color matches counted against marker_count; failure showed overlapping source/base-color cells can create false placements without explicit base filtering. | fails_local |
 | dynamic-pad-slice-shift | impl_opt | expected_delta >=1.0: replace per-placement dense int32 source-index grids and Gather/Where shift with one zero-padded transformed color tensor per component/transform plus dynamic Slice per target; build failed because dynamic Slice output shape stayed symbolic. | build_failed |
 | dynamic-pad-slice-shift-static-reshape | impl_opt | expected_delta >=1.0: keep the dynamic Pad/Slice shift but add a static Reshape to `[1,1,30,30]` after each Slice so public rules see fixed shapes; build still failed because raw Slice intermediates remained symbolic in inferred value_info. | build_failed |
 | dynamic-pad-slice-shift-value-info | impl_opt | expected_delta >=1.0: keep dynamic Pad/Slice/Reshape and explicitly annotate raw Slice outputs as static `[1,1,30,30]` value_info to satisfy public-rule shape validation; this made the dynamic Slice shift public-compliant and cut dense shift memory. | promoted |
+| direct-float-reducesum-casts | impl_opt | expected_delta 0.1-1.0: cast marker masks directly to FLOAT before ReduceSum instead of FLOAT16, avoiding ORT inserted precision-free FLOAT casts visible in the trace; build failed because prefix and per-placement count dtypes were inconsistent. | build_failed |
+| direct-float-all-reducesum-casts | impl_opt | expected_delta 0.1-1.0: cast both component marker masks and per-placement marker match masks directly to FLOAT so ReduceSum and Equal count tensors share dtype; not better because explicit FLOAT masks cost more than the inserted precision-free cast path. | not_better |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp018 | rule_redesign | size24-internal-crop | passes_local | 9.74129999340989 | 4233460 | 719 | 0.434715759146 | promoted | Auto promoted after canonical re-score. |
-| exp024 | impl_opt | color-grid-candidates | passes_local | 11.130734480039619 | 1054516 | 710 | 1.38943448663 | promoted | Auto promoted after canonical re-score. |
 | exp025 | impl_opt | f16-shared-shift-bool-output | passes_local | 11.669484889100698 | 614988 | 712 | 0.538750409061 | promoted | Auto promoted after canonical re-score. |
 | zero001 | rule_redesign | zero-repair-size30 | passes_local | 11.004833100441234 | 1195752 | 1054 | -0.664651788659 | official_repaired | Official zero resolved: full 30x30 crop and 30-step growth scored 11.00 public. |
 | exp026 | impl_opt | u8-maxpool-flat-shift | passes_local | 11.32244890984462 | 869180 | 1954 | 0.317615809403 | promoted | Auto promoted after canonical re-score. |
@@ -44,6 +42,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp046 | impl_opt | dynamic-pad-slice-shift | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp047 | impl_opt | dynamic-pad-slice-shift-static-reshape | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp048 | impl_opt | dynamic-pad-slice-shift-value-info | passes_local | 12.337959264188555 | 313588 | 1952 | 0.228602415528 | promoted | Auto promoted after canonical re-score. |
+| exp049 | impl_opt | direct-float-reducesum-casts | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp050 | impl_opt | direct-float-all-reducesum-casts | passes_local | 12.24011120913886 | 346024 | 1952 | -0.0978480550497 | not_better | Passed but did not improve local_points. |
 
 ## Archived Summary
 - None yet.
