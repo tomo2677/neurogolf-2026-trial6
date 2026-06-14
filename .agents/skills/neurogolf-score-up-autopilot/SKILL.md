@@ -1,6 +1,6 @@
 ---
 name: neurogolf-score-up-autopilot
-description: Run the NeuroGolf long-running score-up workflow for prompts like "スコア上げといて": fill new task baselines first, improve local_points one task at a time, and trigger official scoring only after meaningful local gains.
+description: 'Run the NeuroGolf long-running score-up workflow for prompts like "スコア上げといて": fill new task baselines first, prioritize high-upside local_points hypotheses, and trigger official scoring only after meaningful local gains.'
 ---
 
 # NeuroGolf Score-Up Autopilot
@@ -22,17 +22,52 @@ official submit/poll, and official-zero repair to the smaller skills.
    `poll_failed`, and `quota_skipped`.
 4. If `official_zero` is nonempty, process the lowest-numbered task with
    `neurogolf-official-zero-repair`.
-5. Otherwise select one `passes_local` task for `neurogolf-cost-experiment`.
-6. After a promoted local improvement, run:
+5. If `score_up_candidates` is nonempty, process an existing gate-passing
+   improvement with `neurogolf-official-submit-score` before starting new
+   local experiments. Prefer largest `delta`, then lowest task number.
+6. Otherwise run the High-Upside Hypothesis Loop below, then process one
+   selected task with `neurogolf-cost-experiment`.
+7. After a promoted local improvement, run:
 
 ```bash
 uv run python tools/score_up_gate.py should-submit --task taskNNN
 ```
 
-7. Submit only when the gate returns `can_submit: true`; use
+8. Submit only when the gate returns `can_submit: true`; use
    `neurogolf-official-submit-score`.
-8. Keep moving to another task unless a clear blocker affects the overall
+9. Keep moving to another task unless a clear blocker affects the overall
    toolchain or official score attribution.
+
+## High-Upside Hypothesis Loop
+
+Use this loop only after baseline, official-pending, official-zero, and
+existing `score_up_candidates` work is exhausted.
+
+1. Read `task_ledger.json`, relevant `experiments/taskNNN.md` notes, and
+   current `solutions/taskNNN.py` files before selecting a local experiment.
+2. Do not choose a `passes_local` task mechanically. Rank candidate tasks by
+   credible upside using current `local_points`, `official_public_score`,
+   `memory_bytes_approx`, `params`, solution complexity, past experiment
+   deltas, and remaining untested strategy changes.
+3. Prefer hypotheses in this fixed order:
+   - `expected_delta >= 1.0`
+   - `0.5 <= expected_delta < 1.0`
+   - If only `< 0.5` hypotheses remain, rebuild hypotheses for each plausible
+     task and look specifically for a `>= 0.5` path.
+   - If no credible `>= 0.5` hypothesis remains after rebuilding, stop local
+     exploration and wait for the next user prompt.
+4. Treat a hypothesis as credible only when it names a specific mechanism,
+   expected delta bucket, supporting evidence from the task or past logs, and
+   what a failed candidate would teach.
+5. Prioritize structural changes over micro cleanup: `rule_redesign`, dense
+   grid replacement, crop/window/algorithm redesign, large intermediate
+   removal, and alternate ONNX formulations that could materially change cost.
+6. Do not make `drop-unused-*`, initializer cleanup, or other tiny changes the
+   main experiment unless they follow a high-upside promotion or the user asks
+   for small cleanup. If a high-upside candidate accidentally promotes only a
+   small gain, accept the existing `tools/experiment_task.py` decision.
+7. Record why the selected task and hypothesis beat the alternatives before
+   running the candidate. Keep the note compact.
 
 ## Score-Up Submit Gate
 
