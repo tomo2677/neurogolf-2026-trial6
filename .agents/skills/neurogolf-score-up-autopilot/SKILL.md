@@ -40,6 +40,28 @@ uv run python tools/score_up_gate.py should-submit --task taskNNN
 10. Keep moving to another task unless a clear blocker affects the overall
    toolchain or official score attribution.
 
+## Long-Running Iteration Contract
+
+For autonomous score-up requests, treat the workflow as a repeated loop, not a
+single experiment.
+
+- After each completed unit of work, rerun
+  `uv run python tools/score_up_gate.py status` before choosing the next unit.
+- A completed unit can be a baseline task, resumed official poll, zero repair
+  step, batch sync attempt, promoted cost experiment, or failed local
+  experiment with notes recorded.
+- Re-rank local experiment candidates after every ledger-changing commit and
+  after every failed-probe note commit. Do not keep using a stale candidate
+  order when `task_ledger.*`, `experiments/taskNNN.md`, or relevant solutions
+  have changed.
+- Continue iterating until the user-specified budget is reached, a clear
+  blocker appears, official attribution becomes unsafe, quota policy requires a
+  stop, or no credible `expected_delta >= 0.1` hypothesis remains after
+  rebuilding hypotheses.
+- When a loop stops, leave tracked current-run work clean when the commit policy
+  allows it, and summarize the latest status, commits, remaining candidates,
+  and stop reason.
+
 ## High-Upside Hypothesis Loop
 
 Use this loop only after baseline, official-pending, official-zero,
