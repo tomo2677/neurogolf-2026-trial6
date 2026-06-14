@@ -3,13 +3,14 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 14.966756924471335 | 22680 | 91 | 2026-06-13T18:59:45+09:00 | ledger |
+| passes_local | 14.966756924471335 | 22680 | 91 | 2026-06-14T22:21:24+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
 
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
+| threshold01-bar-cover-conv | impl_opt | expected_delta 0.1-1.0: keep the known-needed 3 propagation steps, but replace horizontal/vertical selected bar cover construction from three shifted Pad tensors plus OR with the existing Conv cover path; prior `hu-smoke-prop2` showed step reduction fails, so this tests whether cover materialization, not propagation depth, is the remaining cost. Failure would show Conv cover creates larger FLOAT16 intermediates than the direct BOOL pad path. | planned |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
@@ -38,6 +39,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp030 | impl_opt | conv3-cross-repair | passes_local | 14.962243826658838 | 22779 | 95 | 0.550997586304 | promoted | Auto promoted after canonical re-score. |
 | exp031 | impl_opt | remaining-square-conv-cover | passes_local | 14.966756924471335 | 22680 | 91 | 0.0045130978125 | promoted | Auto promoted after canonical re-score. |
 | exp032 | rule_redesign | hu-smoke-prop2 | fails_local | 0.0 | 16542 | 91 | -14.9667569245 | fails_local | Candidate did not pass local validation. |
+| exp033 | impl_opt | threshold01-bar-cover-conv | passes_local | 14.941690564372502 | 23274 | 75 | -0.0250663600988 | not_better | Passed but did not improve local_points. |
 
 ## Archived Summary
 - None yet.
