@@ -46,15 +46,15 @@ existing `score_up_candidates` work is exhausted.
 1. Read `task_ledger.json`, relevant `experiments/taskNNN.md` notes, and
    current `solutions/taskNNN.py` files before selecting a local experiment.
 2. Do not choose a `passes_local` task mechanically. Rank candidate tasks by
-   credible upside using current `local_points`, `official_public_score`,
-   `memory_bytes_approx`, `params`, solution complexity, past experiment
-   deltas, and remaining untested strategy changes.
+   credible local upside using current `local_points`, `memory_bytes_approx`,
+   `params`, solution complexity, past experiment deltas, and remaining
+   untested strategy changes.
 3. Prefer hypotheses in this fixed order:
    - `expected_delta >= 1.0`
-   - `0.5 <= expected_delta < 1.0`
-   - If only `< 0.5` hypotheses remain, rebuild hypotheses for each plausible
-     task and look specifically for a `>= 0.5` path.
-   - If no credible `>= 0.5` hypothesis remains after rebuilding, stop local
+   - `0.1 <= expected_delta < 1.0`
+   - If only `< 0.1` hypotheses remain, rebuild hypotheses for each plausible
+     task and look specifically for a `>= 0.1` path.
+   - If no credible `>= 0.1` hypothesis remains after rebuilding, stop local
      exploration and wait for the next user prompt.
 4. Treat a hypothesis as credible only when it names a specific mechanism,
    expected delta bucket, supporting evidence from the task or past logs, and

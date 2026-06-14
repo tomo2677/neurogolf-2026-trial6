@@ -32,10 +32,10 @@ The candidate must define `build_model() -> onnx.ModelProto`. Keep candidate `.p
 ## High-Upside Mode
 
 When invoked by `neurogolf-score-up-autopilot`, bias experiments toward
-credible `expected_delta >= 0.5` hypotheses, with `>= 1.0` preferred.
+credible `expected_delta >= 0.1` hypotheses, with `>= 1.0` preferred.
 
 - Before writing a candidate, state the `expected_delta` bucket in
-  `experiments/taskNNN.md`: `>=1.0`, `0.5-1.0`, or `<0.5`.
+  `experiments/taskNNN.md`: `>=1.0`, `0.1-1.0`, or `<0.1`.
 - Include the reason the hypothesis could move score materially, not just the
   implementation change. Use evidence such as large `memory_bytes_approx`,
   high `params`, dense grid intermediates, prior large deltas on similar
@@ -44,14 +44,15 @@ credible `expected_delta >= 0.5` hypotheses, with `>= 1.0` preferred.
   replacement, crop/window/algorithm redesign, large intermediate removal, and
   alternate ONNX formulations.
 - Defer `drop-unused-*`, initializer cleanup, one-op dtype tweaks, and similar
-  tiny changes unless they are follow-up cleanup after a high-upside promotion
-  or the user explicitly asks for small improvements.
+  tiny changes while credible `>=0.1` hypotheses remain. Use them only after
+  `>=0.1` candidates are exhausted, after a high-upside promotion, or when the
+  user explicitly asks for small improvements.
 - Treat `build_failed`, `not_better`, and `rule_invalid` as cheap failed
   probes. Record the lesson briefly, then try the next high-upside hypothesis
   unless the same task has repeated unexplained build failures.
-- If all visible hypotheses are `<0.5`, rebuild the hypothesis list for that
-  task and nearby candidate tasks around `>=0.5` structural changes. If no
-  credible `>=0.5` path remains, stop instead of running low-upside tuning.
+- If all visible hypotheses are `<0.1`, rebuild the hypothesis list for that
+  task and nearby candidate tasks around `>=0.1` structural changes. If no
+  credible `>=0.1` path remains, stop instead of running low-upside tuning.
 
 ## Workflow
 
@@ -119,7 +120,7 @@ Clear blockers:
 - Spec and data conflict so badly that no next hypothesis can be stated.
 - The same task has repeated unexplained `build_failed` candidates.
 - A policy change needs user judgment.
-- High-Upside Mode has no credible `expected_delta >= 0.5` hypothesis left
+- High-Upside Mode has no credible `expected_delta >= 0.1` hypothesis left
   after rebuilding hypotheses across plausible tasks.
 
 Not blockers:
