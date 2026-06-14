@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 15.981910315895657 | 8181 | 70 | 2026-06-13T17:54:07+09:00 | exp016 |
+| passes_local | 15.981910315895657 | 8181 | 70 | 2026-06-13T17:54:07+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -28,6 +28,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp014 | impl_opt | drop-unused-one-i32 | passes_local | 15.525527696032297 | 12949 | 74 | 0.000076784274619 | promoted | Removed unused initializer after exp013 and re-scored canonical. |
 | exp015 | impl_opt | direct-target-channel | passes_local | 15.751689696772189 | 10311 | 76 | 0.22616200074 | promoted | Auto promoted after canonical re-score. |
 | exp016 | impl_opt | drop-unused-full-target-u8 | passes_local | 15.981910315895657 | 8181 | 70 | 0.230220619123 | promoted | Full target UINT8 mask plus unused initializer cleanup. |
+| exp017 | impl_opt | hu-smoke-crop15x16 | fails_local | 0.0 | 7739 | 66 | -15.9819103159 | fails_local | Candidate did not pass local validation. |
 
 ## Archived Summary
 - None yet.

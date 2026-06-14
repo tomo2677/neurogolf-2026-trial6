@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 15.497437875530004 | 13343 | 51 | 2026-06-13T19:08:50+09:00 | exp035 |
+| passes_local | 15.497437875530004 | 13343 | 51 | 2026-06-13T19:08:50+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -15,7 +15,6 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp006 | impl_opt | crop5-window | passes_local | 13.47388194124379 | 101151 | 177 | 0.328053941996 | promoted | Auto promoted after canonical re-score. |
 | exp007 | impl_opt | f16-full-input-density | passes_local | 13.77180097965592 | 75045 | 177 | 0.297919038412 | promoted | Auto promoted after canonical re-score. |
 | exp008 | rule_redesign | right-pair-target | build_failed |  |  |  |  | build_failed | Candidate did not build. |
 | exp009 | rule_redesign | right-pair-target-opset13 | build_failed |  |  |  |  | build_failed | Candidate did not build. |
@@ -40,6 +39,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp031 | impl_opt | drop-unused-initializers-final | passes_local | 14.906512114742917 | 24145 | 40 | 0.00020671834699 | promoted | Canonical re-score after removing unused initializers. |
 | exp032 | impl_opt | conv-color-map | passes_local | 15.06719639312982 | 20545 | 50 | 0.160684278387 | promoted | Auto promoted after canonical re-score. |
 | exp035 | impl_opt | lshape-hpair-min-target | passes_local | 15.497437875530004 | 13343 | 51 | 0.4302414824 | promoted | Auto promoted after canonical re-score. |
+| exp036 | impl_opt | hu-smoke-out4 | fails_local | 0.0 | 13161 | 49 | -15.4974378755 | fails_local | Candidate did not pass local validation. |
 
 ## Archived Summary
 - None yet.

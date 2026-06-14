@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 12.905859415510692 | 178696 | 125 | 2026-06-13T18:56:02+09:00 | exp068 |
+| passes_local | 12.905859415510692 | 178696 | 125 | 2026-06-13T18:56:02+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -14,7 +14,6 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp044 | impl_opt | forward-cumsum-totals-seed | passes_local | 15.037913405160936 | 21170 | 37 | 0.0514206027356 | promoted | Auto promoted after canonical re-score. |
 | exp045 | impl_opt | uncapped-total-seed | fails_local | 0.0 | 20770 | 37 | -15.0379134052 | fails_local | Candidate did not pass local validation. |
 | exp046 | impl_opt | reuse-axis-w-reducemax | score_failed |  |  |  |  | score_failed | Candidate did not pass local validation. |
 | exp047 | impl_opt | int8-cumsum-totals | build_failed |  |  |  |  | build_failed | Candidate did not build. |
@@ -39,6 +38,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | official-repair-20260613 | rule_redesign | hidden-safe-line-closure | passes_local | 12.890823791715523 | 181406 | 124 | -1.56286155909 | official_repaired | exp066 passed local but official publicScore was 0.00; restored the closure-based full 30x30 repair and run `task002-20260613T090910Z-76d4b06` returned official publicScore 12.89. |
 | exp067 | impl_opt | final-h-bool-output | passes_local | 12.905809087117918 | 178706 | 124 | 0.0149852954024 | promoted | Auto promoted after canonical re-score. |
 | exp068 | impl_opt | shared-zero-f16 | passes_local | 12.905859415510692 | 178696 | 125 | 5.03283927742e-05 | promoted | Auto promoted after canonical re-score. |
+| exp069 | rule_redesign | hu-smoke-closure1 | fails_local | 0.0 | 115696 | 125 | -12.9058594155 | fails_local | Candidate did not pass local validation. |
 
 ## Archived Summary
 - 2026-06-13 official zero repair: the exp056 model passed local public data but received official publicScore `0.00`. The repair prioritizes hidden correctness over cost by using full `30x30` valid-area inference and 900-step 4-neighbor flood fill from border black cells. Canonical local score became `10.002367232660871`, and official run `task002-20260612T145920Z-f86ab16` completed with publicScore `10.00`.

@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 16.229250450861358 | 6378 | 65 | 2026-06-13T17:49:57+09:00 | exp012 |
+| passes_local | 16.229250450861358 | 6378 | 65 | 2026-06-13T17:49:57+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -26,6 +26,7 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp010 | impl_opt | u8-gray-compare | passes_local | 15.993490868305654 | 8102 | 54 | 0.000122601606234 | promoted | Auto promoted after canonical re-score. |
 | exp011 | impl_opt | conv-color-map | passes_local | 16.053234625132365 | 7618 | 65 | 0.0597437568267 | promoted | Auto promoted after canonical re-score. |
 | exp012 | impl_opt | full-conv-slice-color | passes_local | 16.229250450861358 | 6378 | 65 | 0.176015825729 | promoted | Auto promoted after canonical re-score. |
+| exp013 | rule_redesign | hu-smoke-window9 | fails_local | 0.0 | 5498 | 65 | -16.2292504509 | fails_local | Candidate did not pass local validation. |
 
 ## Archived Summary
 - None yet.

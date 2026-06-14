@@ -3,7 +3,7 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 14.920712107660183 | 20476 | 3368 | 2026-06-13T17:31:34+09:00 | exp022 |
+| passes_local | 14.920712107660183 | 20476 | 3368 | 2026-06-13T17:31:34+09:00 | ledger |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
@@ -34,6 +34,8 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp019 | impl_opt | p7-tile-shared-end | passes_local | 14.780425150506924 | 24076 | 3359 | 0.0164127753404 | promoted | Auto promoted after canonical re-score. |
 | exp021 | impl_opt | drop-unused-one-i64 | passes_local | 14.780461600961647 | 24076 | 3358 | 3.64504547239e-05 | promoted | Auto promoted after canonical re-score. |
 | exp022 | impl_opt | conv-color-map | passes_local | 14.920712107660183 | 20476 | 3368 | 0.140250506699 | promoted | Auto promoted after canonical re-score. |
+| exp023 | rule_redesign | hu-smoke-drop-period9 | fails_local | 0.0 | 17574 | 2598 | -14.9207121077 | fails_local | Candidate did not pass local validation. |
+| exp024 | rule_redesign | hu-smoke-drop-period8 | fails_local | 0.0 | 17693 | 2666 | -14.9207121077 | fails_local | Candidate did not pass local validation. |
 
 ## Archived Summary
 - None yet.
