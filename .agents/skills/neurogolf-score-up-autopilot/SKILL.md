@@ -105,6 +105,35 @@ single-task `score_up_candidates`, and batch sync work are exhausted.
 git add solutions/taskNNN.py task_specs/taskNNN.md experiments/taskNNN.md task_ledger.json task_ledger.md
 ```
 
+## No Lingering Dirty Notes
+
+`tools/experiment_task.py` updates tracked `experiments/taskNNN.md` notes even
+for `not_better`, `fails_local`, `build_failed`, and `rule_invalid` probes.
+Keep those failed-probe lessons, but do not mix them into a promoted task
+commit.
+
+- If a task promotes, first commit and push only the promoted task files using
+  the task commit policy above.
+- After the promoted commit, or after a score-up run stops without promotion,
+  inspect `git status --short --branch`.
+- If the only remaining current-run changes are non-promoted
+  `experiments/taskNNN.md` notes, stage exactly those files and commit:
+
+```bash
+git add experiments/taskAAA.md experiments/taskBBB.md
+git diff --cached --name-only
+git diff --cached --stat
+git commit -m "Record score-up experiment notes"
+git push origin main
+```
+
+- A note-only commit must not include `solutions/`, `task_ledger.*`,
+  `task_specs/`, or generated artifacts.
+- If unrelated dirty files already exist, leave them untouched and report them
+  separately; do not hide current-run note changes behind unrelated work.
+- Before the final response, run `git status --short --branch` and make the
+  current-run tracked work clean whenever the commit policy allows it.
+
 ## Integrity
 
 - Process one task at a time.

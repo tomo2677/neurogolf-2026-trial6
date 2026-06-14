@@ -98,6 +98,12 @@ If any other file is staged, unstage it before committing. If `git push origin m
 
 Do not commit candidates that are `not_better`, tied, `build_failed`, `score_failed`, `rule_invalid`, or `promotion_failed`. Candidate `.py` files and raw reports under `outputs/experiments/` remain ignored artifacts.
 
+Non-promoted tracked notes are different from candidates. A parent score-up
+workflow may commit only the affected `experiments/taskNNN.md` files in a
+separate `Record score-up experiment notes` commit so failed-probe lessons do
+not leave the worktree dirty. Such note-only commits must not include
+`solutions/`, `task_ledger.*`, `task_specs/`, or generated artifacts.
+
 ## Notes Discipline
 
 Tracked notes live at `experiments/taskNNN.md`.
