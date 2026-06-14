@@ -3,25 +3,22 @@
 ## Current Best
 | status | local_points | memory_bytes_approx | params | updated_at | source |
 | --- | --- | --- | --- | --- | --- |
-| passes_local | 12.10935684866074 | 394644 | 1940 | 2026-06-14T23:40:35+09:00 | ledger |
+| passes_local | 12.337959264188555 | 313588 | 1952 | 2026-06-14T23:47:35+09:00 | exp048 |
 
 ## Active Hypotheses
 Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `rule_redesign` for rule changes.
 
 | id | mode | hypothesis | status |
 | --- | --- | --- | --- |
-| zero-repair-size30 | rule_redesign | Official zero likely came from the `SIZE=24` internal crop and 8-step component growth shortcut; restore full 30x30 crop and 30-step growth before resubmit. | official_complete |
-| threshold01-drop-source-overlap-check | impl_opt | expected_delta 0.1-1.0: remove the per-placement marker-source-overlap count and stale input0 path after base-zero removal, relying on target-anchor outside-source plus marker color/count checks; failure would show non-anchor markers can falsely land on the source component. | promoted |
-| threshold01-marker-only-placement | impl_opt | expected_delta 0.1-1.0: remove per-placement shifted-count and inside-grid validation, relying on target marker count/color match to imply the transformed component is fully in-bounds; failure would show marker matches can accept partial or out-of-grid template placements. | promoted |
 | threshold01-remove-noops-unused-counts | impl_opt | expected_delta 0.1-1.0: after the marker-only placement promotion, remove full-30 crop/no-op Pad plus unused component base/count tensors; failure would show one of these apparently dead dense tensors still affects public-rule output shape or invalid-cell masking. | promoted |
 | threshold01-color-match-only | impl_opt | expected_delta 0.1-1.0: replace shifted-base exclusion plus marker-mask construction with shifted-nonzero exact color matches counted against marker_count; failure showed overlapping source/base-color cells can create false placements without explicit base filtering. | fails_local |
+| dynamic-pad-slice-shift | impl_opt | expected_delta >=1.0: replace per-placement dense int32 source-index grids and Gather/Where shift with one zero-padded transformed color tensor per component/transform plus dynamic Slice per target; build failed because dynamic Slice output shape stayed symbolic. | build_failed |
+| dynamic-pad-slice-shift-static-reshape | impl_opt | expected_delta >=1.0: keep the dynamic Pad/Slice shift but add a static Reshape to `[1,1,30,30]` after each Slice so public rules see fixed shapes; build still failed because raw Slice intermediates remained symbolic in inferred value_info. | build_failed |
+| dynamic-pad-slice-shift-value-info | impl_opt | expected_delta >=1.0: keep dynamic Pad/Slice/Reshape and explicitly annotate raw Slice outputs as static `[1,1,30,30]` value_info to satisfy public-rule shape validation; this made the dynamic Slice shift public-compliant and cut dense shift memory. | promoted |
 
 ## Experiment Log
 | exp_id | mode | hypothesis_id | status | local_points | memory_bytes_approx | params | delta | decision | takeaway |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| exp015 | impl_opt | gather-1d-base-shift | passes_local | 9.138386119353912 | 7734904 | 2787 | 0.029341618218 | promoted | Auto promoted after canonical re-score. |
-| exp016 | impl_opt | broadcast-shift-grids | passes_local | 9.190307494431744 | 7345144 | 1047 | 0.0519213750778 | promoted | Auto promoted after canonical re-score. |
-| exp017 | impl_opt | int32-gather-indices | passes_local | 9.306584234263804 | 6538744 | 1047 | 0.116276739832 | promoted | Auto promoted after canonical re-score. |
 | exp018 | rule_redesign | size24-internal-crop | passes_local | 9.74129999340989 | 4233460 | 719 | 0.434715759146 | promoted | Auto promoted after canonical re-score. |
 | exp024 | impl_opt | color-grid-candidates | passes_local | 11.130734480039619 | 1054516 | 710 | 1.38943448663 | promoted | Auto promoted after canonical re-score. |
 | exp025 | impl_opt | f16-shared-shift-bool-output | passes_local | 11.669484889100698 | 614988 | 712 | 0.538750409061 | promoted | Auto promoted after canonical re-score. |
@@ -44,6 +41,9 @@ Keep at most 5 active rows. Use `impl_opt` for implementation/cost changes and `
 | exp043 | impl_opt | threshold01-marker-only-placement | passes_local | 12.007968567487396 | 436948 | 1954 | 0.127187004748 | promoted | Auto promoted after canonical re-score. |
 | exp044 | impl_opt | threshold01-remove-noops-unused-counts | passes_local | 12.10935684866074 | 394644 | 1940 | 0.101388281173 | promoted | Auto promoted after canonical re-score. |
 | exp045 | impl_opt | threshold01-color-match-only | fails_local | 0.0 | 351444 | 1940 | -12.1093568487 | fails_local | Candidate did not pass local validation. |
+| exp046 | impl_opt | dynamic-pad-slice-shift | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp047 | impl_opt | dynamic-pad-slice-shift-static-reshape | build_failed |  |  |  |  | build_failed | Candidate did not build. |
+| exp048 | impl_opt | dynamic-pad-slice-shift-value-info | passes_local | 12.337959264188555 | 313588 | 1952 | 0.228602415528 | promoted | Auto promoted after canonical re-score. |
 
 ## Archived Summary
 - None yet.

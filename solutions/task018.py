@@ -9,6 +9,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 SIZE = 30
 GRID_SIZE = 30
 GROW_STEPS = 8
+SHIFT_PAD = SIZE - 1
 TRANSFORMS = ("vflip", "transpose", "trans_hflip", "trans_vflip")
 
 
@@ -184,6 +185,30 @@ def _static_shift_color_base(
     )
 
 
+def _dynamic_slice_shift_color(
+    nodes: list[onnx.NodeProto],
+    padded_color_source: str,
+    dr: str,
+    dc: str,
+    color_output: str,
+) -> None:
+    prefix = f"{color_output}_slice"
+    nodes.extend(
+        [
+            helper.make_node("Sub", ["shift_pad_i64", dr], [f"{prefix}_start_r"]),
+            helper.make_node("Sub", ["shift_pad_i64", dc], [f"{prefix}_start_c"]),
+            helper.make_node("Concat", [f"{prefix}_start_r", f"{prefix}_start_c"], [f"{prefix}_starts"], axis=0),
+            helper.make_node("Add", [f"{prefix}_starts", "slice_hw_size"], [f"{prefix}_ends"]),
+            helper.make_node(
+                "Slice",
+                [padded_color_source, f"{prefix}_starts", f"{prefix}_ends", "slice_hw_axes"],
+                [f"{prefix}_raw"],
+            ),
+            helper.make_node("Reshape", [f"{prefix}_raw", "shape_1x1x30x30"], [color_output]),
+        ]
+    )
+
+
 def _flat_position(nodes: list[onnx.NodeProto], flat_index: str, prefix: str) -> tuple[str, str]:
     nodes.extend(
         [
@@ -224,10 +249,9 @@ def _component_outputs(
 
     for transform in TRANSFORMS:
         transformed_color = _transform_tensor(nodes, f"{prefix}_color", f"{prefix}_{transform}_color", transform)
-        nodes.extend(
-            [
-                helper.make_node("Reshape", [transformed_color, "shape_flat900"], [f"{prefix}_{transform}_color_flat"]),
-            ]
+        padded_color = f"{prefix}_{transform}_color_padded"
+        nodes.append(
+            helper.make_node("Pad", [transformed_color, "shift_pads", "zero_u8"], [padded_color], mode="constant")
         )
         transformed_row, transformed_col = _transform_point(
             nodes, source_row, source_col, f"{prefix}_{transform}_source_anchor", transform
@@ -239,15 +263,13 @@ def _component_outputs(
                 [
                     helper.make_node("Sub", [target_row, transformed_row], [f"{place}_dr"]),
                     helper.make_node("Sub", [target_col, transformed_col], [f"{place}_dc"]),
-                    helper.make_node("Cast", [f"{place}_dr"], [f"{place}_dr_i32"], to=onnx.TensorProto.INT32),
-                    helper.make_node("Cast", [f"{place}_dc"], [f"{place}_dc_i32"], to=onnx.TensorProto.INT32),
                 ]
             )
-            _static_shift_color_base(
+            _dynamic_slice_shift_color(
                 nodes,
-                f"{prefix}_{transform}_color_flat",
-                f"{place}_dr_i32",
-                f"{place}_dc_i32",
+                padded_color,
+                f"{place}_dr",
+                f"{place}_dc",
                 f"{place}_shifted_color",
             )
 
@@ -296,6 +318,10 @@ def build_model() -> onnx.ModelProto:
         _int32_tensor("size_i32", [SIZE], [1]),
         _int32_tensor("width_i32", [SIZE], [1]),
         _int64_tensor("k2", [2], [1]),
+        _int64_tensor("shift_pad_i64", [SHIFT_PAD], [1]),
+        _int64_tensor("shift_pads", [0, 0, SHIFT_PAD, SHIFT_PAD, 0, 0, SHIFT_PAD, SHIFT_PAD], [8]),
+        _int64_tensor("slice_hw_axes", [2, 3], [2]),
+        _int64_tensor("slice_hw_size", [SIZE, SIZE], [2]),
         _int64_tensor("shape1111", [1, 1, 1, 1], [4]),
         _int64_tensor("shape_flat900", [SIZE * SIZE], [1]),
         _int64_tensor("shape_1x1x30x30", [1, 1, SIZE, SIZE], [4]),
@@ -392,6 +418,12 @@ def build_model() -> onnx.ModelProto:
     )
 
     graph = helper.make_graph(nodes, "task018_template_copy_graph", [x], [y], initializers)
+    for node in graph.node:
+        for output_name in node.output:
+            if output_name.endswith("_slice_raw"):
+                graph.value_info.append(
+                    helper.make_tensor_value_info(output_name, onnx.TensorProto.UINT8, [1, 1, SIZE, SIZE])
+                )
     _dedupe_initializers(graph)
     model = helper.make_model(graph, ir_version=IR_VERSION, opset_imports=[helper.make_opsetid("", 12)])
     assert list(model.graph.output[0].type.tensor_type.shape.dim[i].dim_value for i in range(4)) == GRID_SHAPE
