@@ -7,7 +7,7 @@ from neurogolf_onnx import GRID_SHAPE, IR_VERSION, make_io_value_infos
 
 
 CHANNELS = 10
-KERNEL_H = 10
+KERNEL_H = 9
 MID = 5
 GATE = 10.0
 EPS = 0.25
